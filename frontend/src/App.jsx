@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import TopbarGuest from './components/layout/TopbarGuest'
 import Footer from './components/layout/Footer'
 
 function App() {
@@ -30,12 +31,15 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900 transition-colors duration-200">
-      {/* Main completamente vacío */}
-      <main className="flex-grow">
+      {/* Solo TopbarGuest (versión simplificada) */}
+      <TopbarGuest />
+
+      {/* Main completamente vacío con fondo blanco */}
+      <main className="flex-grow pt-16 bg-white dark:bg-gray-900">
         {/* Espacio vacío intencional */}
       </main>
 
-      {/* Solo Footer */}
+      {/* Footer */}
       <Footer />
     </div>
   )
