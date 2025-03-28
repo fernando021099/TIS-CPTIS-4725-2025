@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import TopbarGuest from './components/layout/TopbarGuest'
+import Navbar from './components/layout/Navbar'
 import Footer from './components/layout/Footer'
 
 function App() {
@@ -31,12 +32,18 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900 transition-colors duration-200">
-      {/* Solo TopbarGuest (versión simplificada) */}
+      {/* Topbar */}
       <TopbarGuest />
 
-      {/* Main completamente vacío con fondo blanco */}
-      <main className="flex-grow pt-16 bg-white dark:bg-gray-900">
-        {/* Espacio vacío intencional */}
+      {/* Navbar */}
+      <Navbar />
+
+      {/* Main con espacio ajustado para el Navbar */}
+      <main className="flex-grow pt-[7.5rem] bg-white dark:bg-gray-900">
+        {/* 
+          pt-[7.5rem] = 64px (Topbar) + 56px (Navbar) + 1px (borde)
+          Espacio vacío para contenido futuro 
+        */}
       </main>
 
       {/* Footer */}
