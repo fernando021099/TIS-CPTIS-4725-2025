@@ -56,17 +56,16 @@ export default function Navbar() {
 
   return (
     <div ref={navRef}>
-      {/* Navbar Desktop */}
+      {/* Navbar Desktop - Modificado para solo responder a clics */}
       <nav className={`hidden md:block bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-40 transition-all ${isScrolled ? 'shadow-sm dark:shadow-gray-900' : ''}`}>
         <div className="container mx-auto px-4">
           <div className="flex justify-center">
             {menuItems.map((item, index) => (
-              <div key={index} className="relative group">
+              <div key={index} className="relative">
                 {item.hasDropdown ? (
                   <div className="relative">
                     <button
                       onClick={() => toggleDropdown(index)}
-                      onMouseEnter={() => setActiveDropdown(index)}
                       className={`px-5 py-4 flex items-center font-medium hover:text-red-600 dark:hover:text-red-500 transition-colors ${
                         activeDropdown === index ? 'text-red-600 dark:text-red-500' : 'text-gray-800 dark:text-gray-200'
                       }`}
@@ -78,10 +77,7 @@ export default function Navbar() {
                     </button>
 
                     {activeDropdown === index && (
-                      <div 
-                        className="absolute left-1/2 transform -translate-x-1/2 mt-0 w-56 bg-white dark:bg-gray-700 shadow-lg rounded-b-md z-50 border border-gray-100 dark:border-gray-600"
-                        onMouseLeave={() => setActiveDropdown(null)}
-                      >
+                      <div className="absolute left-1/2 transform -translate-x-1/2 mt-0 w-56 bg-white dark:bg-gray-700 shadow-lg rounded-b-md z-50 border border-gray-100 dark:border-gray-600">
                         {item.dropdownItems.map((dropdownItem, dropIndex) => (
                           <a
                             key={dropIndex}
@@ -109,7 +105,7 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu - Se mantiene igual */}
       <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-40">
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
