@@ -3,7 +3,6 @@ import { MapPin, Phone, Mail, Facebook, Twitter, Instagram } from "lucide-react"
 export default function Footer() {
   const currentYear = new Date().getFullYear()
 
-  // Datos organizados para mejor mantenimiento
   const footerData = {
     logo: {
       title: "Olimpiadas San Simón",
@@ -40,9 +39,8 @@ export default function Footer() {
   }
 
   return (
-    <footer className="bg-white text-gray-800 border-t border-gray-200">
+    <footer className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-t border-gray-200 dark:border-gray-700 transition-colors duration-200">
       <div className="container mx-auto px-4 py-8">
-        {/* Contenido principal */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           
           {/* Logo y descripción */}
@@ -51,9 +49,9 @@ export default function Footer() {
               <div className="bg-red-600 rounded-full p-2">
                 {footerData.logo.icon}
               </div>
-              <h2 className="text-xl font-bold">{footerData.logo.title}</h2>
+              <h2 className="text-xl font-bold dark:text-white">{footerData.logo.title}</h2>
             </div>
-            <p className="text-gray-600 text-sm">{footerData.logo.description}</p>
+            <p className="text-gray-600 dark:text-gray-300 text-sm">{footerData.logo.description}</p>
             
             {/* Redes sociales */}
             <div className="flex gap-4 pt-2">
@@ -62,7 +60,7 @@ export default function Footer() {
                   key={index} 
                   href={social.url} 
                   aria-label={social.label}
-                  className="text-gray-500 hover:text-red-600 transition-colors"
+                  className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-500 transition-colors"
                 >
                   {social.icon}
                 </a>
@@ -73,11 +71,11 @@ export default function Footer() {
           {/* Columnas de enlaces */}
           {footerData.links.map((section, index) => (
             <div key={index} className="space-y-4">
-              <h3 className="font-semibold text-lg">{section.title}</h3>
+              <h3 className="font-semibold text-lg dark:text-white">{section.title}</h3>
               <ul className="space-y-2">
                 {section.items.map((item, itemIndex) => (
                   <li key={itemIndex}>
-                    <a href="#" className="text-gray-600 hover:text-red-600 transition-colors">
+                    <a href="#" className="text-gray-600 dark:text-gray-300 hover:text-red-600 transition-colors">
                       {item}
                     </a>
                   </li>
@@ -88,12 +86,12 @@ export default function Footer() {
 
           {/* Contacto */}
           <div className="space-y-4">
-            <h3 className="font-semibold text-lg">{footerData.contact.title}</h3>
+            <h3 className="font-semibold text-lg dark:text-white">{footerData.contact.title}</h3>
             <ul className="space-y-3">
               {footerData.contact.items.map((item, index) => (
                 <li key={index} className="flex gap-2">
-                  <span className="text-red-600 mt-0.5">{item.icon}</span>
-                  <span className="text-gray-600">{item.text}</span>
+                  <span className="text-red-600 dark:text-red-500 mt-0.5">{item.icon}</span>
+                  <span className="text-gray-600 dark:text-gray-300">{item.text}</span>
                 </li>
               ))}
             </ul>
@@ -101,15 +99,15 @@ export default function Footer() {
         </div>
 
         {/* Copyright */}
-        <div className="border-t border-gray-200 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-gray-500 text-sm text-center md:text-left">
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-gray-500 dark:text-gray-400 text-sm text-center md:text-left">
             © {currentYear} Universidad Mayor de San Simón - Olimpiadas de Ciencia y Tecnología. Todos los derechos reservados.
           </p>
           <div className="flex gap-4">
-            <a href="#" className="text-gray-500 hover:text-red-600 text-sm transition-colors">
+            <a href="#" className="text-gray-500 dark:text-gray-400 hover:text-red-600 text-sm transition-colors">
               Políticas de Privacidad
             </a>
-            <a href="#" className="text-gray-500 hover:text-red-600 text-sm transition-colors">
+            <a href="#" className="text-gray-500 dark:text-gray-400 hover:text-red-600 text-sm transition-colors">
               Términos de Uso
             </a>
           </div>
