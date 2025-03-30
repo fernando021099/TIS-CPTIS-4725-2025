@@ -7,8 +7,7 @@ const AreaRegistration = ({ onBack }) => {
   // State for form fields
   const [formData, setFormData] = useState({
     name: "",
-    level: "",
-    category: "",
+    categoryLevel: "", // Combinación de categoría/nivel
     cost: "",
     description: "",
   })
@@ -19,8 +18,7 @@ const AreaRegistration = ({ onBack }) => {
     { 
       id: 1, 
       name: "Matemáticas", 
-      level: "Básico", 
-      category: "Ciencias Exactas",
+      categoryLevel: "Ciencias Exactas - Básico",
       cost: 50, 
       description: "Fundamentos de matemáticas",
       isActive: true
@@ -28,8 +26,7 @@ const AreaRegistration = ({ onBack }) => {
     { 
       id: 2, 
       name: "Robótica", 
-      level: "Intermedio", 
-      category: "Tecnología",
+      categoryLevel: "Tecnología - Intermedio",
       cost: 75, 
       description: "Introducción a la robótica",
       isActive: true
@@ -40,31 +37,38 @@ const AreaRegistration = ({ onBack }) => {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 8
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCategories, setSelectedCategories] = useState([])
+  const [selectedLevels, setSelectedLevels] = useState([])
 
-  // Categories from specification
-  const categories = [
-    "Ciencias Exactas",
-    "Ciencias Naturales",
-    "Tecnología",
-    "Ingeniería"
+  // Opciones combinadas de categoría/nivel según especificaciones
+  const categoryLevelOptions = [
+    "Informática - Básico",
+    "Informática - Intermedio",
+    "Informática - Avanzado",
+    "Robótica - Básico",
+    "Robótica - Intermedio",
+    "Robótica - Avanzado",
+    "Ciencias Exactas - Básico",
+    "Ciencias Exactas - Intermedio",
+    "Ciencias Naturales - Básico",
+    "Ciencias Naturales - Intermedio",
+    "Ingeniería - Básico",
+    "Ingeniería - Intermedio"
   ]
 
-  // Filter areas by search term and categories
+  // Filter areas by search term and selected levels
   const filteredAreas = areas.filter(area => {
     const matchesSearch = area.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          area.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = selectedCategories.length === 0 || 
-                          selectedCategories.includes(area.category)
-    return matchesSearch && matchesCategory
+    const matchesLevel = selectedLevels.length === 0 || 
+                        selectedLevels.some(level => area.categoryLevel.includes(level))
+    return matchesSearch && matchesLevel
   })
 
   // Form validation
   useEffect(() => {
     const newErrors = {}
     if (!formData.name.trim()) newErrors.name = "Nombre requerido"
-    if (!formData.level) newErrors.level = "Seleccione un nivel"
-    if (!formData.category) newErrors.category = "Seleccione categoría"
+    if (!formData.categoryLevel) newErrors.categoryLevel = "Seleccione categoría/nivel"
     if (!formData.cost || Number(formData.cost) <= 0) newErrors.cost = "Costo inválido"
     
     setErrors(newErrors)
@@ -83,8 +87,7 @@ const AreaRegistration = ({ onBack }) => {
     const newArea = {
       id: areas.length + 1,
       name: formData.name,
-      level: formData.level,
-      category: formData.category,
+      categoryLevel: formData.categoryLevel,
       cost: Number(formData.cost),
       description: formData.description,
       isActive: true
@@ -94,8 +97,7 @@ const AreaRegistration = ({ onBack }) => {
     setShowModal(true)
     setFormData({ 
       name: "", 
-      level: "", 
-      category: "",
+      categoryLevel: "",
       cost: "", 
       description: "" 
     })
@@ -110,8 +112,7 @@ const AreaRegistration = ({ onBack }) => {
   const handleEdit = (area) => {
     setFormData({
       name: area.name,
-      level: area.level,
-      category: area.category,
+      categoryLevel: area.categoryLevel,
       cost: area.cost.toString(),
       description: area.description || "",
     })
@@ -130,6 +131,14 @@ const AreaRegistration = ({ onBack }) => {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentAreas = filteredAreas.slice(indexOfFirstItem, indexOfLastItem)
   const totalPages = Math.ceil(filteredAreas.length / itemsPerPage)
+
+  // Obtener niveles únicos para los filtros
+  const uniqueLevels = [...new Set(
+    categoryLevelOptions.map(opt => {
+      const parts = opt.split(" - ")
+      return parts.length > 1 ? parts[1] : opt
+    })
+  )]
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900 transition-colors duration-200">
@@ -188,46 +197,25 @@ const AreaRegistration = ({ onBack }) => {
                     {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
                   </div>
 
-                  {/* Category Field */}
-                  <div>
+                  {/* Category/Level Field */}
+                  <div className="md:col-span-2">
                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Categoría <span className="text-red-600">*</span>
+                      Categoría/Nivel <span className="text-red-600">*</span>
                     </label>
                     <select
-                      name="category"
-                      value={formData.category}
+                      name="categoryLevel"
+                      value={formData.categoryLevel}
                       onChange={handleChange}
                       className={`w-full px-3 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                        errors.category ? "border-red-500" : "border-gray-300"
+                        errors.categoryLevel ? "border-red-500" : "border-gray-300"
                       }`}
                     >
-                      <option value="">Seleccione categoría</option>
-                      {categories.map((cat, index) => (
-                        <option key={index} value={cat}>{cat}</option>
+                      <option value="">Seleccione categoría/nivel</option>
+                      {categoryLevelOptions.map((option, index) => (
+                        <option key={index} value={option}>{option}</option>
                       ))}
                     </select>
-                    {errors.category && <p className="mt-1 text-xs text-red-600">{errors.category}</p>}
-                  </div>
-
-                  {/* Level Field */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Nivel <span className="text-red-600">*</span>
-                    </label>
-                    <select
-                      name="level"
-                      value={formData.level}
-                      onChange={handleChange}
-                      className={`w-full px-3 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                        errors.level ? "border-red-500" : "border-gray-300"
-                      }`}
-                    >
-                      <option value="">Seleccione nivel</option>
-                      <option value="Básico">Básico</option>
-                      <option value="Intermedio">Intermedio</option>
-                      <option value="Avanzado">Avanzado</option>
-                    </select>
-                    {errors.level && <p className="mt-1 text-xs text-red-600">{errors.level}</p>}
+                    {errors.categoryLevel && <p className="mt-1 text-xs text-red-600">{errors.categoryLevel}</p>}
                   </div>
 
                   {/* Cost Field */}
@@ -272,8 +260,7 @@ const AreaRegistration = ({ onBack }) => {
                       type="button"
                       onClick={() => setFormData({
                         name: "",
-                        level: "",
-                        category: "",
+                        categoryLevel: "",
                         cost: "",
                         description: "",
                       })}
@@ -317,28 +304,28 @@ const AreaRegistration = ({ onBack }) => {
                   />
                 </div>
                 
-                {/* Category Filter */}
+                {/* Level Filter */}
                 <div className="flex flex-wrap gap-1 md:gap-2">
-                  {categories.map(category => (
+                  {uniqueLevels.map(level => (
                     <button
-                      key={category}
+                      key={level}
                       onClick={() => {
-                        if (selectedCategories.includes(category)) {
-                          setSelectedCategories(selectedCategories.filter(c => c !== category))
+                        if (selectedLevels.includes(level)) {
+                          setSelectedLevels(selectedLevels.filter(l => l !== level))
                         } else {
-                          setSelectedCategories([...selectedCategories, category])
+                          setSelectedLevels([...selectedLevels, level])
                         }
                       }}
                       className={`px-2 py-1 rounded-md text-xs flex items-center ${
-                        selectedCategories.includes(category)
+                        selectedLevels.includes(level)
                           ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
                       }`}
                     >
-                      {selectedCategories.includes(category) && (
+                      {selectedLevels.includes(level) && (
                         <Check className="h-3 w-3 mr-1" />
                       )}
-                      {category}
+                      {level}
                     </button>
                   ))}
                 </div>
@@ -356,10 +343,7 @@ const AreaRegistration = ({ onBack }) => {
                             Nombre
                           </th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Categoría
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Nivel
+                            Categoría/Nivel
                           </th>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             Costo (Bs.)
@@ -386,10 +370,7 @@ const AreaRegistration = ({ onBack }) => {
                               )}
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap text-gray-500 dark:text-gray-400">
-                              {area.category}
-                            </td>
-                            <td className="px-3 py-2 whitespace-nowrap text-gray-500 dark:text-gray-400">
-                              {area.level}
+                              {area.categoryLevel}
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap text-gray-500 dark:text-gray-400">
                               {area.cost.toFixed(2)}
@@ -480,7 +461,7 @@ const AreaRegistration = ({ onBack }) => {
               ) : (
                 <div className="text-center py-6 text-sm">
                   <p className="text-gray-500 dark:text-gray-400">
-                    {searchTerm || selectedCategories.length > 0
+                    {searchTerm || selectedLevels.length > 0
                       ? "No se encontraron áreas con los filtros aplicados"
                       : "No hay áreas registradas"}
                   </p>
