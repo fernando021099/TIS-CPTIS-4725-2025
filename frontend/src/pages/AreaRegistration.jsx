@@ -1,17 +1,18 @@
 "use client"
-
 import { useState, useEffect } from "react"
 import { X, Edit, Trash2, ChevronLeft, ChevronRight, Plus, Check } from "lucide-react"
 
 const AreaRegistration = ({ onBack }) => {
-  // State for form fields
   const [formData, setFormData] = useState({
+    id: null,
+    categoryLevel: "",
     name: "",
-    categoryLevel: "", // Combinación de categoría/nivel
+    customName: "",
     cost: "",
     description: "",
   })
 
+  const [showCustomNameInput, setShowCustomNameInput] = useState(false)
   const [errors, setErrors] = useState({})
   const [isFormValid, setIsFormValid] = useState(false)
   const [areas, setAreas] = useState([
@@ -39,23 +40,35 @@ const AreaRegistration = ({ onBack }) => {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedLevels, setSelectedLevels] = useState([])
 
-  // Opciones combinadas de categoría/nivel según especificaciones
   const categoryLevelOptions = [
+    "Ciencias Exactas - Básico",
+    "Ciencias Exactas - Intermedio",
+    "Tecnología - Básico",
+    "Tecnología - Intermedio",
+    "Tecnología - Avanzado",
     "Informática - Básico",
     "Informática - Intermedio",
     "Informática - Avanzado",
-    "Robótica - Básico",
-    "Robótica - Intermedio",
-    "Robótica - Avanzado",
-    "Ciencias Exactas - Básico",
-    "Ciencias Exactas - Intermedio",
     "Ciencias Naturales - Básico",
     "Ciencias Naturales - Intermedio",
     "Ingeniería - Básico",
     "Ingeniería - Intermedio"
   ]
 
-  // Filter areas by search term and selected levels
+  const categoryToAreas = {
+    "Ciencias Exactas": ["Matemáticas", "Física", "Química"],
+    "Tecnología": ["Robótica", "Programación", "Electrónica"],
+    "Informática": ["Algoritmos", "Bases de Datos", "Redes"],
+    "Ciencias Naturales": ["Biología", "Geología", "Ecología"],
+    "Ingeniería": ["Civil", "Mecánica", "Eléctrica"]
+  }
+
+  const getAreaOptions = () => {
+    if (!formData.categoryLevel) return []
+    const category = formData.categoryLevel.split(" - ")[0]
+    return categoryToAreas[category] || []
+  }
+
   const filteredAreas = areas.filter(area => {
     const matchesSearch = area.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          area.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -64,43 +77,103 @@ const AreaRegistration = ({ onBack }) => {
     return matchesSearch && matchesLevel
   })
 
-  // Form validation
-  useEffect(() => {
-    const newErrors = {}
-    if (!formData.name.trim()) newErrors.name = "Nombre requerido"
-    if (!formData.categoryLevel) newErrors.categoryLevel = "Seleccione categoría/nivel"
-    if (!formData.cost || Number(formData.cost) <= 0) newErrors.cost = "Costo inválido"
-    
-    setErrors(newErrors)
-    setIsFormValid(Object.keys(newErrors).length === 0)
-  }, [formData])
+  const handleCategoryLevelChange = (e) => {
+    const value = e.target.value
+    setFormData(prev => ({ 
+      ...prev, 
+      categoryLevel: value,
+      name: "",
+      customName: ""
+    }))
+    setShowCustomNameInput(false)
+  }
+
+  const handleNameChange = (e) => {
+    const value = e.target.value
+    setFormData(prev => ({ 
+      ...prev, 
+      name: value,
+      customName: value === "Otro" ? prev.customName : ""
+    }))
+    setShowCustomNameInput(value === "Otro")
+  }
+
+  const handleCustomNameChange = (e) => {
+    const value = e.target.value
+    setFormData(prev => ({ ...prev, customName: value }))
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  useEffect(() => {
+    const newErrors = {}
+    const finalName = formData.name === "Otro" ? formData.customName : formData.name
+    
+    if (!formData.categoryLevel) {
+      newErrors.categoryLevel = "Seleccione categoría/nivel"
+    }
+    
+    if (!finalName.trim()) {
+      newErrors.name = "Nombre de área requerido"
+    } else if (
+      formData.name === "Otro" && 
+      !formData.customName.trim()
+    ) {
+      newErrors.name = "Debe ingresar un nombre"
+    } else if (
+      areas.some(a => 
+        a.id !== formData.id && 
+        a.name.toLowerCase() === finalName.toLowerCase() &&
+        a.categoryLevel === formData.categoryLevel
+      )
+    ) {
+      newErrors.name = "Ya existe un área con este nombre y categoría"
+    }
+    
+    if (!formData.cost || Number(formData.cost) <= 0) {
+      newErrors.cost = "Costo inválido"
+    }
+    
+    setErrors(newErrors)
+    setIsFormValid(Object.keys(newErrors).length === 0)
+  }, [formData, areas])
+
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!isFormValid) return
 
+    const finalName = formData.name === "Otro" ? formData.customName : formData.name
+
     const newArea = {
-      id: areas.length + 1,
-      name: formData.name,
+      id: formData.id || areas.length + 1,
+      name: finalName,
       categoryLevel: formData.categoryLevel,
       cost: Number(formData.cost),
       description: formData.description,
       isActive: true
     }
 
-    setAreas([...areas, newArea])
+    if (formData.id) {
+      setAreas(areas.map(area => 
+        area.id === formData.id ? newArea : area
+      ))
+    } else {
+      setAreas([...areas, newArea])
+    }
+
     setShowModal(true)
     setFormData({ 
-      name: "", 
+      id: null,
       categoryLevel: "",
+      name: "", 
+      customName: "",
       cost: "", 
       description: "" 
     })
+    setShowCustomNameInput(false)
     
     setTimeout(() => setShowModal(false), 3000)
   }
@@ -110,13 +183,20 @@ const AreaRegistration = ({ onBack }) => {
   }
 
   const handleEdit = (area) => {
+    const categoryParts = area.categoryLevel.split(" - ")
+    const category = categoryParts[0]
+    const areaOptions = categoryToAreas[category] || []
+    const isPredefinedArea = areaOptions.includes(area.name)
+    
     setFormData({
-      name: area.name,
+      id: area.id,
       categoryLevel: area.categoryLevel,
+      name: isPredefinedArea ? area.name : "Otro",
+      customName: isPredefinedArea ? "" : area.name,
       cost: area.cost.toString(),
       description: area.description || "",
     })
-    setAreas(areas.filter(a => a.id !== area.id))
+    setShowCustomNameInput(!isPredefinedArea)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
@@ -126,13 +206,11 @@ const AreaRegistration = ({ onBack }) => {
     ))
   }
 
-  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentAreas = filteredAreas.slice(indexOfFirstItem, indexOfLastItem)
   const totalPages = Math.ceil(filteredAreas.length / itemsPerPage)
 
-  // Obtener niveles únicos para los filtros
   const uniqueLevels = [...new Set(
     categoryLevelOptions.map(opt => {
       const parts = opt.split(" - ")
@@ -145,7 +223,6 @@ const AreaRegistration = ({ onBack }) => {
       <main className="flex-grow pt-12 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           
-          {/* Header Section */}
           <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-3 px-4 sm:px-6 lg:px-8 mb-3 rounded-lg">
             <div className="flex justify-between items-center">
               <div className="flex items-center">
@@ -168,7 +245,6 @@ const AreaRegistration = ({ onBack }) => {
             </p>
           </div>
 
-          {/* Form Card */}
           <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg mb-3 overflow-hidden border border-gray-200 dark:border-gray-700">
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-md font-semibold text-gray-900 dark:text-white">
@@ -179,25 +255,6 @@ const AreaRegistration = ({ onBack }) => {
             <div className="p-4">
               <form onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* Name Field */}
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Nombre del área <span className="text-red-600">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={handleChange}
-                      name="name"
-                      className={`w-full px-3 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                        errors.name ? "border-red-500" : "border-gray-300"
-                      }`}
-                      placeholder="Ej: Matemáticas, Robótica"
-                    />
-                    {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
-                  </div>
-
-                  {/* Category/Level Field */}
                   <div className="md:col-span-2">
                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Categoría/Nivel <span className="text-red-600">*</span>
@@ -205,7 +262,7 @@ const AreaRegistration = ({ onBack }) => {
                     <select
                       name="categoryLevel"
                       value={formData.categoryLevel}
-                      onChange={handleChange}
+                      onChange={handleCategoryLevelChange}
                       className={`w-full px-3 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
                         errors.categoryLevel ? "border-red-500" : "border-gray-300"
                       }`}
@@ -215,10 +272,75 @@ const AreaRegistration = ({ onBack }) => {
                         <option key={index} value={option}>{option}</option>
                       ))}
                     </select>
-                    {errors.categoryLevel && <p className="mt-1 text-xs text-red-600">{errors.categoryLevel}</p>}
+                    {errors.categoryLevel && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center">
+                        <X className="h-3 w-3 mr-1" />
+                        {errors.categoryLevel}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Cost Field */}
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Área <span className="text-red-600">*</span>
+                    </label>
+                    <select
+                      value={formData.name}
+                      onChange={handleNameChange}
+                      name="name"
+                      disabled={!formData.categoryLevel}
+                      className={`w-full px-3 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                        errors.name ? "border-red-500" : "border-gray-300"
+                      } ${
+                        !formData.categoryLevel ? "bg-gray-100 dark:bg-gray-600 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      <option value="">{formData.categoryLevel ? "Seleccione un área" : "Seleccione categoría primero"}</option>
+                      {getAreaOptions().map((area, index) => (
+                        <option key={index} value={area}>{area}</option>
+                      ))}
+                      <option value="Otro">Otro (especificar)</option>
+                    </select>
+                    
+                    {showCustomNameInput && (
+                      <div className="mt-2">
+                        <input
+                          type="text"
+                          value={formData.customName}
+                          onChange={handleCustomNameChange}
+                          name="customName"
+                          placeholder="Ingrese el nombre del área"
+                          className={`w-full px-3 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                            errors.name && formData.name === "Otro" ? "border-red-500" : "border-gray-300"
+                          }`}
+                        />
+                      </div>
+                    )}
+                    
+                    {errors.name && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center">
+                        <X className="h-3 w-3 mr-1" />
+                        {errors.name}
+                        {errors.name.includes("ya existe") && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const finalName = formData.name === "Otro" ? formData.customName : formData.name
+                              const existing = areas.find(a => 
+                                a.name.toLowerCase() === finalName.toLowerCase() &&
+                                a.categoryLevel === formData.categoryLevel
+                              )
+                              if (existing) handleEdit(existing)
+                            }}
+                            className="ml-2 text-xs text-blue-600 hover:underline"
+                          >
+                            ¿Editar área existente?
+                          </button>
+                        )}
+                      </p>
+                    )}
+                  </div>
+
                   <div>
                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Costo (Bs.) <span className="text-red-600">*</span>
@@ -235,10 +357,14 @@ const AreaRegistration = ({ onBack }) => {
                       }`}
                       placeholder="Ej: 50.00"
                     />
-                    {errors.cost && <p className="mt-1 text-xs text-red-600">{errors.cost}</p>}
+                    {errors.cost && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center">
+                        <X className="h-3 w-3 mr-1" />
+                        {errors.cost}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Description Field */}
                   <div className="md:col-span-2">
                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Descripción (opcional)
@@ -258,12 +384,17 @@ const AreaRegistration = ({ onBack }) => {
                   {formData.id && (
                     <button
                       type="button"
-                      onClick={() => setFormData({
-                        name: "",
-                        categoryLevel: "",
-                        cost: "",
-                        description: "",
-                      })}
+                      onClick={() => {
+                        setFormData({
+                          id: null,
+                          categoryLevel: "",
+                          name: "",
+                          customName: "",
+                          cost: "",
+                          description: "",
+                        })
+                        setShowCustomNameInput(false)
+                      }}
                       className="px-4 py-1 rounded-md text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                     >
                       Cancelar
@@ -285,7 +416,6 @@ const AreaRegistration = ({ onBack }) => {
             </div>
           </div>
 
-          {/* Areas Table Card */}
           <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <h2 className="text-md font-semibold text-gray-900 dark:text-white">
@@ -293,7 +423,6 @@ const AreaRegistration = ({ onBack }) => {
               </h2>
               
               <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                {/* Search Input */}
                 <div className="relative flex-grow">
                   <input
                     type="text"
@@ -304,7 +433,6 @@ const AreaRegistration = ({ onBack }) => {
                   />
                 </div>
                 
-                {/* Level Filter */}
                 <div className="flex flex-wrap gap-1 md:gap-2">
                   {uniqueLevels.map(level => (
                     <button
@@ -409,7 +537,6 @@ const AreaRegistration = ({ onBack }) => {
                     </table>
                   </div>
 
-                  {/* Pagination */}
                   {totalPages > 1 && (
                     <div className="mt-2 flex items-center justify-between px-2 py-1">
                       <div className="text-xs text-gray-700 dark:text-gray-300">
@@ -472,7 +599,6 @@ const AreaRegistration = ({ onBack }) => {
         </div>
       </main>
 
-      {/* Success Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 max-w-md w-full shadow-xl text-sm">
