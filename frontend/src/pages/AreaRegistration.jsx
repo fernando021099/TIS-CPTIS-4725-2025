@@ -5,14 +5,16 @@ import { X, Edit, Trash2, ChevronLeft, ChevronRight, Plus, Check } from "lucide-
 const AreaRegistration = ({ onBack }) => {
   const [formData, setFormData] = useState({
     id: null,
-    categoryLevel: "",
     name: "",
     customName: "",
+    categoryLevel: "",
+    customCategory: "",
     cost: "",
     description: "",
   })
 
   const [showCustomNameInput, setShowCustomNameInput] = useState(false)
+  const [showCustomCategoryInput, setShowCustomCategoryInput] = useState(false)
   const [errors, setErrors] = useState({})
   const [isFormValid, setIsFormValid] = useState(false)
   const [areas, setAreas] = useState([
@@ -40,33 +42,32 @@ const AreaRegistration = ({ onBack }) => {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedLevels, setSelectedLevels] = useState([])
 
-  const categoryLevelOptions = [
-    "Ciencias Exactas - Básico",
-    "Ciencias Exactas - Intermedio",
-    "Tecnología - Básico",
-    "Tecnología - Intermedio",
-    "Tecnología - Avanzado",
-    "Informática - Básico",
-    "Informática - Intermedio",
-    "Informática - Avanzado",
-    "Ciencias Naturales - Básico",
-    "Ciencias Naturales - Intermedio",
-    "Ingeniería - Básico",
-    "Ingeniería - Intermedio"
+  // Áreas principales según la imagen proporcionada
+  const areaOptions = [
+    "ASTRONOMÍA - ASTROFÍSICA",
+    "BIOLOGÍA",
+    "FÍSICA",
+    "INFORMÁTICA",
+    "MATEMÁTICAS",
+    "QUÍMICA",
+    "ROBÓTICA",
+    "Otro (especificar)"
   ]
 
-  const categoryToAreas = {
-    "Ciencias Exactas": ["Matemáticas", "Física", "Química"],
-    "Tecnología": ["Robótica", "Programación", "Electrónica"],
-    "Informática": ["Algoritmos", "Bases de Datos", "Redes"],
-    "Ciencias Naturales": ["Biología", "Geología", "Ecología"],
-    "Ingeniería": ["Civil", "Mecánica", "Eléctrica"]
+  // Niveles por área según la imagen proporcionada (solo códigos)
+  const areaToLevels = {
+    "ASTRONOMÍA - ASTROFÍSICA": ["3P", "4P", "5P", "6P", "1S", "2S", "3S", "4S", "5S", "6S"],
+    "BIOLOGÍA": ["2S", "3S", "4S", "5S", "6S"],
+    "FÍSICA": ["4S", "5S", "6S"],
+    "INFORMÁTICA": ["Guacamayo", "Guanaco", "Londra", "Jucumari", "Bufeo", "Puma"],
+    "MATEMÁTICAS": ["Primer Nivel", "Segundo Nivel", "Tercer Nivel", "Cuarto Nivel", "Quinto Nivel", "Sexto Nivel"],
+    "QUÍMICA": ["2S", "3S", "4S", "5S", "6S"],
+    "ROBÓTICA": ["Builders P", "Builders S", "Lego P", "Lego S"]
   }
 
-  const getAreaOptions = () => {
-    if (!formData.categoryLevel) return []
-    const category = formData.categoryLevel.split(" - ")[0]
-    return categoryToAreas[category] || []
+  const getLevelOptions = () => {
+    if (!formData.name || formData.name === "Otro (especificar)") return []
+    return areaToLevels[formData.name] || []
   }
 
   const filteredAreas = areas.filter(area => {
@@ -77,25 +78,17 @@ const AreaRegistration = ({ onBack }) => {
     return matchesSearch && matchesLevel
   })
 
-  const handleCategoryLevelChange = (e) => {
-    const value = e.target.value
-    setFormData(prev => ({ 
-      ...prev, 
-      categoryLevel: value,
-      name: "",
-      customName: ""
-    }))
-    setShowCustomNameInput(false)
-  }
-
   const handleNameChange = (e) => {
     const value = e.target.value
     setFormData(prev => ({ 
       ...prev, 
       name: value,
-      customName: value === "Otro" ? prev.customName : ""
+      customName: value === "Otro (especificar)" ? prev.customName : "",
+      categoryLevel: "",
+      customCategory: ""
     }))
-    setShowCustomNameInput(value === "Otro")
+    setShowCustomNameInput(value === "Otro (especificar)")
+    setShowCustomCategoryInput(false)
   }
 
   const handleCustomNameChange = (e) => {
@@ -103,23 +96,40 @@ const AreaRegistration = ({ onBack }) => {
     setFormData(prev => ({ ...prev, customName: value }))
   }
 
+  const handleCategoryLevelChange = (e) => {
+    const value = e.target.value
+    setFormData(prev => ({ 
+      ...prev, 
+      categoryLevel: value,
+      customCategory: value === "Otro (especificar)" ? prev.customCategory : ""
+    }))
+    setShowCustomCategoryInput(value === "Otro (especificar)")
+  }
+
+  const handleCustomCategoryChange = (e) => {
+    const value = e.target.value
+    setFormData(prev => ({ ...prev, customCategory: value }))
+  }
+
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+    
+    // Clear name error when typing
+    if (name === "name" && errors.name) {
+      setErrors(prev => ({ ...prev, name: "" }))
+    }
   }
 
   useEffect(() => {
     const newErrors = {}
-    const finalName = formData.name === "Otro" ? formData.customName : formData.name
-    
-    if (!formData.categoryLevel) {
-      newErrors.categoryLevel = "Seleccione categoría/nivel"
-    }
+    const finalName = formData.name === "Otro (especificar)" ? formData.customName : formData.name
+    const finalCategory = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory : formData.categoryLevel
     
     if (!finalName.trim()) {
       newErrors.name = "Nombre de área requerido"
     } else if (
-      formData.name === "Otro" && 
+      formData.name === "Otro (especificar)" && 
       !formData.customName.trim()
     ) {
       newErrors.name = "Debe ingresar un nombre"
@@ -127,10 +137,19 @@ const AreaRegistration = ({ onBack }) => {
       areas.some(a => 
         a.id !== formData.id && 
         a.name.toLowerCase() === finalName.toLowerCase() &&
-        a.categoryLevel === formData.categoryLevel
+        a.categoryLevel === finalCategory
       )
     ) {
       newErrors.name = "Ya existe un área con este nombre y categoría"
+    }
+    
+    if (!finalCategory) {
+      newErrors.categoryLevel = "Seleccione categoría/nivel"
+    } else if (
+      formData.categoryLevel === "Otro (especificar)" && 
+      !formData.customCategory.trim()
+    ) {
+      newErrors.categoryLevel = "Debe ingresar una categoría/nivel"
     }
     
     if (!formData.cost || Number(formData.cost) <= 0) {
@@ -145,12 +164,13 @@ const AreaRegistration = ({ onBack }) => {
     e.preventDefault()
     if (!isFormValid) return
 
-    const finalName = formData.name === "Otro" ? formData.customName : formData.name
+    const finalName = formData.name === "Otro (especificar)" ? formData.customName : formData.name
+    const finalCategory = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory : formData.categoryLevel
 
     const newArea = {
       id: formData.id || areas.length + 1,
       name: finalName,
-      categoryLevel: formData.categoryLevel,
+      categoryLevel: finalCategory,
       cost: Number(formData.cost),
       description: formData.description,
       isActive: true
@@ -167,13 +187,15 @@ const AreaRegistration = ({ onBack }) => {
     setShowModal(true)
     setFormData({ 
       id: null,
-      categoryLevel: "",
       name: "", 
       customName: "",
+      categoryLevel: "",
+      customCategory: "",
       cost: "", 
       description: "" 
     })
     setShowCustomNameInput(false)
+    setShowCustomCategoryInput(false)
     
     setTimeout(() => setShowModal(false), 3000)
   }
@@ -183,20 +205,20 @@ const AreaRegistration = ({ onBack }) => {
   }
 
   const handleEdit = (area) => {
-    const categoryParts = area.categoryLevel.split(" - ")
-    const category = categoryParts[0]
-    const areaOptions = categoryToAreas[category] || []
     const isPredefinedArea = areaOptions.includes(area.name)
+    const isPredefinedCategory = areaToLevels[area.name]?.includes(area.categoryLevel) || false
     
     setFormData({
       id: area.id,
-      categoryLevel: area.categoryLevel,
-      name: isPredefinedArea ? area.name : "Otro",
+      name: isPredefinedArea ? area.name : "Otro (especificar)",
       customName: isPredefinedArea ? "" : area.name,
+      categoryLevel: isPredefinedCategory ? area.categoryLevel : "Otro (especificar)",
+      customCategory: isPredefinedCategory ? "" : area.categoryLevel,
       cost: area.cost.toString(),
       description: area.description || "",
     })
     setShowCustomNameInput(!isPredefinedArea)
+    setShowCustomCategoryInput(!isPredefinedCategory)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
@@ -212,9 +234,9 @@ const AreaRegistration = ({ onBack }) => {
   const totalPages = Math.ceil(filteredAreas.length / itemsPerPage)
 
   const uniqueLevels = [...new Set(
-    categoryLevelOptions.map(opt => {
-      const parts = opt.split(" - ")
-      return parts.length > 1 ? parts[1] : opt
+    areas.map(area => {
+      const parts = area.categoryLevel.split(" - ")
+      return parts.length > 1 ? parts[1] : area.categoryLevel
     })
   )]
 
@@ -257,49 +279,20 @@ const AreaRegistration = ({ onBack }) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="md:col-span-2">
                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Categoría/Nivel <span className="text-red-600">*</span>
-                    </label>
-                    <select
-                      name="categoryLevel"
-                      value={formData.categoryLevel}
-                      onChange={handleCategoryLevelChange}
-                      className={`w-full px-3 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                        errors.categoryLevel ? "border-red-500" : "border-gray-300"
-                      }`}
-                    >
-                      <option value="">Seleccione categoría/nivel</option>
-                      {categoryLevelOptions.map((option, index) => (
-                        <option key={index} value={option}>{option}</option>
-                      ))}
-                    </select>
-                    {errors.categoryLevel && (
-                      <p className="mt-1 text-xs text-red-600 flex items-center">
-                        <X className="h-3 w-3 mr-1" />
-                        {errors.categoryLevel}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Área <span className="text-red-600">*</span>
                     </label>
                     <select
                       value={formData.name}
                       onChange={handleNameChange}
                       name="name"
-                      disabled={!formData.categoryLevel}
                       className={`w-full px-3 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
                         errors.name ? "border-red-500" : "border-gray-300"
-                      } ${
-                        !formData.categoryLevel ? "bg-gray-100 dark:bg-gray-600 cursor-not-allowed" : ""
                       }`}
                     >
-                      <option value="">{formData.categoryLevel ? "Seleccione un área" : "Seleccione categoría primero"}</option>
-                      {getAreaOptions().map((area, index) => (
+                      <option value="">Seleccione un área</option>
+                      {areaOptions.map((area, index) => (
                         <option key={index} value={area}>{area}</option>
                       ))}
-                      <option value="Otro">Otro (especificar)</option>
                     </select>
                     
                     {showCustomNameInput && (
@@ -311,7 +304,7 @@ const AreaRegistration = ({ onBack }) => {
                           name="customName"
                           placeholder="Ingrese el nombre del área"
                           className={`w-full px-3 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                            errors.name && formData.name === "Otro" ? "border-red-500" : "border-gray-300"
+                            errors.name && formData.name === "Otro (especificar)" ? "border-red-500" : "border-gray-300"
                           }`}
                         />
                       </div>
@@ -325,10 +318,11 @@ const AreaRegistration = ({ onBack }) => {
                           <button
                             type="button"
                             onClick={() => {
-                              const finalName = formData.name === "Otro" ? formData.customName : formData.name
+                              const finalName = formData.name === "Otro (especificar)" ? formData.customName : formData.name
+                              const finalCategory = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory : formData.categoryLevel
                               const existing = areas.find(a => 
                                 a.name.toLowerCase() === finalName.toLowerCase() &&
-                                a.categoryLevel === formData.categoryLevel
+                                a.categoryLevel === finalCategory
                               )
                               if (existing) handleEdit(existing)
                             }}
@@ -337,6 +331,51 @@ const AreaRegistration = ({ onBack }) => {
                             ¿Editar área existente?
                           </button>
                         )}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Categoría/Nivel <span className="text-red-600">*</span>
+                    </label>
+                    <select
+                      name="categoryLevel"
+                      value={formData.categoryLevel}
+                      onChange={handleCategoryLevelChange}
+                      disabled={!formData.name || formData.name === "Otro (especificar)"}
+                      className={`w-full px-3 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                        errors.categoryLevel ? "border-red-500" : "border-gray-300"
+                      } ${
+                        !formData.name || formData.name === "Otro (especificar)" ? "bg-gray-100 dark:bg-gray-600 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      <option value="">{formData.name && formData.name !== "Otro (especificar)" ? "Seleccione categoría/nivel" : "Seleccione área primero"}</option>
+                      {getLevelOptions().map((level, index) => (
+                        <option key={index} value={level}>{level}</option>
+                      ))}
+                      <option value="Otro (especificar)">Otro (especificar)</option>
+                    </select>
+                    
+                    {showCustomCategoryInput && (
+                      <div className="mt-2">
+                        <input
+                          type="text"
+                          value={formData.customCategory}
+                          onChange={handleCustomCategoryChange}
+                          name="customCategory"
+                          placeholder="Ingrese la categoría/nivel"
+                          className={`w-full px-3 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                            errors.categoryLevel && formData.categoryLevel === "Otro (especificar)" ? "border-red-500" : "border-gray-300"
+                          }`}
+                        />
+                      </div>
+                    )}
+                    
+                    {errors.categoryLevel && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center">
+                        <X className="h-3 w-3 mr-1" />
+                        {errors.categoryLevel}
                       </p>
                     )}
                   </div>
@@ -387,13 +426,15 @@ const AreaRegistration = ({ onBack }) => {
                       onClick={() => {
                         setFormData({
                           id: null,
-                          categoryLevel: "",
                           name: "",
                           customName: "",
+                          categoryLevel: "",
+                          customCategory: "",
                           cost: "",
                           description: "",
                         })
                         setShowCustomNameInput(false)
+                        setShowCustomCategoryInput(false)
                       }}
                       className="px-4 py-1 rounded-md text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                     >
