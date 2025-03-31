@@ -80,15 +80,19 @@ const AreaRegistration = ({ onBack }) => {
 
   const handleNameChange = (e) => {
     const value = e.target.value
+    const isOtherOption = value === "Otro (especificar)"
+    
     setFormData(prev => ({ 
       ...prev, 
       name: value,
-      customName: value === "Otro (especificar)" ? prev.customName : "",
-      categoryLevel: "",
-      customCategory: ""
+      customName: isOtherOption ? prev.customName : "",
+      // Cuando se selecciona "Otro" en Área, automáticamente se selecciona "Otro" en Categoría/Nivel
+      categoryLevel: isOtherOption ? "Otro (especificar)" : "",
+      customCategory: isOtherOption ? prev.customCategory : ""
     }))
-    setShowCustomNameInput(value === "Otro (especificar)")
-    setShowCustomCategoryInput(false)
+    
+    setShowCustomNameInput(isOtherOption)
+    setShowCustomCategoryInput(isOtherOption)
   }
 
   const handleCustomNameChange = (e) => {
@@ -115,7 +119,6 @@ const AreaRegistration = ({ onBack }) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
     
-    // Clear name error when typing
     if (name === "name" && errors.name) {
       setErrors(prev => ({ ...prev, name: "" }))
     }
@@ -302,11 +305,14 @@ const AreaRegistration = ({ onBack }) => {
                           value={formData.customName}
                           onChange={handleCustomNameChange}
                           name="customName"
-                          placeholder="Ingrese el nombre del área"
+                          placeholder="Ingrese el nombre del área personalizada"
                           className={`w-full px-3 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
                             errors.name && formData.name === "Otro (especificar)" ? "border-red-500" : "border-gray-300"
                           }`}
                         />
+                        <p className="text-xs text-gray-500 mt-1 dark:text-gray-400">
+                          Por favor ingrese un nombre descriptivo para el área personalizada
+                        </p>
                       </div>
                     )}
                     
@@ -343,15 +349,21 @@ const AreaRegistration = ({ onBack }) => {
                       name="categoryLevel"
                       value={formData.categoryLevel}
                       onChange={handleCategoryLevelChange}
-                      disabled={!formData.name || formData.name === "Otro (especificar)"}
+                      disabled={!formData.name}
                       className={`w-full px-3 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
                         errors.categoryLevel ? "border-red-500" : "border-gray-300"
                       } ${
-                        !formData.name || formData.name === "Otro (especificar)" ? "bg-gray-100 dark:bg-gray-600 cursor-not-allowed" : ""
+                        !formData.name ? "bg-gray-100 dark:bg-gray-600 cursor-not-allowed" : ""
                       }`}
                     >
-                      <option value="">{formData.name && formData.name !== "Otro (especificar)" ? "Seleccione categoría/nivel" : "Seleccione área primero"}</option>
-                      {getLevelOptions().map((level, index) => (
+                      <option value="">
+                        {formData.name === "Otro (especificar)" 
+                          ? "Se usará 'Otro (especificar)'" 
+                          : formData.name 
+                            ? "Seleccione categoría/nivel" 
+                            : "Seleccione área primero"}
+                      </option>
+                      {formData.name !== "Otro (especificar)" && getLevelOptions().map((level, index) => (
                         <option key={index} value={level}>{level}</option>
                       ))}
                       <option value="Otro (especificar)">Otro (especificar)</option>
@@ -364,11 +376,14 @@ const AreaRegistration = ({ onBack }) => {
                           value={formData.customCategory}
                           onChange={handleCustomCategoryChange}
                           name="customCategory"
-                          placeholder="Ingrese la categoría/nivel"
+                          placeholder="Ingrese la categoría/nivel personalizado"
                           className={`w-full px-3 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
                             errors.categoryLevel && formData.categoryLevel === "Otro (especificar)" ? "border-red-500" : "border-gray-300"
                           }`}
                         />
+                        <p className="text-xs text-gray-500 mt-1 dark:text-gray-400">
+                          Por favor ingrese una descripción para la categoría/nivel personalizado
+                        </p>
                       </div>
                     )}
                     
