@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Edit, Trash2, Plus, ChevronLeft, ChevronRight, Check, X } from "lucide-react"
+import { supabase } from '../supabaseClient'
 
 const AreaList = () => {
   const navigate = useNavigate()
@@ -10,68 +11,35 @@ const AreaList = () => {
   const [selectedLevels, setSelectedLevels] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [showDeleteModal, setShowDeleteModal] = useState(null)
+  const [connectionStatus, setConnectionStatus] = useState({ message: "", type: "" }) // Para mostrar estado de conexión
   const itemsPerPage = 8
 
-  /* 
-  ==================== INTEGRACIÓN API ====================
-  
-  1. OBTENER LISTA DE ÁREAS:
-     useEffect(() => {
-       const fetchAreas = async () => {
-         try {
-           const response = await fetch('/api/areas')
-           const data = await response.json()
-           setAreas(data)
-         } catch (error) {
-           console.error("Error cargando áreas:", error)
-         } finally {
-           setIsLoading(false)
-         }
-       }
-       fetchAreas()
-     }, [])
-  */
-
-  // Datos de ejemplo (simulados)
+  // ============== LLAMADA API: OBTENER ÁREAS ==============
   useEffect(() => {
     const fetchAreas = async () => {
       try {
-        // Simulación de carga API
-        await new Promise(resolve => setTimeout(resolve, 800))
+        const { data, error } = await supabase
+          .from('area')
+          .select('*')
         
-        const mockAreas = [
-          { 
-            id: 1, 
-            name: "Matemáticas", 
-            categoryLevel: "Ciencias Exactas - Básico",
-            cost: 50, 
-            description: "Fundamentos de matemáticas",
-            isActive: true,
-            createdAt: "2023-05-15"
-          },
-          { 
-            id: 2, 
-            name: "Robótica", 
-            categoryLevel: "Tecnología - Intermedio",
-            cost: 75, 
-            description: "Introducción a la robótica",
-            isActive: true,
-            createdAt: "2023-06-20"
-          },
-          { 
-            id: 3, 
-            name: "Programación", 
-            categoryLevel: "Tecnología - Avanzado",
-            cost: 90, 
-            description: "Algoritmos y estructuras de datos",
-            isActive: false,
-            createdAt: "2023-07-10"
-          },
-        ]
+        if (error) throw error
         
-        setAreas(mockAreas)
+        // Transformar datos al formato esperado por el componente
+        const formattedAreas = data.map(area => ({
+          id: area.id,
+          name: area.nombre,
+          categoryLevel: area.nivel,
+          cost: area.costo || 50, // Ahora usamos el campo real costo de la base de datos
+          description: area.descripcion || "",
+          isActive: area.estado === 'ACTIVO',
+          createdAt: new Date().toISOString() // La tabla no tiene campo createdAt
+        }))
+        
+        setAreas(formattedAreas)
+        setConnectionStatus({ message: "Conexión Supabase exitosa", type: "success" })
       } catch (error) {
         console.error("Error cargando áreas:", error)
+        setConnectionStatus({ message: "Error al obtener datos", type: "error" })
       } finally {
         setIsLoading(false)
       }
@@ -80,20 +48,10 @@ const AreaList = () => {
     fetchAreas()
   }, [])
 
-  /* 
-  2. FILTRADO (puede hacerse en backend):
-     const fetchFilteredAreas = async () => {
-       const params = new URLSearchParams()
-       if (searchTerm) params.append('search', searchTerm)
-       if (selectedLevels.length) params.append('levels', selectedLevels.join(','))
-       
-       const response = await fetch(`/api/areas?${params.toString()}`)
-       return await response.json()
-     }
-  */
+  // Filtrado de áreas
   const filteredAreas = areas.filter(area => {
     const matchesSearch = area.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         area.description.toLowerCase().includes(searchTerm.toLowerCase())
+                         (area.description && area.description.toLowerCase().includes(searchTerm.toLowerCase()))
     const matchesLevel = selectedLevels.length === 0 || 
                         selectedLevels.some(level => area.categoryLevel.includes(level))
     return matchesSearch && matchesLevel
@@ -113,51 +71,63 @@ const AreaList = () => {
   const currentAreas = filteredAreas.slice(indexOfFirstItem, indexOfLastItem)
   const totalPages = Math.ceil(filteredAreas.length / itemsPerPage)
 
-  /* 
-  3. CAMBIAR ESTADO ACTIVO/INACTIVO:
-     const toggleAreaStatus = async (id) => {
-       try {
-         const response = await fetch(`/api/areas/${id}/status`, {
-           method: 'PATCH',
-           headers: { 'Content-Type': 'application/json' }
-         })
-         const updatedArea = await response.json()
-         
-         setAreas(areas.map(area => 
-           area.id === id ? updatedArea : area
-         ))
-       } catch (error) {
-         console.error("Error cambiando estado:", error)
-       }
-     }
-  */
-  const toggleAreaStatus = (id) => {
-    setAreas(areas.map(area => 
-      area.id === id ? { ...area, isActive: !area.isActive } : area
-    ))
+  // ============== LLAMADA API: CAMBIAR ESTADO ÁREA ==============
+  const toggleAreaStatus = async (id) => {
+    try {
+      const areaToUpdate = areas.find(area => area.id === id)
+      const newStatus = areaToUpdate.isActive ? 'INACTIVO' : 'ACTIVO'
+      
+      const { error } = await supabase
+        .from('area')
+        .update({ estado: newStatus })
+        .eq('id', id)
+      
+      if (error) throw error
+      
+      // Actualizar estado local
+      setAreas(areas.map(area => 
+        area.id === id ? { ...area, isActive: !area.isActive } : area
+      ))
+      
+      setConnectionStatus({ 
+        message: `Cambio de estado exitoso (ID: ${id})`, 
+        type: "success" 
+      })
+    } catch (error) {
+      console.error("Error cambiando estado:", error)
+      setConnectionStatus({ 
+        message: `Error al cambiar estado (ID: ${id})`, 
+        type: "error" 
+      })
+    }
   }
 
-  /* 
-  4. ELIMINAR ÁREA:
-     const handleDelete = async (id) => {
-       try {
-         await fetch(`/api/areas/${id}`, { method: 'DELETE' })
-         setAreas(areas.filter(area => area.id !== id))
-         setShowDeleteModal(null)
-       } catch (error) {
-         console.error("Error eliminando área:", error)
-       }
-     }
-  */
-  const handleDelete = (id) => {
-    setAreas(areas.filter(area => area.id !== id))
-    setShowDeleteModal(null)
+  // ============== LLAMADA API: ELIMINAR ÁREA ==============
+  const handleDelete = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('area')
+        .delete()
+        .eq('id', id)
+      
+      if (error) throw error
+      
+      setAreas(areas.filter(area => area.id !== id))
+      setShowDeleteModal(null)
+      
+      setConnectionStatus({ 
+        message: `Área eliminada correctamente (ID: ${id})`, 
+        type: "success" 
+      })
+    } catch (error) {
+      console.error("Error eliminando área:", error)
+      setConnectionStatus({ 
+        message: `Error al eliminar área (ID: ${id})`, 
+        type: "error" 
+      })
+    }
   }
 
-  /* 
-  5. NAVEGACIÓN A EDICIÓN:
-     // (No necesita llamada API aquí)
-  */
   const handleEdit = (id) => {
     navigate(`/edit-area/${id}`)
   }
@@ -190,6 +160,22 @@ const AreaList = () => {
           Nueva Área
         </button>
       </div>
+
+      {/* Mostrar estado de conexión */}
+      {connectionStatus.message && (
+        <div className={`mb-4 p-3 rounded-md text-sm ${
+          connectionStatus.type === "success" 
+            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
+            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+        }`}>
+          {connectionStatus.type === "success" ? (
+            <Check className="h-4 w-4 inline mr-1" />
+          ) : (
+            <X className="h-4 w-4 inline mr-1" />
+          )}
+          {connectionStatus.message}
+        </div>
+      )}
 
       {/* Filtros y búsqueda */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6 border border-gray-200 dark:border-gray-700">

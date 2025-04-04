@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { X, Check, ArrowLeft, List } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { supabase } from '../supabaseClient'
 
 const AreaRegistration = () => {
   const navigate = useNavigate()
@@ -21,47 +22,72 @@ const AreaRegistration = () => {
   })
 
   const [errors, setErrors] = useState({})
-
-  // ============ DATOS DE EJEMPLO ============
-  const areaOptions = [
-    "ASTRONOMÍA - ASTROFÍSICA",
-    "BIOLOGÍA",
-    "FÍSICA",
-    "INFORMÁTICA",
-    "MATEMÁTICAS",
-    "QUÍMICA",
-    "ROBÓTICA",
-    "Otro (especificar)"
-  ]
-
-  const areaToLevels = {
-    "ASTRONOMÍA - ASTROFÍSICA": ["3P", "4P", "5P", "6P", "1S", "2S", "3S", "4S", "5S", "6S"],
-    "BIOLOGÍA": ["2S", "3S", "4S", "5S", "6S"],
-    "FÍSICA": ["4S", "5S", "6S"],
-    "INFORMÁTICA": ["Guacamayo", "Guanaco", "Londra", "Jucumari", "Bufeo", "Puma"],
-    "MATEMÁTICAS": ["Primer Nivel", "Segundo Nivel", "Tercer Nivel", "Cuarto Nivel", "Quinto Nivel", "Sexto Nivel"],
-    "QUÍMICA": ["2S", "3S", "4S", "5S", "6S"],
-    "ROBÓTICA": ["Builders P", "Builders S", "Lego P", "Lego S"]
-  }
-
-  /* 
-  ==================== INTEGRACIÓN API ====================
+  const [connectionStatus, setConnectionStatus] = useState({ message: "", type: "" }) // Para mostrar estado de conexión
   
-  1. OBTENER OPCIONES (reemplazar datos estáticos):
-     useEffect(() => {
-       const fetchOptions = async () => {
-         try {
-           const response = await fetch('/api/areas/options')
-           const data = await response.json()
-           setAreaOptions(data.areas)
-           setAreaToLevels(data.levels)
-         } catch (error) {
-           console.error("Error cargando opciones:", error)
-         }
-       }
-       fetchOptions()
-     }, [])
-  */
+  // Datos de opciones para áreas y niveles
+  const [areaOptions, setAreaOptions] = useState([])
+  const [areaToLevels, setAreaToLevels] = useState({})
+
+  // Integración API: Obtener opciones
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        // Obtener áreas únicas
+        const { data: areas, error: areasError } = await supabase
+          .from('area')
+          .select('nombre')
+          .order('nombre')
+        
+        if (areasError) throw areasError
+        
+        // Crear lista de opciones únicas
+        const uniqueAreas = [...new Set(areas.map(a => a.nombre))]
+        const options = [...uniqueAreas, "Otro (especificar)"]
+        setAreaOptions(options)
+        
+        // Obtener niveles por área
+        const levelsMap = {}
+        for (const area of uniqueAreas) {
+          const { data: levels, error: levelsError } = await supabase
+            .from('area')
+            .select('nivel')
+            .eq('nombre', area)
+            .order('nivel')
+          
+          if (levelsError) throw levelsError
+          
+          levelsMap[area] = [...new Set(levels.map(l => l.nivel))]
+        }
+        
+        setAreaToLevels(levelsMap)
+        
+        setConnectionStatus({ 
+          message: "Conexión Supabase exitosa", 
+          type: "success" 
+        })
+      } catch (error) {
+        console.error("Error cargando opciones:", error)
+        setConnectionStatus({ 
+          message: "Error al obtener datos", 
+          type: "error" 
+        })
+        
+        // Valores por defecto en caso de error
+        setAreaOptions([
+          "ASTRONOMÍA - ASTROFÍSICA",
+          "BIOLOGÍA",
+          "FÍSICA",
+          "INFORMÁTICA",
+          "MATEMÁTICAS",
+          "QUÍMICA",
+          "ROBÓTICA",
+          "Otro (especificar)"
+        ])
+      }
+    }
+    
+    fetchOptions()
+  }, [])
 
   const getLevelOptions = () => {
     if (!formData.name || formData.name === "Otro (especificar)") return []
@@ -130,44 +156,46 @@ const AreaRegistration = () => {
     
     setUiState(prev => ({ ...prev, isSubmitting: true }))
     
-    /* 
-    3. ENVÍO A API (reemplazar simulación):
-       try {
-         const payload = {
-           name: formData.name === "Otro" ? formData.customName : formData.name,
-           category: formData.categoryLevel === "Otro" ? formData.customCategory : formData.categoryLevel,
-           cost: Number(formData.cost),
-           description: formData.description
-         }
-         
-         const response = await fetch('/api/areas', {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify(payload)
-         })
-         
-         if (!response.ok) throw new Error('Error en la respuesta')
-         
-         setUiState(prev => ({ ...prev, showSuccessModal: true }))
-         resetForm()
-         
-         // Redirigir después de 2 segundos
-         setTimeout(() => navigate('/areas'), 2000)
-       } catch (error) {
-         console.error("Error:", error)
-       } finally {
-         setUiState(prev => ({ ...prev, isSubmitting: false }))
-       }
-    */
-    
-    // Simulación (eliminar en producción)
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Preparar los datos
+      const nombre = formData.name === "Otro (especificar)" ? formData.customName : formData.name
+      const nivel = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory : formData.categoryLevel
+      
+      // Crear nueva área en Supabase
+      const { data, error } = await supabase
+        .from('area')
+        .insert([
+          { 
+            nombre: nombre,
+            nivel: nivel,
+            descripcion: formData.description,
+            estado: 'ACTIVO',
+            costo: Number(formData.cost) // Ahora guardamos el costo como número en la base de datos
+          }
+        ])
+        .select()
+      
+      if (error) throw error
+      
+      setConnectionStatus({ 
+        message: "Área registrada correctamente en la base de datos", 
+        type: "success" 
+      })
+      
+      // Mostrar modal de éxito
       setUiState(prev => ({ ...prev, showSuccessModal: true }))
       resetForm()
-      setTimeout(() => setUiState(prev => ({ ...prev, showSuccessModal: false })), 3000)
+      
+      // Redirigir después de 2 segundos
+      setTimeout(() => {
+        navigate('/areas')
+      }, 2000)
     } catch (error) {
       console.error("Error al registrar área:", error)
+      setConnectionStatus({ 
+        message: "Error al registrar área en la base de datos", 
+        type: "error" 
+      })
     } finally {
       setUiState(prev => ({ ...prev, isSubmitting: false }))
     }
@@ -211,6 +239,22 @@ const AreaRegistration = () => {
           Ver listado
         </button>
       </div>
+
+      {/* Mostrar estado de conexión */}
+      {connectionStatus.message && (
+        <div className={`mb-4 p-3 rounded-md text-sm ${
+          connectionStatus.type === "success" 
+            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
+            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+        }`}>
+          {connectionStatus.type === "success" ? (
+            <Check className="h-4 w-4 inline mr-1" />
+          ) : (
+            <X className="h-4 w-4 inline mr-1" />
+          )}
+          {connectionStatus.message}
+        </div>
+      )}
 
       {/* Resto del código del formulario sigue igual... */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
