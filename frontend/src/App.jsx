@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import TopbarGuest from './components/layout/TopbarGuest'
 import Navbar from './components/layout/Navbar'
 import Footer from './components/layout/Footer'
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true)
+  const location = useLocation()
 
   useEffect(() => {
     // Configuración del tema dark
@@ -33,7 +34,10 @@ export default function App() {
       <Navbar />
       
       <main className="flex-grow py-4">
-        <Outlet /> {/* Aquí se renderizan las páginas */}
+        <div className="container mx-auto px-4">
+          {/* Eliminado completamente el breadcrumb */}
+          <Outlet />
+        </div>
       </main>
       
       <Footer />

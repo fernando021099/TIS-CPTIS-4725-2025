@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { ChevronDown, Menu, X } from "lucide-react"
+import { Link } from "react-router-dom"
 
 export default function Navbar() {
   const [activeDropdown, setActiveDropdown] = useState(null)
@@ -35,28 +36,41 @@ export default function Navbar() {
   }
 
   const menuItems = [
-    { name: "Inicio", hasDropdown: false, link: "#" },
+    { name: "Inicio", hasDropdown: false, link: "/" },
     {
       name: "Inscripción",
       hasDropdown: true,
-      dropdownItems: ["Individual", "Grupal", "Institucional"],
+      dropdownItems: [
+        { name: "Individual", link: "/student-registration" },
+        { name: "Grupal", link: "#" },
+        { name: "Institucional", link: "#" },
+      ],
     },
     {
       name: "Pagos",
       hasDropdown: true,
-      dropdownItems: ["Verificar Pago", "Historial", "Métodos"],
+      dropdownItems: [
+        { name: "Verificar Pago", link: "#" },
+        { name: "Historial", link: "#" },
+        { name: "Métodos", link: "#" },
+      ],
     },
     {
       name: "Reportes",
       hasDropdown: true,
-      dropdownItems: ["Resultados", "Estadísticas", "Certificados"],
+      dropdownItems: [
+        { name: "Postulaciones", link: "/student-applications" }, // Nuevo ítem añadido
+        { name: "Resultados", link: "#" },
+        { name: "Estadísticas", link: "#" },
+        { name: "Certificados", link: "#" },
+      ],
     },
     { name: "Contacto", hasDropdown: false, link: "#" },
   ]
 
   return (
     <div ref={navRef}>
-      {/* Navbar Desktop - Modificado para solo responder a clics */}
+      {/* Navbar Desktop */}
       <nav className={`hidden md:block bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-40 transition-all ${isScrolled ? 'shadow-sm dark:shadow-gray-900' : ''}`}>
         <div className="container mx-auto px-4">
           <div className="flex justify-center">
@@ -79,25 +93,25 @@ export default function Navbar() {
                     {activeDropdown === index && (
                       <div className="absolute left-1/2 transform -translate-x-1/2 mt-0 w-56 bg-white dark:bg-gray-700 shadow-lg rounded-b-md z-50 border border-gray-100 dark:border-gray-600">
                         {item.dropdownItems.map((dropdownItem, dropIndex) => (
-                          <a
+                          <Link
                             key={dropIndex}
-                            href="#"
+                            to={dropdownItem.link}
                             className="block px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-red-50 dark:hover:bg-gray-600 hover:text-red-600 transition-colors"
                             onClick={() => setActiveDropdown(null)}
                           >
-                            {dropdownItem}
-                          </a>
+                            {dropdownItem.name}
+                          </Link>
                         ))}
                       </div>
                     )}
                   </div>
                 ) : (
-                  <a
-                    href={item.link}
+                  <Link
+                    to={item.link}
                     className="px-5 py-4 flex items-center font-medium text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-500 transition-colors"
                   >
                     {item.name}
-                  </a>
+                  </Link>
                 )}
               </div>
             ))}
@@ -105,7 +119,7 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile Menu - Se mantiene igual */}
+      {/* Mobile Menu */}
       <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-40">
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -142,29 +156,29 @@ export default function Navbar() {
                     {activeDropdown === index && (
                       <div className="pl-6 pb-2">
                         {item.dropdownItems.map((dropdownItem, dropIndex) => (
-                          <a
+                          <Link
                             key={dropIndex}
-                            href="#"
+                            to={dropdownItem.link}
                             className="block px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-red-600"
                             onClick={() => {
                               setActiveDropdown(null)
                               setIsMobileMenuOpen(false)
                             }}
                           >
-                            {dropdownItem}
-                          </a>
+                            {dropdownItem.name}
+                          </Link>
                         ))}
                       </div>
                     )}
                   </>
                 ) : (
-                  <a
-                    href={item.link}
+                  <Link
+                    to={item.link}
                     className="block px-4 py-3 text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-500"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     {item.name}
-                  </a>
+                  </Link>
                 )}
               </div>
             ))}
