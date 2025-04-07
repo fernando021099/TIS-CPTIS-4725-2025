@@ -5,6 +5,8 @@ import App from './App'
 import HomePage from './pages/HomePage'
 import AreaRegistration from './pages/AreaRegistration'
 import AreaList from './pages/AreaList'
+import StudentRegistration from './pages/StudentRegistration'
+import StudentApplicationsList from './pages/StudentApplicationsList'
 import './index.css'
 
 const router = createBrowserRouter([
@@ -23,6 +25,14 @@ const router = createBrowserRouter([
       {
         path: "areas",
         element: <AreaList />,
+      },
+      {
+        path: "student-registration",
+        element: <StudentRegistration />,
+      },
+      {
+        path: "student-applications",
+        element: <StudentApplicationsList />,
       },
     ],
   },
