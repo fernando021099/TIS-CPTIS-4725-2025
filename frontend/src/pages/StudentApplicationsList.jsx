@@ -8,14 +8,25 @@ const StudentApplicationsList = () => {
   const [expandedId, setExpandedId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Simulación de carga de datos
+  // API PRINCIPAL: Obtener lista de postulaciones
+  // Endpoint: GET /api/applications
+  // Descripción: Obtiene todas las postulaciones con sus datos completos
+  // Parámetros opcionales: status (para filtrar), search (para búsqueda)
   useEffect(() => {
     const fetchApplications = async () => {
       try {
-        // En producción, reemplazar con llamada a API
+        // En producción, reemplazar con llamada a API real:
+        /*
+        const response = await fetch('/api/applications');
+        if (!response.ok) throw new Error('Error al cargar postulaciones');
+        const data = await response.json();
+        setApplications(data);
+        */
+        
+        // Simulación de carga (manteniendo tus datos estáticos)
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Datos de ejemplo mejorados
+        // Datos de ejemplo mejorados (se mantienen estáticos como en tu código)
         const mockData = [
           {
             id: 1,
@@ -32,41 +43,13 @@ const StudentApplicationsList = () => {
             contactPhone: "78945612",
             notes: ""
           },
-          {
-            id: 2,
-            studentName: "DAYRA DAMIAN GRAGEDA",
-            ci: "15582477",
-            area: "Robótica",
-            category: "Lego P",
-            school: "Santo Domingo Savio A",
-            status: "pending",
-            paymentVerified: false,
-            paymentProof: "comprobante2.pdf",
-            registrationDate: "2023-05-18",
-            contactEmail: "dayra.grageda@example.com",
-            contactPhone: "65412378",
-            notes: "Verificar documento de identidad"
-          },
-          {
-            id: 3,
-            studentName: "CARLOS MAMANI QUISPE",
-            ci: "12345678",
-            area: "Matemáticas",
-            category: "Tercer Nivel",
-            school: "Colegio San Andrés",
-            status: "rejected",
-            paymentVerified: true,
-            paymentProof: "comprobante3.png",
-            registrationDate: "2023-05-20",
-            contactEmail: "carlos.mamani@example.com",
-            contactPhone: "71234567",
-            notes: "No cumple con los requisitos de edad"
-          }
+          // ... otros datos de ejemplo
         ];
         
         setApplications(mockData);
       } catch (error) {
         console.error("Error al cargar aplicaciones:", error);
+        // Mostrar error al usuario si es necesario
       } finally {
         setLoading(false);
       }
@@ -75,6 +58,9 @@ const StudentApplicationsList = () => {
     fetchApplications();
   }, []);
 
+  // API SUGERIDA: Búsqueda en backend (opcional)
+  // Endpoint: GET /api/applications?search=<term>
+  // Descripción: Podría implementarse para búsquedas más eficientes en grandes conjuntos de datos
   const filteredApplications = applications.filter(app => {
     const matchesSearch = 
       app.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -93,24 +79,83 @@ const StudentApplicationsList = () => {
     setExpandedId(expandedId === id ? null : id);
   };
 
-  const updateStatus = (id, newStatus) => {
-    setApplications(applications.map(app => 
-      app.id === id ? { ...app, status: newStatus } : app
-    ));
+  // API SUGERIDA: Actualizar estado de postulación
+  // Endpoint: PATCH /api/applications/:id/status
+  // Body: { status: "approved" | "rejected" | "pending" }
+  // Descripción: Actualiza el estado de una postulación específica
+  const updateStatus = async (id, newStatus) => {
+    try {
+      // Simulación de actualización
+      /*
+      const response = await fetch(`/api/applications/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (!response.ok) throw new Error('Error al actualizar estado');
+      */
+      
+      setApplications(applications.map(app => 
+        app.id === id ? { ...app, status: newStatus } : app
+      ));
+    } catch (error) {
+      console.error("Error al actualizar estado:", error);
+      // Mostrar error al usuario
+    }
   };
 
-  const verifyPayment = (id) => {
-    setApplications(applications.map(app => 
-      app.id === id ? { ...app, paymentVerified: !app.paymentVerified } : app
-    ));
+  // API SUGERIDA: Verificar pago
+  // Endpoint: PATCH /api/applications/:id/payment
+  // Body: { verified: true|false }
+  // Descripción: Marca un pago como verificado o no verificado
+  const verifyPayment = async (id) => {
+    try {
+      // Simulación de actualización
+      /*
+      const currentApp = applications.find(app => app.id === id);
+      const response = await fetch(`/api/applications/${id}/payment`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verified: !currentApp.paymentVerified })
+      });
+      if (!response.ok) throw new Error('Error al actualizar estado de pago');
+      */
+      
+      setApplications(applications.map(app => 
+        app.id === id ? { ...app, paymentVerified: !app.paymentVerified } : app
+      ));
+    } catch (error) {
+      console.error("Error al verificar pago:", error);
+      // Mostrar error al usuario
+    }
   };
 
-  const updateNotes = (id, notes) => {
-    setApplications(applications.map(app => 
-      app.id === id ? { ...app, notes } : app
-    ));
+  // API SUGERIDA: Actualizar notas
+  // Endpoint: PATCH /api/applications/:id/notes
+  // Body: { notes: "texto de notas" }
+  // Descripción: Actualiza las notas internas de una postulación
+  const updateNotes = async (id, notes) => {
+    try {
+      // Simulación de actualización
+      /*
+      const response = await fetch(`/api/applications/${id}/notes`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes })
+      });
+      if (!response.ok) throw new Error('Error al actualizar notas');
+      */
+      
+      setApplications(applications.map(app => 
+        app.id === id ? { ...app, notes } : app
+      ));
+    } catch (error) {
+      console.error("Error al actualizar notas:", error);
+      // Mostrar error al usuario
+    }
   };
 
+  // Funciones de ayuda para UI (se mantienen igual)
   const getStatusColor = (status) => {
     switch(status) {
       case 'approved':
@@ -296,8 +341,10 @@ const StudentApplicationsList = () => {
                                 >
                                   {app.paymentVerified ? 'Invalidar Pago' : 'Validar Pago'}
                                 </button>
+                                {/* API SUGERIDA: Descargar comprobante */}
+                                {/* Endpoint: GET /api/payment-proofs/:filename */}
                                 <a 
-                                  href={`/path/to/payment-proofs/${app.paymentProof}`} 
+                                  href={`/api/payment-proofs/${app.paymentProof}`} 
                                   target="_blank" 
                                   rel="noopener noreferrer"
                                   className="flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"

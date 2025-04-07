@@ -61,14 +61,22 @@ const StudentRegistration = () => {
     }
   }, [formData.birthDate, formData.firstName, formData.lastName, formData.email]);
 
-  // Datos estáticos
+  // API SUGERIDA: Obtener departamentos desde el backend
+  // Endpoint: GET /api/departments
+  // Descripción: Devuelve la lista de departamentos disponibles
   const departmentOptions = ["Cochabamba", "La Paz", "Santa Cruz", "Oruro", "Potosí", "Chuquisaca", "Tarija", "Beni", "Pando"];
   
+  // API SUGERIDA: Obtener provincias por departamento desde el backend
+  // Endpoint: GET /api/provinces?department=<department>
+  // Descripción: Devuelve las provincias para un departamento específico
   const provinceOptions = {
     "Cochabamba": ["Cercado", "Quillacollo", "Chapare", "Ayopaya", "Esteban Arce", "Arani", "Arque", "Capinota", "Germán Jordán", "Mizque", "Punata", "Tiraque"],
     // ... otras provincias
   };
 
+  // API SUGERIDA: Obtener áreas disponibles desde el backend
+  // Endpoint: GET /api/competition-areas
+  // Descripción: Devuelve las áreas de competencia disponibles
   const [availableAreas] = useState([
     "ASTRONOMÍA - ASTROFÍSICA",
     "BIOLOGÍA",
@@ -79,6 +87,9 @@ const StudentRegistration = () => {
     "ROBÓTICA"
   ]);
 
+  // API SUGERIDA: Obtener categorías por área desde el backend
+  // Endpoint: GET /api/competition-categories?area=<area>
+  // Descripción: Devuelve las categorías disponibles para un área específica
   const areaToCategories = {
     "ASTRONOMÍA - ASTROFÍSICA": ["3P", "4P", "5P", "6P", "1S", "2S", "3S", "4S", "5S", "6S"],
     "BIOLOGÍA": ["2S", "3S", "4S", "5S", "6S"],
@@ -89,6 +100,9 @@ const StudentRegistration = () => {
     "ROBÓTICA": ["Builders P", "Builders S", "Lego P", "Lego S"]
   };
 
+  // API SUGERIDA: Validar CI (opcional)
+  // Endpoint: POST /api/validate-ci
+  // Descripción: Verifica si el CI ya está registrado en el sistema
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
@@ -100,13 +114,32 @@ const StudentRegistration = () => {
 
     if (name === "area") {
       setFormData(prev => ({ ...prev, category: "" }));
+      // Aquí podrías llamar a la API para obtener categorías si no las tienes todas cargadas
+      // Ejemplo: 
+      // const fetchCategories = async (area) => {
+      //   const response = await fetch(`/api/competition-categories?area=${area}`);
+      //   const data = await response.json();
+      //   // Actualizar las categorías disponibles para el área seleccionada
+      // };
+      // fetchCategories(value);
     }
 
     if (name === "department") {
       setFormData(prev => ({ ...prev, province: "" }));
+      // Aquí podrías llamar a la API para obtener provincias si no las tienes todas cargadas
+      // Ejemplo:
+      // const fetchProvinces = async (department) => {
+      //   const response = await fetch(`/api/provinces?department=${department}`);
+      //   const data = await response.json();
+      //   // Actualizar las provincias disponibles para el departamento seleccionado
+      // };
+      // fetchProvinces(value);
     }
   };
 
+  // API SUGERIDA: Subir comprobante de pago (opcional)
+  // Endpoint: POST /api/upload-payment-proof
+  // Descripción: Sube el comprobante y devuelve un ID de referencia
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -121,6 +154,21 @@ const StudentRegistration = () => {
       
       setFormData(prev => ({ ...prev, paymentProof: file }));
       setErrors(prev => ({ ...prev, paymentProof: "" }));
+      
+      // Opcional: Subir el archivo inmediatamente y guardar solo el ID de referencia
+      // const uploadPaymentProof = async (file) => {
+      //   const formData = new FormData();
+      //   formData.append('paymentProof', file);
+      //   const response = await fetch('/api/upload-payment-proof', {
+      //     method: 'POST',
+      //     body: formData
+      //   });
+      //   const data = await response.json();
+      //   return data.paymentId;
+      // };
+      // uploadPaymentProof(file).then(paymentId => {
+      //   setFormData(prev => ({ ...prev, paymentProof: paymentId }));
+      // });
     }
   };
 
@@ -173,6 +221,11 @@ const StudentRegistration = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  // API PRINCIPAL: Enviar formulario de registro
+  // Endpoint: POST /api/student-registration
+  // Descripción: Registra al estudiante en el sistema
+  // Body: Todos los datos del formulario (formData)
+  // Response: { success: boolean, message: string, registrationId?: string }
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -182,6 +235,20 @@ const StudentRegistration = () => {
     try {
       // Simular envío a la API
       await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Ejemplo de cómo sería la llamada real a la API:
+      // const formDataToSend = new FormData();
+      // Object.entries(formData).forEach(([key, value]) => {
+      //   if (value !== null) formDataToSend.append(key, value);
+      // });
+      // 
+      // const response = await fetch('/api/student-registration', {
+      //   method: 'POST',
+      //   body: formDataToSend
+      // });
+      // 
+      // const data = await response.json();
+      // if (!response.ok) throw new Error(data.message || 'Error al registrar');
       
       setUiState(prev => ({ ...prev, showSuccessModal: true }));
       
@@ -207,6 +274,8 @@ const StudentRegistration = () => {
       
     } catch (error) {
       console.error("Error al enviar postulación:", error);
+      // Mostrar error al usuario
+      setErrors(prev => ({ ...prev, form: error.message }));
     } finally {
       setUiState(prev => ({ ...prev, isSubmitting: false }));
     }
