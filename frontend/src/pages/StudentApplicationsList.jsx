@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Check, X, Search, FileText, ChevronDown, ChevronUp, Mail, Phone } from "lucide-react";
+import { Check, X, Search, ChevronDown, ChevronUp, Mail, Phone } from "lucide-react";
 
 const StudentApplicationsList = () => {
   const [applications, setApplications] = useState([]);
@@ -36,14 +36,37 @@ const StudentApplicationsList = () => {
             category: "6S",
             school: "UNIDAD EDUCATIVA NUEVA ESPERANZA",
             status: "approved",
-            paymentVerified: true,
-            paymentProof: "comprobante1.jpg",
             registrationDate: "2023-05-15",
             contactEmail: "fresia.ticona@example.com",
             contactPhone: "78945612",
             notes: ""
           },
-          // ... otros datos de ejemplo
+          {
+            id: 2,
+            studentName: "DAYRA DAMIAN GRAGEDA",
+            ci: "15582477",
+            area: "Robótica",
+            category: "Lego P",
+            school: "Santo Domingo Savio A",
+            status: "pending",
+            registrationDate: "2023-05-18",
+            contactEmail: "dayra.grageda@example.com",
+            contactPhone: "65412378",
+            notes: "Verificar documento de identidad"
+          },
+          {
+            id: 3,
+            studentName: "CARLOS MAMANI QUISPE",
+            ci: "12345678",
+            area: "Matemáticas",
+            category: "Tercer Nivel",
+            school: "Colegio San Andrés",
+            status: "rejected",
+            registrationDate: "2023-05-20",
+            contactEmail: "carlos.mamani@example.com",
+            contactPhone: "71234567",
+            notes: "No cumple con los requisitos de edad"
+          }
         ];
         
         setApplications(mockData);
@@ -69,8 +92,8 @@ const StudentApplicationsList = () => {
     
     const matchesStatus = 
       statusFilter === "all" || 
-      app.status === statusFilter ||
-      (statusFilter === "unpaid" && !app.paymentVerified);
+      app.status === statusFilter;
+      // Se eliminó la condición de filtro por pago
     
     return matchesSearch && matchesStatus;
   });
@@ -100,32 +123,6 @@ const StudentApplicationsList = () => {
       ));
     } catch (error) {
       console.error("Error al actualizar estado:", error);
-      // Mostrar error al usuario
-    }
-  };
-
-  // API SUGERIDA: Verificar pago
-  // Endpoint: PATCH /api/applications/:id/payment
-  // Body: { verified: true|false }
-  // Descripción: Marca un pago como verificado o no verificado
-  const verifyPayment = async (id) => {
-    try {
-      // Simulación de actualización
-      /*
-      const currentApp = applications.find(app => app.id === id);
-      const response = await fetch(`/api/applications/${id}/payment`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ verified: !currentApp.paymentVerified })
-      });
-      if (!response.ok) throw new Error('Error al actualizar estado de pago');
-      */
-      
-      setApplications(applications.map(app => 
-        app.id === id ? { ...app, paymentVerified: !app.paymentVerified } : app
-      ));
-    } catch (error) {
-      console.error("Error al verificar pago:", error);
       // Mostrar error al usuario
     }
   };
@@ -216,7 +213,7 @@ const StudentApplicationsList = () => {
             <option value="approved">Aprobados</option>
             <option value="pending">Pendientes</option>
             <option value="rejected">Rechazados</option>
-            <option value="unpaid">Sin pago</option>
+            {/* Se eliminó la opción de filtro por pago */}
           </select>
         </div>
       </div>
@@ -239,9 +236,6 @@ const StudentApplicationsList = () => {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Estado
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Pago
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Acciones
@@ -270,13 +264,6 @@ const StudentApplicationsList = () => {
                           {getStatusText(app.status)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {app.paymentVerified ? (
-                          <Check className="h-5 w-5 text-green-500" />
-                        ) : (
-                          <X className="h-5 w-5 text-red-500" />
-                        )}
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
                           onClick={() => toggleExpand(app.id)}
@@ -294,8 +281,8 @@ const StudentApplicationsList = () => {
                     {/* Detalles expandidos */}
                     {expandedId === app.id && (
                       <tr className="bg-gray-50 dark:bg-gray-700">
-                        <td colSpan="5" className="px-6 py-4">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <td colSpan="4" className="px-6 py-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Información del estudiante */}
                             <div>
                               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
@@ -322,36 +309,6 @@ const StudentApplicationsList = () => {
                                     {app.contactPhone}
                                   </a>
                                 </div>
-                              </div>
-                            </div>
-                            
-                            {/* Comprobante de pago */}
-                            <div>
-                              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                                Comprobante de Pago
-                              </h3>
-                              <div className="flex items-center space-x-4 mb-4">
-                                <button
-                                  onClick={() => verifyPayment(app.id)}
-                                  className={`px-3 py-1 text-sm rounded ${
-                                    app.paymentVerified
-                                      ? 'bg-red-100 text-red-800 hover:bg-red-200'
-                                      : 'bg-green-100 text-green-800 hover:bg-green-200'
-                                  }`}
-                                >
-                                  {app.paymentVerified ? 'Invalidar Pago' : 'Validar Pago'}
-                                </button>
-                                {/* API SUGERIDA: Descargar comprobante */}
-                                {/* Endpoint: GET /api/payment-proofs/:filename */}
-                                <a 
-                                  href={`/api/payment-proofs/${app.paymentProof}`} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                                >
-                                  <FileText className="h-4 w-4 mr-1" />
-                                  Ver comprobante
-                                </a>
                               </div>
                             </div>
                             
@@ -414,7 +371,7 @@ const StudentApplicationsList = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-300">
+                  <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-300">
                     No se encontraron postulaciones
                   </td>
                 </tr>

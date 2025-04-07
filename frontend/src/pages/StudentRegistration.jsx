@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Check, ArrowLeft } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import PaymentUpload from "../components/PaymentUpload";
 
 const StudentRegistration = () => {
   const navigate = useNavigate();
@@ -25,8 +24,8 @@ const StudentRegistration = () => {
     department: "Cochabamba",
     province: "",
     area: location.state?.area || "",
-    category: "",
-    paymentProof: null
+    category: ""
+    // Se eliminó paymentProof ya que no se requiere comprobante inicial
   });
 
   const [uiState, setUiState] = useState({
@@ -137,45 +136,6 @@ const StudentRegistration = () => {
     }
   };
 
-  // API SUGERIDA: Subir comprobante de pago (opcional)
-  // Endpoint: POST /api/upload-payment-proof
-  // Descripción: Sube el comprobante y devuelve un ID de referencia
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors(prev => ({ ...prev, paymentProof: "El archivo no debe exceder 5MB" }));
-        return;
-      }
-      if (!['image/jpeg', 'image/png', 'application/pdf'].includes(file.type)) {
-        setErrors(prev => ({ ...prev, paymentProof: "Formato no válido (solo JPG, PNG o PDF)" }));
-        return;
-      }
-      
-      setFormData(prev => ({ ...prev, paymentProof: file }));
-      setErrors(prev => ({ ...prev, paymentProof: "" }));
-      
-      // Opcional: Subir el archivo inmediatamente y guardar solo el ID de referencia
-      // const uploadPaymentProof = async (file) => {
-      //   const formData = new FormData();
-      //   formData.append('paymentProof', file);
-      //   const response = await fetch('/api/upload-payment-proof', {
-      //     method: 'POST',
-      //     body: formData
-      //   });
-      //   const data = await response.json();
-      //   return data.paymentId;
-      // };
-      // uploadPaymentProof(file).then(paymentId => {
-      //   setFormData(prev => ({ ...prev, paymentProof: paymentId }));
-      // });
-    }
-  };
-
-  const handleRemoveFile = () => {
-    setFormData(prev => ({ ...prev, paymentProof: null }));
-  };
-
   const validateForm = () => {
     const newErrors = {};
     
@@ -198,7 +158,7 @@ const StudentRegistration = () => {
     if (!formData.province) newErrors.province = "Provincia requerida";
     if (!formData.area) newErrors.area = "Área requerida";
     if (!formData.category) newErrors.category = "Categoría requerida";
-    if (!formData.paymentProof) newErrors.paymentProof = "Comprobante de pago requerido";
+    // Se eliminó validación de paymentProof
     
     // Validaciones de formato
     if (formData.email && !/^\S+@\S+\.\S+$/.test(formData.email)) {
@@ -237,16 +197,13 @@ const StudentRegistration = () => {
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Ejemplo de cómo sería la llamada real a la API:
-      // const formDataToSend = new FormData();
-      // Object.entries(formData).forEach(([key, value]) => {
-      //   if (value !== null) formDataToSend.append(key, value);
-      // });
-      // 
       // const response = await fetch('/api/student-registration', {
       //   method: 'POST',
-      //   body: formDataToSend
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify(formData),
       // });
-      // 
       // const data = await response.json();
       // if (!response.ok) throw new Error(data.message || 'Error al registrar');
       
@@ -268,8 +225,8 @@ const StudentRegistration = () => {
         department: "Cochabamba",
         province: "",
         area: location.state?.area || "",
-        category: "",
-        paymentProof: null
+        category: ""
+        // Se eliminó paymentProof
       });
       
     } catch (error) {
@@ -689,19 +646,7 @@ const StudentRegistration = () => {
               </div>
             </div>
             
-            {/* Sección 5: Comprobante de pago */}
-            <div>
-              <h3 className="text-md font-medium text-gray-900 mb-4 pb-2 border-b border-gray-200">
-                Comprobante de pago
-              </h3>
-              
-              <PaymentUpload 
-                paymentProof={formData.paymentProof}
-                handleFileChange={handleFileChange}
-                errors={errors}
-                onRemoveFile={handleRemoveFile}
-              />
-            </div>
+            {/* Se eliminó completamente la sección de comprobante de pago */}
           </div>
 
           <div className="mt-8 flex justify-center">
