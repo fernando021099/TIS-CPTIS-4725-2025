@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { Edit, Trash2, Plus, ChevronLeft, ChevronRight, Check, X } from "lucide-react"
+import { Edit, Trash2, Plus, ChevronLeft, ChevronRight, Check, X, Search, Filter, ChevronDown, ChevronUp } from "lucide-react"
 import { supabase } from '../supabaseClient'
+import LoadingSpinner from '../components/common/LoadingSpinner'
 
 const AreaList = () => {
   const navigate = useNavigate()
@@ -9,9 +10,12 @@ const AreaList = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedLevels, setSelectedLevels] = useState([])
+  const [statusFilter, setStatusFilter] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
   const [showDeleteModal, setShowDeleteModal] = useState(null)
-  const [connectionStatus, setConnectionStatus] = useState({ message: "", type: "" }) // Para mostrar estado de conexión
+  const [connectionStatus, setConnectionStatus] = useState({ message: "", type: "" })
+  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' })
+  const [showFilters, setShowFilters] = useState(false)
   const itemsPerPage = 8
 
   // ============== LLAMADA API: OBTENER ÁREAS ==============
@@ -24,19 +28,18 @@ const AreaList = () => {
         
         if (error) throw error
         
-        // Transformar datos al formato esperado por el componente
         const formattedAreas = data.map(area => ({
           id: area.id,
           name: area.nombre,
           categoryLevel: area.nivel,
-          cost: area.costo || 50, // Ahora usamos el campo real costo de la base de datos
+          cost: area.costo || 50,
           description: area.descripcion || "",
           isActive: area.estado === 'ACTIVO',
-          createdAt: new Date().toISOString() // La tabla no tiene campo createdAt
+          createdAt: area.created_at || new Date().toISOString()
         }))
         
         setAreas(formattedAreas)
-        setConnectionStatus({ message: "Conexión Supabase exitosa", type: "success" })
+        setConnectionStatus({ message: "Conexión exitosa", type: "success" })
       } catch (error) {
         console.error("Error cargando áreas:", error)
         setConnectionStatus({ message: "Error al obtener datos", type: "error" })
@@ -48,13 +51,35 @@ const AreaList = () => {
     fetchAreas()
   }, [])
 
-  // Filtrado de áreas
-  const filteredAreas = areas.filter(area => {
+  // Ordenamiento
+  const requestSort = (key) => {
+    let direction = 'asc'
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc'
+    }
+    setSortConfig({ key, direction })
+  }
+
+  const sortedAreas = [...areas].sort((a, b) => {
+    if (a[sortConfig.key] < b[sortConfig.key]) {
+      return sortConfig.direction === 'asc' ? -1 : 1
+    }
+    if (a[sortConfig.key] > b[sortConfig.key]) {
+      return sortConfig.direction === 'asc' ? 1 : -1
+    }
+    return 0
+  })
+
+  // Filtrado combinado
+  const filteredAreas = sortedAreas.filter(area => {
     const matchesSearch = area.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          (area.description && area.description.toLowerCase().includes(searchTerm.toLowerCase()))
     const matchesLevel = selectedLevels.length === 0 || 
                         selectedLevels.some(level => area.categoryLevel.includes(level))
-    return matchesSearch && matchesLevel
+    const matchesStatus = statusFilter === 'all' || 
+                         (statusFilter === 'active' && area.isActive) || 
+                         (statusFilter === 'inactive' && !area.isActive)
+    return matchesSearch && matchesLevel && matchesStatus
   })
 
   // Extraer niveles únicos para los filtros
@@ -84,19 +109,18 @@ const AreaList = () => {
       
       if (error) throw error
       
-      // Actualizar estado local
       setAreas(areas.map(area => 
         area.id === id ? { ...area, isActive: !area.isActive } : area
       ))
       
       setConnectionStatus({ 
-        message: `Cambio de estado exitoso (ID: ${id})`, 
+        message: `Estado actualizado (ID: ${id})`, 
         type: "success" 
       })
     } catch (error) {
       console.error("Error cambiando estado:", error)
       setConnectionStatus({ 
-        message: `Error al cambiar estado (ID: ${id})`, 
+        message: `Error al actualizar (ID: ${id})`, 
         type: "error" 
       })
     }
@@ -116,13 +140,13 @@ const AreaList = () => {
       setShowDeleteModal(null)
       
       setConnectionStatus({ 
-        message: `Área eliminada correctamente (ID: ${id})`, 
+        message: `Área eliminada (ID: ${id})`, 
         type: "success" 
       })
     } catch (error) {
       console.error("Error eliminando área:", error)
       setConnectionStatus({ 
-        message: `Error al eliminar área (ID: ${id})`, 
+        message: `Error al eliminar (ID: ${id})`, 
         type: "error" 
       })
     }
@@ -149,7 +173,7 @@ const AreaList = () => {
         </button>
         
         <h1 className="text-xl font-bold text-gray-900 dark:text-white text-center sm:text-left">
-          Listado de Áreas Registradas
+          Gestión de Áreas Académicas
         </h1>
         
         <button
@@ -161,7 +185,7 @@ const AreaList = () => {
         </button>
       </div>
 
-      {/* Mostrar estado de conexión */}
+      {/* Estado de conexión */}
       {connectionStatus.message && (
         <div className={`mb-4 p-3 rounded-md text-sm ${
           connectionStatus.type === "success" 
@@ -177,64 +201,150 @@ const AreaList = () => {
         </div>
       )}
 
-      {/* Filtros y búsqueda */}
+      {/* Panel de búsqueda y filtros */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6 border border-gray-200 dark:border-gray-700">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Buscar áreas
-            </label>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          {/* Barra de búsqueda */}
+          <div className="relative flex-grow">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
             <input
               type="text"
               placeholder="Buscar por nombre o descripción..."
+              className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md w-full focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             />
           </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Filtrar por nivel
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {uniqueLevels.map(level => (
+          {/* Botón toggle de filtros */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md"
+          >
+            <Filter className="h-5 w-5 mr-2" />
+            Filtros
+            {showFilters ? (
+              <ChevronUp className="h-5 w-5 ml-1" />
+            ) : (
+              <ChevronDown className="h-5 w-5 ml-1" />
+            )}
+          </button>
+        </div>
+        
+        {/* Panel de filtros desplegable */}
+        {showFilters && (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            {/* Filtro por estado */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Estado
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="all">Todos los estados</option>
+                <option value="active">Activas</option>
+                <option value="inactive">Inactivas</option>
+              </select>
+            </div>
+            
+            {/* Filtro por nivel */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Nivel/Categoría
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {uniqueLevels.map(level => (
+                  <button
+                    key={level}
+                    onClick={() => {
+                      if (selectedLevels.includes(level)) {
+                        setSelectedLevels(selectedLevels.filter(l => l !== level))
+                      } else {
+                        setSelectedLevels([...selectedLevels, level])
+                      }
+                    }}
+                    className={`px-3 py-1 rounded-full text-xs flex items-center ${
+                      selectedLevels.includes(level)
+                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-700'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600'
+                    }`}
+                  >
+                    {selectedLevels.includes(level) && (
+                      <Check className="h-3 w-3 mr-1" />
+                    )}
+                    {level}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Ordenamiento */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Ordenar por
+              </label>
+              <div className="flex space-x-2">
                 <button
-                  key={level}
-                  onClick={() => {
-                    if (selectedLevels.includes(level)) {
-                      setSelectedLevels(selectedLevels.filter(l => l !== level))
-                    } else {
-                      setSelectedLevels([...selectedLevels, level])
-                    }
-                  }}
-                  className={`px-3 py-1 rounded-full text-xs flex items-center ${
-                    selectedLevels.includes(level)
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-700'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600'
+                  onClick={() => requestSort('name')}
+                  className={`px-3 py-1 text-sm rounded-md ${
+                    sortConfig.key === 'name' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'bg-gray-100 dark:bg-gray-700'
                   }`}
                 >
-                  {selectedLevels.includes(level) && (
-                    <Check className="h-3 w-3 mr-1" />
+                  Nombre
+                  {sortConfig.key === 'name' && (
+                    sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4 inline ml-1" /> : <ChevronDown className="h-4 w-4 inline ml-1" />
                   )}
-                  {level}
                 </button>
-              ))}
+                <button
+                  onClick={() => requestSort('createdAt')}
+                  className={`px-3 py-1 text-sm rounded-md ${
+                    sortConfig.key === 'createdAt' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'bg-gray-100 dark:bg-gray-700'
+                  }`}
+                >
+                  Fecha
+                  {sortConfig.key === 'createdAt' && (
+                    sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4 inline ml-1" /> : <ChevronDown className="h-4 w-4 inline ml-1" />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+      </div>
+
+      {/* Resumen de resultados */}
+      <div className="mb-4 flex justify-between items-center">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Mostrando {filteredAreas.length} de {areas.length} áreas
+        </p>
+        {(statusFilter !== 'all' || selectedLevels.length > 0) && (
+          <button 
+            onClick={() => {
+              setStatusFilter('all')
+              setSelectedLevels([])
+            }}
+            className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+          >
+            Limpiar filtros
+          </button>
+        )}
       </div>
 
       {/* Listado de áreas */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border border-gray-200 dark:border-gray-700">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-            Cargando áreas...
+          <div className="p-8 text-center">
+            <LoadingSpinner size="lg" />
           </div>
         ) : filteredAreas.length === 0 ? (
           <div className="p-8 text-center">
             <p className="text-gray-500 dark:text-gray-400">
-              {searchTerm || selectedLevels.length > 0
+              {searchTerm || selectedLevels.length > 0 || statusFilter !== 'all'
                 ? "No se encontraron áreas con los filtros aplicados"
                 : "No hay áreas registradas"}
             </p>
@@ -252,14 +362,34 @@ const AreaList = () => {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Nombre
+                    <th 
+                      onClick={() => requestSort('name')}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    >
+                      <div className="flex items-center">
+                        Nombre
+                        {sortConfig.key === 'name' && (
+                          sortConfig.direction === 'asc' ? 
+                            <ChevronUp className="h-4 w-4 ml-1" /> : 
+                            <ChevronDown className="h-4 w-4 ml-1" />
+                        )}
+                      </div>
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Nivel/Categoría
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Costo
+                    <th 
+                      onClick={() => requestSort('cost')}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    >
+                      <div className="flex items-center">
+                        Costo
+                        {sortConfig.key === 'cost' && (
+                          sortConfig.direction === 'asc' ? 
+                            <ChevronUp className="h-4 w-4 ml-1" /> : 
+                            <ChevronDown className="h-4 w-4 ml-1" />
+                        )}
+                      </div>
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Estado
