@@ -6,7 +6,8 @@ import HomePage from './pages/HomePage'
 import AreaRegistration from './pages/AreaRegistration'
 import AreaList from './pages/AreaList'
 import StudentRegistration from './pages/StudentRegistration'
-import StudentApplicationsList from './pages/StudentApplicationsList'
+import StudentsApprovedList from './pages/StudentsApprovedList'
+import StudentDetail from './pages/StudentDetail'
 import './index.css'
 
 const router = createBrowserRouter([
@@ -32,7 +33,11 @@ const router = createBrowserRouter([
       },
       {
         path: "student-applications",
-        element: <StudentApplicationsList />,
+        element: <StudentsApprovedList />,
+      },
+      {
+        path: "student-applications/:id",
+        element: <StudentDetail />,
       },
     ],
   },
