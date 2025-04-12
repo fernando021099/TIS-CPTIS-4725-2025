@@ -15,21 +15,34 @@ const StudentsApprovedList = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'lastUpdated', direction: 'desc' });
   const [showFilters, setShowFilters] = useState(false);
 
-  // API: Obtener lista de estudiantes
+  // ==============================================
+  // API CALL: Get all students
+  // ==============================================
   useEffect(() => {
     const fetchStudents = async () => {
       try {
-        // SIMULACIÓN - Reemplazar por API real
-        await new Promise(resolve => setTimeout(resolve, 800));
+        setLoading(true);
         
-        /* API REAL:
-        const response = await fetch('/api/students');
-        if (!response.ok) throw new Error('Error al cargar estudiantes');
+        // >>>>> REPLACE WITH REAL API CALL <<<<<
+        /*
+        const response = await fetch('https://your-api-endpoint.com/students', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
         setStudents(data);
         */
         
-        // Datos mock más completos para demostración
+        // Mock data (development only)
+        await new Promise(resolve => setTimeout(resolve, 800));
         const mockData = [
           {
             id: 1,
@@ -79,7 +92,9 @@ const StudentsApprovedList = () => {
         
         setStudents(mockData);
       } catch (error) {
-        console.error("Error:", error);
+        console.error("Failed to fetch students:", error);
+        // >>>>> ADD ERROR HANDLING UI HERE <<<<<
+        // setError('Failed to load students. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -88,7 +103,7 @@ const StudentsApprovedList = () => {
     fetchStudents();
   }, []);
 
-  // Ordenamiento
+  // Sorting functionality
   const requestSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -107,7 +122,7 @@ const StudentsApprovedList = () => {
     return 0;
   });
 
-  // Filtrado combinado
+  // Combined filtering
   const filteredStudents = sortedStudents.filter(student => {
     const matchesSearch = 
       student.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -124,43 +139,8 @@ const StudentsApprovedList = () => {
     return matchesSearch && matchesStatus && matchesArea;
   });
 
-  // Obtener áreas únicas para el filtro
+  // Get unique areas for filter dropdown
   const uniqueAreas = [...new Set(students.map(student => student.area))];
-
-  // API: Actualizar estado de un estudiante
-  const updateStudentStatus = async (id, newStatus, reason = "") => {
-    try {
-      // SIMULACIÓN - Reemplazar por API real
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      /* API REAL:
-      const response = await fetch(`/api/students/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          status: newStatus,
-          rejectionReason: reason 
-        })
-      });
-      if (!response.ok) throw new Error('Error al actualizar');
-      */
-      
-      // Actualización local (simulación)
-      setStudents(prev => prev.map(student => 
-        student.id === id ? { 
-          ...student, 
-          status: newStatus,
-          rejectionReason: reason,
-          lastUpdated: new Date().toISOString()
-        } : student
-      ));
-      
-      return true;
-    } catch (error) {
-      console.error("Error al actualizar:", error);
-      return false;
-    }
-  };
 
   if (loading) {
     return <div className="flex justify-center items-center h-64"><LoadingSpinner size="lg" /></div>;
@@ -179,10 +159,10 @@ const StudentsApprovedList = () => {
         <h1 className="text-2xl font-bold text-gray-900">Gestión de Inscripciones</h1>
       </div>
 
-      {/* Barra de búsqueda y filtros */}
+      {/* Search and filter bar */}
       <div className="mb-6 bg-white p-4 rounded-lg shadow">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          {/* Barra de búsqueda */}
+          {/* Search input */}
           <div className="relative flex-grow">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-5 w-5 text-gray-400" />
@@ -196,7 +176,7 @@ const StudentsApprovedList = () => {
             />
           </div>
           
-          {/* Botón toggle de filtros */}
+          {/* Filters toggle button */}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md"
@@ -211,10 +191,10 @@ const StudentsApprovedList = () => {
           </button>
         </div>
         
-        {/* Panel de filtros desplegable */}
+        {/* Filters panel */}
         {showFilters && (
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
-            {/* Filtro por estado */}
+            {/* Status filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
               <select
@@ -228,7 +208,7 @@ const StudentsApprovedList = () => {
               </select>
             </div>
             
-            {/* Filtro por área */}
+            {/* Area filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Área</label>
               <select
@@ -243,7 +223,7 @@ const StudentsApprovedList = () => {
               </select>
             </div>
             
-            {/* Ordenamiento */}
+            {/* Sorting */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ordenar por</label>
               <div className="flex space-x-2">
@@ -271,7 +251,7 @@ const StudentsApprovedList = () => {
         )}
       </div>
 
-      {/* Resumen de resultados */}
+      {/* Results summary */}
       <div className="mb-4 flex justify-between items-center">
         <p className="text-sm text-gray-600">
           Mostrando {filteredStudents.length} de {students.length} registros
@@ -289,7 +269,7 @@ const StudentsApprovedList = () => {
         ) : null}
       </div>
 
-      {/* Listado de estudiantes */}
+      {/* Students list */}
       {filteredStudents.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <p className="text-gray-500">No se encontraron resultados</p>
@@ -348,7 +328,7 @@ const StudentsApprovedList = () => {
                     <FileText className="h-4 w-4" />
                   </button>
                   <button 
-                    onClick={() => navigate(`student-applications/${student.id}`)}
+                    onClick={() => navigate(`/student-applications/${student.id}`)}
                     className="flex items-center text-gray-600 hover:text-gray-800 text-sm p-2 rounded hover:bg-gray-100"
                     title="Editar estado"
                   >

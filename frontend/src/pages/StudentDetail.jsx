@@ -13,60 +13,106 @@ const StudentDetail = () => {
   const [tempReason, setTempReason] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // API: Obtener detalles del estudiante
+  // Mock data that matches StudentsApprovedList
+  const mockStudents = [
+    {
+      id: 1,
+      studentName: "MARÍA FERNANDA LÓPEZ",
+      ci: "14268363",
+      area: "Matemáticas",
+      status: "approved",
+      proofUrl: "/comprobantes/comprobante1.pdf",
+      rejectionReason: "",
+      paymentDate: "2023-11-20",
+      paymentAmount: "200 Bs.",
+      ocrConfidence: "95%",
+      lastUpdated: "2023-11-20T10:30:00Z"
+    },
+    {
+      id: 2,
+      studentName: "JUAN CARLOS PÉREZ",
+      ci: "15582477",
+      area: "Robótica",
+      status: "rejected",
+      proofUrl: "/comprobantes/comprobante2.pdf",
+      rejectionReason: "Monto incorrecto y fecha vencida",
+      paymentDate: "2023-11-18",
+      paymentAmount: "150 Bs.",
+      ocrConfidence: "65%",
+      lastUpdated: "2023-11-20T11:15:00Z"
+    },
+    {
+      id: 3,
+      studentName: "ANA GABRIELA GUTIÉRREZ",
+      ci: "12345678",
+      area: "Física",
+      status: "approved",
+      proofUrl: "/comprobantes/comprobante3.pdf",
+      rejectionReason: "",
+      paymentDate: "2023-11-22",
+      paymentAmount: "200 Bs.",
+      ocrConfidence: "92%",
+      lastUpdated: "2023-11-22T09:45:00Z"
+    },
+    {
+      id: 4,
+      studentName: "CARLOS ALBERTO MARTÍNEZ",
+      ci: "18765432",
+      area: "Matemáticas",
+      status: "rejected",
+      proofUrl: "/comprobantes/comprobante4.pdf",
+      rejectionReason: "Documento ilegible",
+      paymentDate: "2023-11-15",
+      paymentAmount: "200 Bs.",
+      ocrConfidence: "45%",
+      lastUpdated: "2023-11-19T14:20:00Z"
+    }
+  ];
+
+  // ==============================================
+  // API CALL: Get single student
+  // ==============================================
   useEffect(() => {
     const fetchStudent = async () => {
       try {
         setLoading(true);
         
-        // SIMULACIÓN - Reemplazar por API real
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // >>>>> REPLACE WITH REAL API CALL <<<<<
+        /*
+        const response = await fetch(`https://your-api-endpoint.com/students/${id}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
         
-        /* API REAL:
-        const response = await fetch(`/api/students/${id}`);
-        if (!response.ok) throw new Error('Error al cargar estudiante');
         const data = await response.json();
         setStudent(data);
+        setTempStatus(data.status);
+        setTempReason(data.rejectionReason || '');
         */
         
-        // Datos mock
-        const allStudents = [
-          {
-            id: 1,
-            studentName: "MARÍA FERNANDA LÓPEZ",
-            ci: "14268363",
-            area: "Matemáticas",
-            status: "approved",
-            proofUrl: "/comprobantes/comprobante1.pdf",
-            rejectionReason: "",
-            paymentDate: "2023-05-20",
-            paymentAmount: "200 Bs.",
-            ocrConfidence: "95%",
-            lastUpdated: "2023-11-20T10:30:00Z"
-          },
-          {
-            id: 2,
-            studentName: "JUAN CARLOS PÉREZ",
-            ci: "15582477",
-            area: "Robótica",
-            status: "rejected",
-            proofUrl: "/comprobantes/comprobante2.pdf",
-            rejectionReason: "Monto incorrecto (150 Bs. en lugar de 200 Bs.) y fecha vencida",
-            paymentDate: "2023-05-22",
-            paymentAmount: "150 Bs.",
-            ocrConfidence: "65%",
-            lastUpdated: "2023-11-20T11:15:00Z"
-          }
-        ];
-
-        const foundStudent = allStudents.find(s => s.id === Number(id));
-        if (!foundStudent) throw new Error("Estudiante no encontrado");
+        // Mock data (development only)
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const foundStudent = mockStudents.find(s => s.id === Number(id));
+        
+        if (!foundStudent) {
+          throw new Error("Estudiante no encontrado");
+        }
         
         setStudent(foundStudent);
         setTempStatus(foundStudent.status);
         setTempReason(foundStudent.rejectionReason || '');
+        
       } catch (error) {
-        console.error("Error:", error);
+        console.error("Failed to fetch student:", error);
+        // >>>>> ADD ERROR HANDLING UI HERE <<<<<
+        // setError('Failed to load student data. Redirecting...');
         navigate('/student-applications', { replace: true });
       } finally {
         setLoading(false);
@@ -76,29 +122,39 @@ const StudentDetail = () => {
     fetchStudent();
   }, [id, navigate]);
 
-  // API: Guardar cambios
+  // ==============================================
+  // API CALL: Update student status
+  // ==============================================
   const saveChanges = async () => {
+    if (!student) return;
+    
     try {
       setSaving(true);
       
-      // SIMULACIÓN - Reemplazar por API real
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      /* API REAL:
-      const response = await fetch(`/api/students/${id}/status`, {
+      // >>>>> REPLACE WITH REAL API CALL <<<<<
+      /*
+      const response = await fetch(`https://your-api-endpoint.com/students/${id}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
           status: tempStatus,
-          rejectionReason: tempStatus === 'rejected' ? tempReason : '' 
+          rejectionReason: tempStatus === 'rejected' ? tempReason : ''
         })
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
-      if (!response.ok) throw new Error('Error al guardar');
       const updatedStudent = await response.json();
+      setStudent(updatedStudent);
       */
       
-      // Actualización local (simulación)
+      // Mock update (development only)
+      await new Promise(resolve => setTimeout(resolve, 500));
       const updatedStudent = {
         ...student,
         status: tempStatus,
@@ -109,12 +165,13 @@ const StudentDetail = () => {
       setStudent(updatedStudent);
       setEditing(false);
       
-      // Mostrar notificación de éxito
+      // Show success notification
       alert(`Estado actualizado a: ${tempStatus === 'approved' ? 'Aprobado' : 'Rechazado'}`);
       
     } catch (error) {
-      console.error("Error al guardar:", error);
-      alert("Error al guardar los cambios");
+      console.error("Failed to update student:", error);
+      // >>>>> ADD ERROR HANDLING UI HERE <<<<<
+      // setError('Failed to update student. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -124,12 +181,17 @@ const StudentDetail = () => {
     return <div className="flex justify-center items-center h-64"><LoadingSpinner size="lg" /></div>;
   }
 
-  if (!student) return null;
+  if (!student) {
+    return null;
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
-        <button onClick={() => navigate(-1)} className="flex items-center text-gray-600 hover:text-gray-800">
+        <button 
+          onClick={() => navigate('/student-applications')} 
+          className="flex items-center text-gray-600 hover:text-gray-800"
+        >
           <ArrowLeft className="h-5 w-5 mr-1" /> Volver
         </button>
         <h1 className="text-xl font-bold">Detalle de Inscripción</h1>
@@ -198,6 +260,7 @@ const StudentDetail = () => {
                       className="border rounded p-2 w-full"
                       rows="3"
                       placeholder="Especificar el motivo..."
+                      required
                     />
                   </div>
                 )}
@@ -205,7 +268,7 @@ const StudentDetail = () => {
                 <div className="flex space-x-2">
                   <button
                     onClick={saveChanges}
-                    disabled={saving}
+                    disabled={saving || (tempStatus === 'rejected' && !tempReason.trim())}
                     className="flex items-center px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300"
                   >
                     {saving ? (

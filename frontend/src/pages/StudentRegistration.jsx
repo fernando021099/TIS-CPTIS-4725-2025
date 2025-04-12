@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Check, ArrowLeft } from "lucide-react";
+import { X, Check, ArrowLeft, Upload } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const StudentRegistration = () => {
@@ -27,17 +27,18 @@ const StudentRegistration = () => {
     grade: "",
     department: "Cochabamba",
     province: "",
-    area: location.state?.area || "",
-    category: "",
     // Para manejar múltiples áreas (máximo 2)
-    areas: location.state?.area ? [location.state.area] : []
+    areas: location.state?.area ? [location.state.area] : [],
+    categories: {} // { "ÁREA": "CATEGORÍA" }
   });
 
   const [uiState, setUiState] = useState({
     isSubmitting: false,
-    showSuccessModal: false,
     showPaymentModal: false,
-    paymentData: null
+    showUploadModal: false,
+    paymentData: null,
+    paymentProof: null,
+    uploadProgress: 0
   });
 
   const [errors, setErrors] = useState({});
@@ -216,17 +217,19 @@ const StudentRegistration = () => {
         newErrors.areas = "Máximo 2 áreas por postulante";
       }
       
-      // Validación específica para Robótica e Informática
+      // Validación específica para Robótica (solo 1 área si es Robótica)
       const hasRobotics = formData.areas.includes("ROBÓTICA");
-      const hasInformatics = formData.areas.includes("INFORMÁTICA");
       
       if (hasRobotics && formData.areas.length > 1) {
         newErrors.areas = "Si postulas a ROBÓTICA, no puedes postular a otra área";
       }
       
-      if (hasInformatics && hasRobotics) {
-        newErrors.areas = "No puedes postular a INFORMÁTICA y ROBÓTICA simultáneamente";
-      }
+      // Validar que todas las áreas tengan categoría seleccionada
+      formData.areas.forEach(area => {
+        if (!formData.categories[area]) {
+          newErrors[`category_${area}`] = `Seleccione categoría para ${area}`;
+        }
+      });
     }
     
     setErrors(newErrors);
@@ -249,14 +252,6 @@ const StudentRegistration = () => {
       fetchProvinces(value);
       */
     }
-
-    if (name === "area") {
-      setFormData(prev => ({ ...prev, category: "" }));
-      /* 
-      Llamar a API de categorías cuando se selecciona un área
-      fetchCategories(value);
-      */
-    }
   };
 
   const handleAreaSelection = (area) => {
@@ -265,11 +260,13 @@ const StudentRegistration = () => {
     setFormData(prev => {
       // Si el área ya está seleccionada, la quitamos
       if (prev.areas.includes(area)) {
+        const newCategories = { ...prev.categories };
+        delete newCategories[area];
+        
         return {
           ...prev,
           areas: prev.areas.filter(a => a !== area),
-          area: prev.area === area ? "" : prev.area,
-          category: prev.area === area ? "" : prev.category
+          categories: newCategories
         };
       }
       
@@ -278,12 +275,27 @@ const StudentRegistration = () => {
         return {
           ...prev,
           areas: [...prev.areas, area],
-          area: prev.areas.length === 0 ? area : prev.area // Auto-seleccionar para edición
+          categories: {
+            ...prev.categories,
+            [area]: "" // Inicializar categoría vacía
+          }
         };
       }
       
       return prev;
     });
+  };
+
+  const handleCategoryChange = (area, category) => {
+    setErrors(prev => ({ ...prev, [`category_${area}`]: "" }));
+    
+    setFormData(prev => ({
+      ...prev,
+      categories: {
+        ...prev.categories,
+        [area]: category
+      }
+    }));
   };
 
   const goToNextSection = () => {
@@ -346,20 +358,20 @@ const StudentRegistration = () => {
         amount: formData.areas.length * 15, // 15 Bs por área
         studentName: `${formData.firstName} ${formData.lastName}`,
         tutorName: formData.tutorName,
-        areas: formData.areas.join(", "),
+        areas: formData.areas.map(area => `${area} (${formData.categories[area]})`).join(", "),
         paymentDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 días desde ahora
       };
       
       setUiState(prev => ({ 
         ...prev, 
         showPaymentModal: true,
-        paymentData: mockPaymentData
+        paymentData: mockPaymentData,
+        isSubmitting: false
       }));
       
     } catch (error) {
       console.error("Error al enviar postulación:", error);
       setErrors(prev => ({ ...prev, form: error.message }));
-    } finally {
       setUiState(prev => ({ ...prev, isSubmitting: false }));
     }
   };
@@ -412,6 +424,75 @@ const StudentRegistration = () => {
   };
 
   /* 
+  API SUGERIDA: Subir comprobante de pago
+  Endpoint: POST /api/upload-payment-proof
+  Descripción: Sube el comprobante de pago para validación
+  Body: FormData con el archivo y registrationId
+  Response: { success: boolean, message: string }
+  */
+  const handlePaymentProofUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setUiState(prev => ({ 
+      ...prev, 
+      paymentProof: file,
+      uploadProgress: 0
+    }));
+    
+    // Simular subida a la API
+    const interval = setInterval(() => {
+      setUiState(prev => {
+        const newProgress = prev.uploadProgress + 10;
+        if (newProgress >= 100) {
+          clearInterval(interval);
+          
+          /* 
+          En una implementación real, aquí se enviaría el archivo:
+          
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('registrationId', uiState.paymentData.registrationId);
+          
+          fetch('/api/upload-payment-proof', {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              setUiState(prev => ({ 
+                ...prev, 
+                uploadProgress: 100,
+                showPaymentModal: false,
+                showUploadModal: false,
+                showSuccessModal: true
+              }));
+            } else {
+              throw new Error(data.message || 'Error al subir comprobante');
+            }
+          })
+          .catch(error => {
+            console.error("Error al subir comprobante:", error);
+            setUiState(prev => ({ ...prev, uploadProgress: 0 }));
+            alert("Error al subir comprobante: " + error.message);
+          });
+          */
+          
+          return { 
+            ...prev, 
+            uploadProgress: 100,
+            showPaymentModal: false,
+            showUploadModal: false,
+            showSuccessModal: true
+          };
+        }
+        return { ...prev, uploadProgress: newProgress };
+      });
+    }, 300);
+  };
+
+  /* 
   API SUGERIDA: Verificar estado de pago
   Endpoint: GET /api/payment-status/:registrationId
   Descripción: Verifica si el pago ya fue realizado
@@ -425,32 +506,6 @@ const StudentRegistration = () => {
     } catch (error) {
       console.error("Error al verificar estado de pago:", error);
       return false;
-    }
-  };
-  */
-
-  /* 
-  API SUGERIDA: Subir comprobante de pago
-  Endpoint: POST /api/upload-payment-proof
-  Descripción: Sube el comprobante de pago para validación
-  Body: FormData con el archivo y registrationId
-  Response: { success: boolean, message: string }
-  Ejemplo de implementación:
-  
-  const uploadPaymentProof = async (file, registrationId) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('registrationId', registrationId);
-    
-    try {
-      const response = await fetch('/api/upload-payment-proof', {
-        method: 'POST',
-        body: formData
-      });
-      return await response.json();
-    } catch (error) {
-      console.error("Error al subir comprobante:", error);
-      return { success: false, message: "Error de conexión" };
     }
   };
   */
@@ -837,33 +892,32 @@ const StudentRegistration = () => {
           ))}
         </div>
         
-        {/* Mostrar categorías para el área seleccionada (si solo hay una) */}
-        {formData.areas.length === 1 && (
-          <div className="mt-4">
+        {/* Mostrar categorías para cada área seleccionada */}
+        {formData.areas.map(area => (
+          <div key={area} className="mt-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Categoría/Nivel para {formData.areas[0]} <span className="text-red-500">*</span>
+              Categoría/Nivel para {area} <span className="text-red-500">*</span>
             </label>
             <select
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
+              value={formData.categories[area] || ""}
+              onChange={(e) => handleCategoryChange(area, e.target.value)}
               className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.category ? "border-red-500" : "border-gray-300"
+                errors[`category_${area}`] ? "border-red-500" : "border-gray-300"
               }`}
             >
               <option value="">Seleccione categoría</option>
-              {areaToCategories[formData.areas[0]]?.map((cat, index) => (
+              {areaToCategories[area]?.map((cat, index) => (
                 <option key={index} value={cat}>{cat}</option>
               ))}
             </select>
-            {errors.category && (
+            {errors[`category_${area}`] && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
                 <X className="h-4 w-4 mr-1" />
-                {errors.category}
+                {errors[`category_${area}`]}
               </p>
             )}
           </div>
-        )}
+        ))}
       </div>
       
       <div className="mt-6 flex justify-between">
@@ -885,6 +939,160 @@ const StudentRegistration = () => {
         >
           {uiState.isSubmitting ? "Enviando..." : "Enviar Postulación"}
         </button>
+      </div>
+    </div>
+  );
+
+  // Modal de orden de pago
+  const renderPaymentModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in">
+        <div className="text-center">
+          <h3 className="text-lg font-medium text-gray-900">
+            Orden de Pago Generada
+          </h3>
+          <div className="mt-4 text-sm text-gray-600 text-left space-y-2">
+            <p><span className="font-medium">Estudiante:</span> {uiState.paymentData.studentName}</p>
+            <p><span className="font-medium">Tutor:</span> {uiState.paymentData.tutorName}</p>
+            <p><span className="font-medium">Áreas:</span> {uiState.paymentData.areas}</p>
+            <p><span className="font-medium">Monto a pagar:</span> {uiState.paymentData.amount} Bs.</p>
+            <p><span className="font-medium">ID de Registro:</span> {uiState.paymentData.registrationId}</p>
+            <p><span className="font-medium">Fecha límite de pago:</span> {uiState.paymentData.paymentDeadline.toLocaleDateString()}</p>
+            
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-yellow-700 text-sm">
+                <span className="font-medium">Importante:</span> Debe presentar esta orden de pago en las cajas de la FCyT para completar su inscripción. Posteriormente, deberá subir el comprobante de pago en el sistema.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="mt-6 flex flex-col space-y-2">
+          <button
+            onClick={handleDownloadPDF}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Descargar Orden de Pago (PDF)
+          </button>
+          <button
+            onClick={() => setUiState(prev => ({ 
+              ...prev, 
+              showPaymentModal: false,
+              showUploadModal: true 
+            }))}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+          >
+            Continuar con Comprobante
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Modal para subir comprobante de pago
+  const renderUploadModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in">
+        <div className="text-center">
+          <h3 className="text-lg font-medium text-gray-900">
+            Subir Comprobante de Pago
+          </h3>
+          <div className="mt-4 text-sm text-gray-600 text-left space-y-2">
+            <p>Por favor suba una imagen o PDF del comprobante de pago.</p>
+            
+            <div className="mt-4 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+              <input
+                type="file"
+                onChange={handlePaymentProofUpload}
+                accept="image/*,.pdf"
+                className="hidden"
+                id="paymentProofInput"
+              />
+              <label htmlFor="paymentProofInput" className="cursor-pointer">
+                <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                <p className="text-sm font-medium text-gray-900 mb-1">
+                  {uiState.paymentProof 
+                    ? uiState.paymentProof.name 
+                    : "Haga clic para seleccionar archivo"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Formatos soportados: JPG, PNG, PDF
+                </p>
+              </label>
+            </div>
+            
+            {/* Barra de progreso */}
+            {uiState.uploadProgress > 0 && (
+              <div className="pt-4">
+                <div className="flex justify-between text-sm text-gray-600 mb-1">
+                  <span>Subiendo archivo...</span>
+                  <span>{uiState.uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-blue-600 h-2.5 rounded-full" 
+                    style={{ width: `${uiState.uploadProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="mt-6 flex justify-between">
+          <button
+            onClick={() => setUiState(prev => ({ 
+              ...prev, 
+              showUploadModal: false,
+              showPaymentModal: true 
+            }))}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+          >
+            Volver
+          </button>
+          <button
+            disabled={!uiState.paymentProof || uiState.uploadProgress > 0}
+            className={`px-4 py-2 text-white rounded-md ${
+              !uiState.paymentProof || uiState.uploadProgress > 0
+                ? "bg-blue-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
+            onClick={() => document.getElementById('paymentProofInput').click()}
+          >
+            {uiState.uploadProgress > 0 ? "Subiendo..." : "Subir Comprobante"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Modal de éxito final
+  const renderSuccessModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl animate-fade-in">
+        <div className="flex items-center justify-center">
+          <div className="flex-shrink-0 h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+            <Check className="h-6 w-6 text-green-600" />
+          </div>
+        </div>
+        <div className="mt-3 text-center">
+          <h3 className="text-lg font-medium text-gray-900">
+            Inscripción Completada
+          </h3>
+          <div className="mt-2 text-sm text-gray-500">
+            Su inscripción ha sido registrada correctamente. Recibirá un correo de confirmación con los detalles.
+          </div>
+        </div>
+        <div className="mt-4">
+          <button
+            type="button"
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            onClick={() => {
+              setUiState(prev => ({ ...prev, showSuccessModal: false }));
+              navigate("/");
+            }}
+          >
+            Finalizar
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -953,76 +1161,10 @@ const StudentRegistration = () => {
         </form>
       </div>
 
-      {/* Modal de éxito */}
-      {uiState.showSuccessModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl animate-fade-in">
-            <div className="flex items-center justify-center">
-              <div className="flex-shrink-0 h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                <Check className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-            <div className="mt-3 text-center">
-              <h3 className="text-lg font-medium text-gray-900">
-                Postulación enviada
-              </h3>
-              <div className="mt-2 text-sm text-gray-500">
-                Tu postulación ha sido registrada correctamente.
-              </div>
-            </div>
-            <div className="mt-4">
-              <button
-                type="button"
-                className="w-full px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-500"
-                onClick={() => setUiState(prev => ({ ...prev, showSuccessModal: false }))}
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de pago (simulado) */}
-      {uiState.showPaymentModal && uiState.paymentData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in">
-            <div className="text-center">
-              <h3 className="text-lg font-medium text-gray-900">
-                Orden de Pago Generada
-              </h3>
-              <div className="mt-4 text-sm text-gray-600 text-left space-y-2">
-                <p><span className="font-medium">Estudiante:</span> {uiState.paymentData.studentName}</p>
-                <p><span className="font-medium">Tutor:</span> {uiState.paymentData.tutorName}</p>
-                <p><span className="font-medium">Áreas:</span> {uiState.paymentData.areas}</p>
-                <p><span className="font-medium">Monto a pagar:</span> {uiState.paymentData.amount} Bs.</p>
-                <p><span className="font-medium">ID de Registro:</span> {uiState.paymentData.registrationId}</p>
-                <p><span className="font-medium">Fecha límite de pago:</span> {uiState.paymentData.paymentDeadline.toLocaleDateString()}</p>
-                
-                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                  <p className="text-yellow-700 text-sm">
-                    <span className="font-medium">Importante:</span> Debe presentar esta orden de pago en las cajas de la FCyT para completar su inscripción. Posteriormente, deberá subir el comprobante de pago en el sistema.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="mt-6 flex flex-col space-y-2">
-              <button
-                onClick={handleDownloadPDF}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Descargar Orden de Pago (PDF)
-              </button>
-              <button
-                onClick={() => setUiState(prev => ({ ...prev, showPaymentModal: false, showSuccessModal: true }))}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modales */}
+      {uiState.showPaymentModal && renderPaymentModal()}
+      {uiState.showUploadModal && renderUploadModal()}
+      {uiState.showSuccessModal && renderSuccessModal()}
     </div>
   );
 };
