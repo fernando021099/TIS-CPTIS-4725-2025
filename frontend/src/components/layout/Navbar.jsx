@@ -42,7 +42,8 @@ export default function Navbar() {
       hasDropdown: true,
       dropdownItems: [
         { name: "Individual", link: "/student-registration" },
-        { name: "Grupal", link: "#" },
+        { name: "Grupal", link: "/group-registration" }, // Cambiado de "#" a "/group-registration"
+
         { name: "Institucional", link: "#" },
       ],
     },
@@ -188,3 +189,4 @@ export default function Navbar() {
     </div>
   )
 }
+
