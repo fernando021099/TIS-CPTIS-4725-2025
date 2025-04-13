@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Check, ArrowLeft, Upload } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import PaymentUpload from "../components/PaymentUpload"; // Corregir la importación
 
 const StudentRegistration = () => {
   const navigate = useNavigate();
@@ -42,6 +43,9 @@ const StudentRegistration = () => {
   });
 
   const [errors, setErrors] = useState({});
+
+  // Agregar estado de arrastrar para el comprobante de pago
+  const [dragActivePayment, setDragActivePayment] = useState(false);
 
   /* 
   API SUGERIDA: Obtener departamentos desde el backend
@@ -490,6 +494,66 @@ const StudentRegistration = () => {
         return { ...prev, uploadProgress: newProgress };
       });
     }, 300);
+  };
+
+  // Manejadores para el arrastrar y soltar del comprobante de pago
+  const handleDragPayment = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActivePayment(true);
+    } else if (e.type === "dragleave") {
+      setDragActivePayment(false);
+    }
+  };
+
+  const handleDropPayment = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActivePayment(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      
+      // Validar tipo de archivo
+      const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+      if (!validTypes.includes(file.type)) {
+        alert("Formato de archivo no válido. Solo se aceptan imágenes (JPG, PNG) o PDF");
+        return;
+      }
+      
+      // Validar tamaño de archivo (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert("El archivo es demasiado grande. El tamaño máximo permitido es 5MB");
+        return;
+      }
+      
+      // Continuar con la lógica existente de handlePaymentProofUpload
+      setUiState(prev => ({ 
+        ...prev, 
+        paymentProof: file,
+        uploadProgress: 0
+      }));
+      
+      // Simular subida a la API
+      const interval = setInterval(() => {
+        setUiState(prev => {
+          const newProgress = prev.uploadProgress + 10;
+          if (newProgress >= 100) {
+            clearInterval(interval);
+            return { 
+              ...prev, 
+              uploadProgress: 100,
+              showPaymentModal: false,
+              showUploadModal: false,
+              showSuccessModal: true
+            };
+          }
+          return { ...prev, uploadProgress: newProgress };
+        });
+      }, 300);
+    }
   };
 
   /* 
@@ -993,32 +1057,23 @@ const StudentRegistration = () => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in">
         <div className="text-center">
-          <h3 className="text-lg font-medium text-gray-900">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+            <Upload className="h-6 w-6 text-blue-600" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mt-3">
             Subir Comprobante de Pago
           </h3>
-          <div className="mt-4 text-sm text-gray-600 text-left space-y-2">
+          <div className="mt-4 text-sm text-gray-600 text-left space-y-3">
             <p>Por favor suba una imagen o PDF del comprobante de pago.</p>
             
-            <div className="mt-4 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-              <input
-                type="file"
-                onChange={handlePaymentProofUpload}
-                accept="image/*,.pdf"
-                className="hidden"
-                id="paymentProofInput"
-              />
-              <label htmlFor="paymentProofInput" className="cursor-pointer">
-                <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
-                <p className="text-sm font-medium text-gray-900 mb-1">
-                  {uiState.paymentProof 
-                    ? uiState.paymentProof.name 
-                    : "Haga clic para seleccionar archivo"}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Formatos soportados: JPG, PNG, PDF
-                </p>
-              </label>
-            </div>
+            <PaymentUpload
+              paymentProof={uiState.paymentProof}
+              handleFileChange={handlePaymentProofUpload}
+              errors={{}}
+              onRemoveFile={() => {
+                setUiState(prev => ({ ...prev, paymentProof: null }));
+              }}
+            />
             
             {/* Barra de progreso */}
             {uiState.uploadProgress > 0 && (
@@ -1055,7 +1110,7 @@ const StudentRegistration = () => {
                 ? "bg-blue-400 cursor-not-allowed"
                 : "bg-blue-600 hover:bg-blue-700"
             }`}
-            onClick={() => document.getElementById('paymentProofInput').click()}
+            onClick={() => document.querySelector('input[type="file"]').click()}
           >
             {uiState.uploadProgress > 0 ? "Subiendo..." : "Subir Comprobante"}
           </button>
