@@ -14,7 +14,7 @@ const StudentGroupRegistration = () => {
   // Estado para el método de inscripción seleccionado
   const [registrationMethod, setRegistrationMethod] = useState(null);
   
-  // Datos del tutor (sin opción de relación)
+  // Datos del tutor
   const [tutorData, setTutorData] = useState({
     name: "",
     email: "",
@@ -50,7 +50,8 @@ const StudentGroupRegistration = () => {
     showPaymentModal: false,
     showErrorsModal: false,
     paymentData: null,
-    uploadProgress: 0
+    uploadProgress: 0,
+    paymentProof: null
   });
 
   const [errors, setErrors] = useState({});
@@ -69,6 +70,8 @@ const StudentGroupRegistration = () => {
   */
   const provinceOptions = {
     "Cochabamba": ["Cercado", "Quillacollo", "Chapare", "Ayopaya", "Esteban Arce", "Arani", "Arque", "Capinota", "Germán Jordán", "Mizque", "Punata", "Tiraque"],
+    "La Paz": ["Murillo", "Omasuyos", "Camacho", "Muñecas", "Larecaja", "Franz Tamayo", "Ingavi", "Loayza", "Inquisivi", "Sud Yungas", "Los Andes", "Aroma"],
+    "Santa Cruz": ["Andrés Ibáñez", "Warnes", "Velasco", "Ichilo", "Chiquitos", "Sara", "Cordillera", "Vallegrande", "Florida", "Obispo Santistevan", "Ñuflo de Chávez", "Ángel Sandoval"],
     // ... otras provincias
   };
 
@@ -268,6 +271,7 @@ const StudentGroupRegistration = () => {
     data.forEach((row, index) => {
       const rowErrors = {};
       
+      // Validar campos requeridos
       if (!row.Apellidos) rowErrors.lastName = "Apellidos requeridos";
       if (!row.Nombres) rowErrors.firstName = "Nombres requeridos";
       if (!row.CI) rowErrors.ci = "CI requerido";
@@ -276,6 +280,11 @@ const StudentGroupRegistration = () => {
       if (!row.Departamento) rowErrors.department = "Departamento requerido";
       if (!row.Provincia) rowErrors.province = "Provincia requerida";
       if (!row.Áreas) rowErrors.areas = "Áreas requeridas";
+      
+      // Validación de formato de CI
+      if (row.CI && !/^[0-9]+$/.test(row.CI)) {
+        rowErrors.ci = "CI debe contener solo números";
+      }
       
       // Validación de áreas
       if (row.Áreas) {
@@ -286,6 +295,13 @@ const StudentGroupRegistration = () => {
         } else if (areas.length > 2) {
           rowErrors.areas = "Máximo 2 áreas por estudiante";
         }
+        
+        // Validar que las áreas existan en las opciones
+        areas.forEach(area => {
+          if (!areaOptions.includes(area)) {
+            rowErrors.areas = `Área no válida: ${area}`;
+          }
+        });
         
         // Validación específica para Robótica
         const hasRobotics = areas.includes("ROBÓTICA");
@@ -327,8 +343,22 @@ const StudentGroupRegistration = () => {
     const file = e.target.files[0];
     if (!file) return;
     
+    // Validar tipo de archivo
+    const validTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
+      'application/vnd.ms-excel'
+    ];
+    
+    if (!validTypes.includes(file.type)) {
+      setExcelErrors([{ message: "Formato de archivo no válido. Solo se aceptan archivos Excel (.xlsx, .xls)" }]);
+      setExcelData(null);
+      setExcelFileName("");
+      return;
+    }
+    
     setExcelFileName(file.name);
     setExcelErrors([]);
+    setUiState(prev => ({ ...prev, isSubmitting: true }));
     
     try {
       const buffer = await file.arrayBuffer();
@@ -338,11 +368,24 @@ const StudentGroupRegistration = () => {
       const worksheet = workbook.worksheets[0];
       const jsonData = [];
       
-      // Leer encabezados
+      // Leer encabezados y validar formato
       const headers = [];
       worksheet.getRow(1).eachCell((cell) => {
-        headers.push(cell.value);
+        headers.push(cell.value?.toString().trim());
       });
+      
+      // Columnas requeridas
+      const requiredColumns = [
+        'Apellidos', 'Nombres', 'CI', 'Colegio', 
+        'Curso', 'Departamento', 'Provincia', 'Áreas'
+      ];
+      
+      // Verificar que todas las columnas requeridas estén presentes
+      const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+      
+      if (missingColumns.length > 0) {
+        throw new Error(`El archivo no tiene el formato correcto. Faltan las columnas: ${missingColumns.join(', ')}`);
+      }
       
       // Leer filas de datos
       worksheet.eachRow((row, rowNumber) => {
@@ -350,7 +393,10 @@ const StudentGroupRegistration = () => {
         
         const rowData = {};
         row.eachCell((cell, colNumber) => {
-          rowData[headers[colNumber - 1]] = cell.value;
+          const header = headers[colNumber - 1];
+          if (header && requiredColumns.includes(header)) {
+            rowData[header] = cell.value?.toString().trim() || "";
+          }
         });
         
         if (Object.keys(rowData).length > 0) {
@@ -358,12 +404,8 @@ const StudentGroupRegistration = () => {
         }
       });
       
-      // Validar formato mínimo requerido
-      const requiredFields = ['Apellidos', 'Nombres', 'CI', 'Colegio', 'Curso', 'Departamento', 'Provincia', 'Áreas'];
-      const missingFields = requiredFields.filter(field => !headers.includes(field));
-      
-      if (missingFields.length > 0) {
-        throw new Error(`El archivo no tiene el formato correcto. Faltan las columnas: ${missingFields.join(', ')}`);
+      if (jsonData.length === 0) {
+        throw new Error("El archivo no contiene datos de estudiantes");
       }
       
       // Validar datos del Excel
@@ -375,64 +417,99 @@ const StudentGroupRegistration = () => {
       } else {
         setExcelData(jsonData);
       }
+      
     } catch (error) {
       console.error("Error al leer el archivo Excel:", error);
       setExcelErrors([{ message: error.message }]);
       setExcelData(null);
+    } finally {
+      setUiState(prev => ({ ...prev, isSubmitting: false }));
     }
   };
 
-  // Generar Excel con ExcelJS
+  // Generar Excel con ExcelJS - Versión mejorada
   const generateExcelFromForm = async () => {
     try {
       const workbook = new ExcelJS.Workbook();
+      workbook.creator = "Sistema de Inscripciones";
+      workbook.lastModifiedBy = tutorData.name;
+      workbook.created = new Date();
+      workbook.modified = new Date();
+      
       const worksheet = workbook.addWorksheet("Estudiantes");
       
-      // Configurar columnas
+      // Configurar columnas con estilos
       worksheet.columns = [
-        { header: "Apellidos", key: "lastName", width: 25 },
-        { header: "Nombres", key: "firstName", width: 25 },
-        { header: "CI", key: "ci", width: 15 },
-        { header: "Fecha Nacimiento", key: "birthDate", width: 15 },
-        { header: "Colegio", key: "school", width: 30 },
-        { header: "Curso", key: "grade", width: 15 },
-        { header: "Departamento", key: "department", width: 15 },
-        { header: "Provincia", key: "province", width: 15 },
-        { header: "Áreas", key: "areas", width: 30 },
-        { header: "Categorías", key: "categories", width: 30 }
+        { header: "Apellidos", key: "Apellidos", width: 25, style: { font: { bold: true } } },
+        { header: "Nombres", key: "Nombres", width: 25 },
+        { header: "CI", key: "CI", width: 15 },
+        { header: "Fecha Nacimiento", key: "Fecha Nacimiento", width: 15 },
+        { header: "Colegio", key: "Colegio", width: 30 },
+        { header: "Curso", key: "Curso", width: 15 },
+        { header: "Departamento", key: "Departamento", width: 15 },
+        { header: "Provincia", key: "Provincia", width: 15 },
+        { header: "Áreas", key: "Áreas", width: 30 },
+        { header: "Categorías", key: "Categorías", width: 30 }
       ];
       
       // Agregar datos
       students.forEach(student => {
         worksheet.addRow({
-          lastName: student.lastName,
-          firstName: student.firstName,
-          ci: student.ci,
-          birthDate: student.birthDate,
-          school: student.school,
-          grade: student.grade,
-          department: student.department,
-          province: student.province,
-          areas: student.areas.join(", "),
-          categories: Object.entries(student.categories).map(([area, cat]) => `${area}: ${cat}`).join(", ")
+          "Apellidos": student.lastName,
+          "Nombres": student.firstName,
+          "CI": student.ci,
+          "Fecha Nacimiento": student.birthDate,
+          "Colegio": student.school,
+          "Curso": student.grade,
+          "Departamento": student.department,
+          "Provincia": student.province,
+          "Áreas": student.areas.join(", "),
+          "Categorías": Object.entries(student.categories).map(([area, cat]) => `${area}: ${cat}`).join(", ")
         });
       });
       
       // Estilizar encabezados
-      worksheet.getRow(1).eachCell(cell => {
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      const headerRow = worksheet.getRow(1);
+      headerRow.eachCell(cell => {
+        cell.font = { 
+          bold: true, 
+          color: { argb: 'FFFFFFFF' },
+          size: 12
+        };
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FF4F81BD' }
         };
         cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
+          top: { style: 'thin', color: { argb: 'FF000000' } },
+          left: { style: 'thin', color: { argb: 'FF000000' } },
+          bottom: { style: 'thin', color: { argb: 'FF000000' } },
+          right: { style: 'thin', color: { argb: 'FF000000' } }
         };
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.alignment = { 
+          vertical: 'middle', 
+          horizontal: 'center',
+          wrapText: true
+        };
+      });
+      
+      // Aplicar bordes a todas las celdas de datos
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 1) { // Skip header row
+          row.eachCell(cell => {
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FFD3D3D3' } },
+              left: { style: 'thin', color: { argb: 'FFD3D3D3' } },
+              bottom: { style: 'thin', color: { argb: 'FFD3D3D3' } },
+              right: { style: 'thin', color: { argb: 'FFD3D3D3' } }
+            };
+            cell.alignment = { 
+              vertical: 'middle',
+              wrapText: true 
+            };
+          });
+        }
       });
       
       // Autoajustar columnas
@@ -440,28 +517,38 @@ const StudentGroupRegistration = () => {
         if (column.values) {
           const maxLength = column.values.reduce((max, value) => {
             if (value && typeof value.toString === 'function') {
-              return Math.max(max, value.toString().length);
+              const length = value.toString().length;
+              return Math.max(max, length);
             }
             return max;
           }, column.header.length);
+          
           column.width = Math.min(Math.max(maxLength + 2, 10), 50);
         }
       });
       
+      // Agregar información del tutor como metadata
+      workbook.properties.company = tutorData.name;
+      workbook.properties.manager = tutorData.email;
+      
       // Generar archivo
       const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const blob = new Blob([buffer], { 
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
+      });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `Inscripcion_Grupal_${new Date().toISOString().slice(0,10)}.xlsx`;
+      link.download = `Inscripcion_Grupal_${tutorData.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.xlsx`;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       
       // Limpiar
       setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (error) {
       console.error("Error al generar Excel:", error);
-      alert("Error al generar el archivo Excel");
+      setErrors(prev => ({ ...prev, excelGeneration: "Error al generar el archivo Excel" }));
     }
   };
 
@@ -484,13 +571,35 @@ const StudentGroupRegistration = () => {
       
       if (registrationMethod === "form") {
         validationErrors = validateAllStudents();
-        studentsToSubmit = students;
+        studentsToSubmit = students.map(student => ({
+          lastName: student.lastName,
+          firstName: student.firstName,
+          ci: student.ci,
+          birthDate: student.birthDate,
+          school: student.school,
+          grade: student.grade,
+          department: student.department,
+          province: student.province,
+          areas: student.areas,
+          categories: student.categories
+        }));
       } else if (registrationMethod === "excel") {
         if (!excelData) {
           throw new Error("No se ha cargado ningún archivo Excel");
         }
         validationErrors = validateExcelData(excelData);
-        studentsToSubmit = excelData;
+        studentsToSubmit = excelData.map(row => ({
+          lastName: row.Apellidos,
+          firstName: row.Nombres,
+          ci: row.CI,
+          school: row.Colegio,
+          grade: row.Curso,
+          department: row.Departamento,
+          province: row.Provincia,
+          areas: row.Áreas.split(',').map(a => a.trim()),
+          // Nota: Para Excel, las categorías deberían venir en el archivo o asignarse automáticamente
+          categories: {} // Esto debería ajustarse según la lógica de negocio
+        }));
       }
       
       // Si hay errores, mostrarlos y no continuar
@@ -535,7 +644,8 @@ const StudentGroupRegistration = () => {
         amount: studentsToSubmit.length * 15, // 15 Bs por estudiante
         tutorName: tutorData.name,
         studentCount: studentsToSubmit.length,
-        paymentDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 días desde ahora
+        paymentDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 días desde ahora
+        paymentCode: "PAGO-" + Math.random().toString(36).substr(2, 6).toUpperCase()
       };
       
       setUiState(prev => ({ 
@@ -566,6 +676,13 @@ const StudentGroupRegistration = () => {
     link.href = '#';
     link.download = `orden_pago_grupal_${uiState.paymentData.registrationId}.pdf`;
     link.click();
+    
+    // Mostrar mensaje de éxito
+    setUiState(prev => ({
+      ...prev,
+      showPaymentModal: false,
+      showSuccessModal: true
+    }));
   };
 
   /* 
@@ -578,6 +695,19 @@ const StudentGroupRegistration = () => {
   const handlePaymentProofUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    
+    // Validar tipo de archivo
+    const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      alert("Formato de archivo no válido. Solo se aceptan imágenes (JPG, PNG) o PDF");
+      return;
+    }
+    
+    // Validar tamaño de archivo (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("El archivo es demasiado grande. El tamaño máximo permitido es 5MB");
+      return;
+    }
     
     setUiState(prev => ({ 
       ...prev, 
@@ -1068,7 +1198,14 @@ const StudentGroupRegistration = () => {
       <div className="bg-blue-50 p-4 rounded-md mb-4">
         <p className="text-sm text-blue-800">
           Por favor suba un archivo Excel con el formato requerido. 
-          <a href="/plantilla-inscripcion-grupal.xlsx" download className="text-blue-600 hover:text-blue-800 ml-1">
+          <a 
+            href="#" 
+            onClick={(e) => {
+              e.preventDefault();
+              generateTemplateExcel();
+            }}
+            className="text-blue-600 hover:text-blue-800 ml-1"
+          >
             Descargar plantilla
           </a>
         </p>
@@ -1129,6 +1266,26 @@ const StudentGroupRegistration = () => {
         )}
       </div>
       
+      {/* Mostrar errores de validación */}
+      {excelErrors.length > 0 && (
+        <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+          <h4 className="text-sm font-medium text-red-800 mb-2">
+            Errores encontrados en el archivo
+          </h4>
+          <div className="space-y-3">
+            {excelErrors.map((error, i) => (
+              <div key={i} className="text-sm text-red-600">
+                {error.rowNumber ? (
+                  <p><span className="font-medium">Fila {error.rowNumber}:</span> {Object.values(error.errors).join(", ")}</p>
+                ) : (
+                  <p>{error.message}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
       {/* Vista previa de datos */}
       {excelData && (
         <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -1137,7 +1294,7 @@ const StudentGroupRegistration = () => {
               Vista previa de datos ({excelData.length} estudiantes)
             </h4>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-96">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -1145,7 +1302,7 @@ const StudentGroupRegistration = () => {
                     <th 
                       key={i}
                       scope="col"
-                      className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50"
                     >
                       {key}
                     </th>
@@ -1158,7 +1315,8 @@ const StudentGroupRegistration = () => {
                     {Object.values(row).map((value, j) => (
                       <td 
                         key={j}
-                        className="px-3 py-2 whitespace-nowrap text-sm text-gray-500"
+                        className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate"
+                        title={value}
                       >
                         {value}
                       </td>
@@ -1207,6 +1365,125 @@ const StudentGroupRegistration = () => {
     </div>
   );
 
+  // Generar plantilla Excel
+  const generateTemplateExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Plantilla");
+      
+      // Configurar columnas con estilos
+      worksheet.columns = [
+        { header: "Apellidos", key: "Apellidos", width: 25 },
+        { header: "Nombres", key: "Nombres", width: 25 },
+        { header: "CI", key: "CI", width: 15 },
+        { header: "Colegio", key: "Colegio", width: 30 },
+        { header: "Curso", key: "Curso", width: 15 },
+        { header: "Departamento", key: "Departamento", width: 15 },
+        { header: "Provincia", key: "Provincia", width: 15 },
+        { header: "Áreas", key: "Áreas", width: 30 }
+      ];
+      
+      // Agregar datos de ejemplo
+      worksheet.addRow({
+        "Apellidos": "Perez",
+        "Nombres": "Juan",
+        "CI": "1234567",
+        "Colegio": "Colegio Ejemplo",
+        "Curso": "4to de secundaria",
+        "Departamento": "Cochabamba",
+        "Provincia": "Cercado",
+        "Áreas": "MATEMÁTICAS, BIOLOGÍA"
+      });
+      
+      // Estilizar encabezados
+      const headerRow = worksheet.getRow(1);
+      headerRow.eachCell(cell => {
+        cell.font = { 
+          bold: true, 
+          color: { argb: 'FFFFFFFF' },
+          size: 12
+        };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4F81BD' }
+        };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF000000' } },
+          left: { style: 'thin', color: { argb: 'FF000000' } },
+          bottom: { style: 'thin', color: { argb: 'FF000000' } },
+          right: { style: 'thin', color: { argb: 'FF000000' } }
+        };
+        cell.alignment = { 
+          vertical: 'middle', 
+          horizontal: 'center',
+          wrapText: true
+        };
+      });
+      
+      // Aplicar bordes a las celdas de ejemplo
+      const exampleRow = worksheet.getRow(2);
+      exampleRow.eachCell(cell => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFD3D3D3' } },
+          left: { style: 'thin', color: { argb: 'FFD3D3D3' } },
+          bottom: { style: 'thin', color: { argb: 'FFD3D3D3' } },
+          right: { style: 'thin', color: { argb: 'FFD3D3D3' } }
+        };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF2F2F2' }
+        };
+        cell.font = {
+          italic: true
+        };
+      });
+      
+      // Agregar nota explicativa
+      worksheet.addRow([]); // Fila vacía
+      
+      const noteRow = worksheet.addRow(["NOTA: Las áreas disponibles son: " + areaOptions.join(", ")]);
+      noteRow.font = { italic: true, size: 10 };
+      noteRow.getCell(1).alignment = { wrapText: true };
+      worksheet.mergeCells(`A${noteRow.number}:H${noteRow.number}`);
+      
+      // Autoajustar columnas
+      worksheet.columns.forEach(column => {
+        if (column.values) {
+          const maxLength = column.values.reduce((max, value) => {
+            if (value && typeof value.toString === 'function') {
+              const length = value.toString().length;
+              return Math.max(max, length);
+            }
+            return max;
+          }, column.header.length);
+          
+          column.width = Math.min(Math.max(maxLength + 2, 10), 50);
+        }
+      });
+      
+      // Generar archivo
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { 
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "Plantilla_Inscripcion_Grupal.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Limpiar
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    } catch (error) {
+      console.error("Error al generar plantilla Excel:", error);
+      alert("Error al generar la plantilla Excel");
+    }
+  };
+
   // Modal de errores de validación
   const renderErrorsModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1253,15 +1530,37 @@ const StudentGroupRegistration = () => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in">
         <div className="text-center">
-          <h3 className="text-lg font-medium text-gray-900">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+            <Check className="h-6 w-6 text-blue-600" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mt-3">
             Orden de Pago Grupal
           </h3>
-          <div className="mt-4 text-sm text-gray-600 text-left space-y-2">
-            <p><span className="font-medium">Tutor:</span> {uiState.paymentData.tutorName}</p>
-            <p><span className="font-medium">Número de estudiantes:</span> {uiState.paymentData.studentCount}</p>
-            <p><span className="font-medium">Monto total:</span> {uiState.paymentData.amount} Bs.</p>
-            <p><span className="font-medium">ID de Registro:</span> {uiState.paymentData.registrationId}</p>
-            <p><span className="font-medium">Fecha límite de pago:</span> {uiState.paymentData.paymentDeadline.toLocaleDateString()}</p>
+          <div className="mt-4 text-sm text-gray-600 text-left space-y-3">
+            <div className="flex justify-between">
+              <span className="font-medium">Tutor:</span>
+              <span>{uiState.paymentData.tutorName}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Estudiantes:</span>
+              <span>{uiState.paymentData.studentCount}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Monto total:</span>
+              <span className="font-bold">{uiState.paymentData.amount} Bs.</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Código de pago:</span>
+              <span className="font-mono">{uiState.paymentData.paymentCode}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">ID de Registro:</span>
+              <span className="font-mono">{uiState.paymentData.registrationId}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Fecha límite:</span>
+              <span>{uiState.paymentData.paymentDeadline.toLocaleDateString()}</span>
+            </div>
             
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
               <p className="text-yellow-700 text-sm">
@@ -1270,11 +1569,12 @@ const StudentGroupRegistration = () => {
             </div>
           </div>
         </div>
-        <div className="mt-6 flex flex-col space-y-2">
+        <div className="mt-6 flex flex-col space-y-3">
           <button
             onClick={handleDownloadPDF}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center"
           >
+            <Download className="h-4 w-4 mr-2" />
             Descargar Orden de Pago (PDF)
           </button>
           <button
@@ -1283,8 +1583,9 @@ const StudentGroupRegistration = () => {
               showPaymentModal: false,
               showUploadModal: true 
             }))}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 flex items-center justify-center"
           >
+            <Upload className="h-4 w-4 mr-2" />
             Subir Comprobante
           </button>
         </div>
@@ -1297,10 +1598,13 @@ const StudentGroupRegistration = () => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in">
         <div className="text-center">
-          <h3 className="text-lg font-medium text-gray-900">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+            <Upload className="h-6 w-6 text-blue-600" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mt-3">
             Subir Comprobante de Pago
           </h3>
-          <div className="mt-4 text-sm text-gray-600 text-left space-y-2">
+          <div className="mt-4 text-sm text-gray-600 text-left space-y-3">
             <p>Por favor suba una imagen o PDF del comprobante de pago grupal.</p>
             
             <div className="mt-4 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
@@ -1312,15 +1616,27 @@ const StudentGroupRegistration = () => {
                 id="paymentProofInput"
               />
               <label htmlFor="paymentProofInput" className="cursor-pointer">
-                <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
-                <p className="text-sm font-medium text-gray-900 mb-1">
-                  {uiState.paymentProof 
-                    ? uiState.paymentProof.name 
-                    : "Haga clic para seleccionar archivo"}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Formatos soportados: JPG, PNG, PDF
-                </p>
+                {uiState.paymentProof ? (
+                  <>
+                    <Check className="h-10 w-10 text-green-500 mx-auto mb-3" />
+                    <p className="text-sm font-medium text-gray-900 mb-1 truncate max-w-xs mx-auto">
+                      {uiState.paymentProof.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {Math.round(uiState.paymentProof.size / 1024)} KB
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                    <p className="text-sm font-medium text-gray-900 mb-1">
+                      Seleccionar archivo
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Formatos soportados: JPG, PNG, PDF
+                    </p>
+                  </>
+                )}
               </label>
             </div>
             
@@ -1361,7 +1677,7 @@ const StudentGroupRegistration = () => {
             }`}
             onClick={() => document.getElementById('paymentProofInput').click()}
           >
-            {uiState.uploadProgress > 0 ? "Subiendo..." : "Subir Comprobante"}
+            {uiState.uploadProgress > 0 ? "Subiendo..." : "Cambiar Archivo"}
           </button>
         </div>
       </div>
@@ -1384,6 +1700,12 @@ const StudentGroupRegistration = () => {
           <div className="mt-2 text-sm text-gray-500">
             La inscripción grupal ha sido registrada correctamente. Recibirá un correo de confirmación con los detalles.
           </div>
+          {uiState.paymentData && (
+            <div className="mt-3 p-2 bg-blue-50 rounded-md text-xs">
+              <p className="font-medium">ID de Registro:</p>
+              <p className="font-mono">{uiState.paymentData.registrationId}</p>
+            </div>
+          )}
         </div>
         <div className="mt-4">
           <button
