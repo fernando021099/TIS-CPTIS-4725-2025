@@ -141,7 +141,19 @@ const AreaRegistration = () => {
     const finalCategory = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory : formData.categoryLevel
     
     if (!finalName.trim()) newErrors.name = "Nombre de área requerido"
-    if (formData.name === "Otro (especificar)" && !formData.customName.trim()) newErrors.name = "Debe ingresar un nombre"
+
+    if (formData.name === "Otro (especificar)"){
+      const customName = formData.customName.trim()
+      const onlyUppercase = /^[A-ZÁÉÍÓÚÑ ]+$/ // mayúsculas + espacios
+  
+      if (!customName){
+        newErrors.name = "Debe ingresar un nombre"
+      } else if (!onlyUppercase.test(customName)){
+        newErrors.name = "Solo se permiten letras mayúsculas sin números ni caracteres especiales"
+      }
+    }
+    //if (formData.name === "Otro (especificar)" && !formData.customName.trim()) newErrors.name = "Debe ingresar un nombre"
+    
     if (!finalCategory) newErrors.categoryLevel = "Seleccione categoría/nivel"
     if (formData.categoryLevel === "Otro (especificar)" && !formData.customCategory.trim()) newErrors.categoryLevel = "Debe ingresar una categoría/nivel"
     if (!formData.cost || Number(formData.cost) <= 0) newErrors.cost = "Costo inválido (debe ser mayor a 0)"
