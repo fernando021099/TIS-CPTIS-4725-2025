@@ -171,6 +171,11 @@ const AreaRegistration = () => {
     // Validación del campo costo
     if (!formData.cost || Number(formData.cost) <= 0) newErrors.cost = "Costo inválido (debe ser mayor a 0)"
     if (Number(formData.cost) > 10000) newErrors.cost = "Costo demasiado alto"
+
+    // Validación del campo descripción
+    if (formData.description && formData.description.length > 250){
+      newErrors.description = "La descripción no puede exceder los 250 caracteres"
+    }
     
     setErrors(newErrors)
   }, [formData])
@@ -427,6 +432,10 @@ const AreaRegistration = () => {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   placeholder="Descripción breve del área"
                 />
+                {/* Aquí se agrega el mensaje de error si existe */}
+                {errors.description && (
+                  <p className="text-red-500 text-sm mt-1">{errors.description}</p>
+                )}
               </div>
             </div>
           </div>
