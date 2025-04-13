@@ -62,7 +62,7 @@ const AreaRegistration = () => {
         setAreaToLevels(levelsMap)
         
         setConnectionStatus({ 
-          message: "Conexión Supabase exitosa", 
+          message: "Conexión exitosa con la base de datos", 
           type: "success" 
         })
       } catch (error) {

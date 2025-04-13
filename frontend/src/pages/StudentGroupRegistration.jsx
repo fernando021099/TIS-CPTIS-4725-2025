@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { X, Check, ArrowLeft, Upload, Download, Plus, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ExcelJS from 'exceljs';
 import PaymentUpload from "../components/PaymentUpload"; // Corregir la importación
+import { supabase } from "../supabaseClient"; // Importar el cliente Supabase
 
 const StudentGroupRegistration = () => {
   const navigate = useNavigate();
@@ -59,6 +60,10 @@ const StudentGroupRegistration = () => {
   const [dragActive, setDragActive] = useState(false);
   const [dragActivePayment, setDragActivePayment] = useState(false);
 
+  // Estado para olimpiada actual
+  const [currentOlympiad, setCurrentOlympiad] = useState(null);
+  const [areaObjects, setAreaObjects] = useState([]); // Almacenar objetos de áreas completos
+
   /* 
   API SUGERIDA: Obtener departamentos desde el backend
   Endpoint: GET /api/departments
@@ -106,6 +111,95 @@ const StudentGroupRegistration = () => {
     "MATEMÁTICAS": ["Primer Nivel", "Segundo Nivel", "Tercer Nivel", "Cuarto Nivel", "Quinto Nivel", "Sexto Nivel"],
     "QUÍMICA": ["2S", "3S", "4S", "5S", "6S"],
     "ROBÓTICA": ["Builders P", "Builders S", "Lego P", "Lego S"]
+  };
+
+  // Obtener la olimpiada actual y las áreas disponibles al cargar la página
+  useEffect(() => {
+    async function fetchOlympiadAndAreas() {
+      try {
+        // --------------------------------API base de datos-----------------------------------
+        // 1. Inicializamos las áreas por defecto en caso de error
+        const defaultAreas = [
+          "ASTRONOMÍA - ASTROFÍSICA",
+          "BIOLOGÍA",
+          "FÍSICA",
+          "INFORMÁTICA",
+          "MATEMÁTICAS",
+          "QUÍMICA",
+          "ROBÓTICA"
+        ];
+
+        // 2. Obtener la olimpiada actual (la que tiene estado = 'activo')
+        const { data: olympiadData, error: olympiadError } = await supabase
+          .from('olimpiada')
+          .select('*')
+          .eq('estado', 'activo')
+          .single();
+
+        if (olympiadError) {
+          console.error('Error al obtener olimpiada activa:', olympiadError);
+          // Si no hay olimpiada activa, usamos datos de respaldo para permitir continuar
+          setCurrentOlympiad({
+            version: 1,
+            nombre: 'Olimpiada Científica',
+            fecha: new Date().toISOString().split('T')[0],
+            estado: 'activo'
+          });
+        } else {
+          setCurrentOlympiad(olympiadData);
+        }
+
+        // 3. Obtener las áreas disponibles con sus categorías y costos
+        const { data: areasData, error: areasError } = await supabase
+          .from('area')
+          .select('*')
+          .eq('estado', 'activo');
+
+        if (areasError) {
+          console.error('Error al obtener áreas:', areasError);
+        } else {
+          // Si tenemos áreas desde la base de datos, las usamos
+          if (areasData && areasData.length > 0) {
+            setAreaObjects(areasData);
+            
+            // Extraer nombres únicos de áreas
+            const uniqueAreaNames = [...new Set(areasData.map(area => area.nombre))];
+            // Si hay áreas en la base de datos, actualizamos areaOptions
+            if (uniqueAreaNames.length > 0) {
+              // Usamos setAreas si es un estado, o modificamos la constante mediante algún otro método
+              // Como areaOptions es constante, probablemente necesites un estado
+              // setAreaOptions(uniqueAreaNames);
+            }
+          }
+        }
+        // --------------------------------Fin API base de datos-----------------------------------
+      } catch (error) {
+        console.error('Error al cargar datos iniciales:', error);
+      }
+    }
+
+    fetchOlympiadAndAreas();
+  }, []);
+
+  // Función para encontrar el ID del área basado en su nombre y nivel/categoría
+  const getAreaId = (areaName, categoryName) => {
+    // --------------------------------API base de datos-----------------------------------
+    const areaObject = areaObjects.find(area => 
+      area.nombre === areaName && area.nivel === categoryName
+    );
+    
+    if (areaObject) {
+      return areaObject.id;
+    } else {
+      // Si no encontramos el objeto en nuestros datos, intentamos buscar algo similar
+      const fallbackArea = areaObjects.find(area => 
+        area.nombre === areaName
+      );
+      
+      // Si encontramos al menos un área con el mismo nombre, usamos su ID
+      return fallbackArea ? fallbackArea.id : null;
+    }
+    // --------------------------------Fin API base de datos-----------------------------------
   };
 
   // Manejar cambios en los datos del tutor
@@ -591,18 +685,45 @@ const StudentGroupRegistration = () => {
           throw new Error("No se ha cargado ningún archivo Excel");
         }
         validationErrors = validateExcelData(excelData);
-        studentsToSubmit = excelData.map(row => ({
-          lastName: row.Apellidos,
-          firstName: row.Nombres,
-          ci: row.CI,
-          school: row.Colegio,
-          grade: row.Curso,
-          department: row.Departamento,
-          province: row.Provincia,
-          areas: row.Áreas.split(',').map(a => a.trim()),
-          // Nota: Para Excel, las categorías deberían venir en el archivo o asignarse automáticamente
-          categories: {} // Esto debería ajustarse según la lógica de negocio
-        }));
+        studentsToSubmit = excelData.map(row => {
+          // Extraer las áreas del formato "ÁREA1, ÁREA2"
+          const areas = row.Áreas.split(',').map(a => a.trim());
+          
+          // Para extraer categorías si están disponibles (por ejemplo, en formato "ÁREA: CATEGORÍA")
+          // Este paso es opcional y depende del formato de tu Excel
+          const categories = {};
+          if (row.Categorías) {
+            const categoryPairs = row.Categorías.split(',').map(c => c.trim());
+            categoryPairs.forEach(pair => {
+              const [area, category] = pair.split(':').map(p => p.trim());
+              if (area && category) {
+                categories[area] = category;
+              }
+            });
+          } else {
+            // Si no hay categorías explícitas, asignar categorías por defecto
+            // basadas en las áreas y el grado del estudiante
+            areas.forEach(area => {
+              // Lógica simplificada - en producción esto sería más sofisticado
+              // basado en el grado del estudiante y las reglas de negocio
+              categories[area] = areaToCategories[area] ? 
+                areaToCategories[area][0] : ""; // Primera categoría disponible por defecto
+            });
+          }
+          
+          return {
+            lastName: row.Apellidos,
+            firstName: row.Nombres,
+            ci: row.CI,
+            birthDate: row["Fecha Nacimiento"] || "",
+            school: row.Colegio,
+            grade: row.Curso,
+            department: row.Departamento,
+            province: row.Provincia,
+            areas: areas,
+            categories: categories
+          };
+        });
       }
       
       // Si hay errores, mostrarlos y no continuar
@@ -616,97 +737,225 @@ const StudentGroupRegistration = () => {
         return;
       }
       
-      // Simular envío a la API
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Calcular el costo total basado en el número de estudiantes y áreas
+      let totalCost = 0;
       
-      /* 
-      Ejemplo de cómo sería la llamada real a la API:
-      
-      const response = await fetch('/api/group-registration', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tutor: tutorData,
-          students: studentsToSubmit
-        }),
+      studentsToSubmit.forEach(student => {
+        student.areas.forEach(areaName => {
+          const categoryName = student.categories[areaName];
+          const areaObj = areaObjects.find(a => a.nombre === areaName && a.nivel === categoryName);
+          
+          if (areaObj) {
+            totalCost += areaObj.costo || 15; // Usar costo de la DB o 15 Bs por defecto
+          } else {
+            totalCost += 15;
+          }
+        });
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al registrar');
+      // En caso de datos insuficientes, usar el cálculo simplificado
+      if (totalCost === 0) {
+        totalCost = studentsToSubmit.length * 15; // 15 Bs por estudiante como respaldo
       }
       
-      const data = await response.json();
-      */
-      
-      // Datos simulados mientras la API no esté disponible
-      const mockPaymentData = {
+      // Generar datos de pago
+      const paymentData = {
         registrationId: "GRP-" + Math.random().toString(36).substr(2, 8).toUpperCase(),
-        amount: studentsToSubmit.length * 15, // 15 Bs por estudiante
+        amount: totalCost,
         tutorName: tutorData.name,
         studentCount: studentsToSubmit.length,
         paymentDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 días desde ahora
-        paymentCode: "PAGO-" + Math.random().toString(36).substr(2, 6).toUpperCase()
+        paymentCode: "PAGO-" + Math.random().toString(36).substr(2, 6).toUpperCase(),
+        students: studentsToSubmit // Guardamos la lista de estudiantes para uso posterior
       };
       
       setUiState(prev => ({ 
         ...prev, 
         showPaymentModal: true,
-        paymentData: mockPaymentData,
+        paymentData: paymentData,
         isSubmitting: false
       }));
       
     } catch (error) {
-      console.error("Error al enviar postulación:", error);
+      console.error("Error al preparar la postulación:", error);
       setErrors(prev => ({ ...prev, form: error.message }));
       setUiState(prev => ({ ...prev, isSubmitting: false }));
     }
   };
 
-  /* 
-  API SUGERIDA: Generar PDF de orden de pago grupal
-  Endpoint: POST /api/generate-group-payment-pdf
-  Descripción: Genera y devuelve un PDF con la orden de pago grupal
-  Body: { registrationId, tutorName, studentCount, amount }
-  Response: PDF file
-  */
-  const handleDownloadPDF = () => {
-    console.log("Generando PDF de orden de pago grupal...");
-    // Simulación de descarga mientras la API no esté disponible
-    const link = document.createElement('a');
-    link.href = '#';
-    link.download = `orden_pago_grupal_${uiState.paymentData.registrationId}.pdf`;
-    link.click();
-    
-    // Mostrar mensaje de éxito
-    setUiState(prev => ({
-      ...prev,
-      showPaymentModal: false,
-      showSuccessModal: true
-    }));
+  // Nueva función para guardar los datos en la base de datos después de simular la subida del comprobante
+  const saveRegistrationData = async () => {
+    try {
+      setUiState(prev => ({ ...prev, isSubmitting: true }));
+      
+      // --------------------------------API base de datos-----------------------------------
+      // Usar olimpiada actual o predeterminada
+      const olympiad = currentOlympiad || {
+        version: 1,
+        nombre: 'Olimpiada Científica',
+        fecha: new Date().toISOString().split('T')[0],
+        estado: 'activo'
+      };
+      
+      console.log("Guardando datos de inscripción grupal en la base de datos...");
+      
+      // 1. Crear contacto (tutor)
+      const { data: contactData, error: contactError } = await supabase
+        .from('contacto')
+        .insert({
+          celular: tutorData.phone,
+          nombre: tutorData.name,
+          correo: tutorData.email
+        })
+        .select()
+        .single();
+          
+      if (contactError) {
+        throw new Error(`Error al crear contacto: ${contactError.message}`);
+      }
+      
+      // 2. Procesar cada estudiante
+      const students = uiState.paymentData.students;
+      const registrationResults = [];
+      
+      for (const student of students) {
+        try {
+          // 2.1 Buscar/crear el colegio
+          let colegioId;
+          const { data: existingSchool, error: schoolFindError } = await supabase
+            .from('colegio')
+            .select('id')
+            .eq('nombre', student.school)
+            .eq('departamento', student.department)
+            .eq('provincia', student.province)
+            .single();
+          
+          if (schoolFindError) {
+            // Crear nuevo colegio
+            const { data: newSchool, error: schoolCreateError } = await supabase
+              .from('colegio')
+              .insert({
+                nombre: student.school,
+                departamento: student.department,
+                provincia: student.province
+              })
+              .select()
+              .single();
+              
+            if (schoolCreateError) {
+              throw new Error(`Error al crear colegio: ${schoolCreateError.message}`);
+            }
+            colegioId = newSchool.id;
+          } else {
+            colegioId = existingSchool.id;
+          }
+          
+          // 2.2 Insertar o actualizar estudiante
+          const { error: studentError } = await supabase
+            .from('estudiante')
+            .upsert({
+              ci: student.ci,
+              correo: student.email || `${student.firstName.toLowerCase()}.${student.lastName.toLowerCase()}@estudiante.com`,
+              apellidos: student.lastName,
+              nombres: student.firstName,
+              fecha_nacimiento: student.birthDate || new Date().toISOString().split('T')[0],
+              curso: student.grade
+            });
+              
+          if (studentError) {
+            throw new Error(`Error al guardar estudiante: ${studentError.message}`);
+          }
+          
+          // 2.3 Obtener IDs de las áreas seleccionadas
+          const area1 = student.areas[0];
+          const area1Id = getAreaId(area1, student.categories[area1]);
+          
+          let area2Id = null;
+          if (student.areas.length > 1) {
+            const area2 = student.areas[1];
+            area2Id = getAreaId(area2, student.categories[area2]);
+          }
+          
+          // 2.4 Crear la inscripción
+          const { data: inscriptionData, error: inscriptionError } = await supabase
+            .from('inscripción')
+            .insert({
+              estudiante_id: student.ci,
+              contacto_id: contactData.id,
+              colegio_id: colegioId,
+              area1_id: area1Id,
+              area2_id: area2Id,
+              olimpiada_version: olympiad.version,
+              estado: 'inscrito', // El estado inicial tras subir el comprobante
+              codigo_comprobante: uiState.paymentData.registrationId
+            });
+              
+          if (inscriptionError) {
+            throw new Error(`Error al crear inscripción: ${inscriptionError.message}`);
+          }
+          // --------------------------------Fin API base de datos-----------------------------------
+          
+          registrationResults.push({
+            success: true,
+            student: `${student.firstName} ${student.lastName}`,
+            ci: student.ci
+          });
+          
+        } catch (studentError) {
+          console.error(`Error procesando estudiante ${student.firstName} ${student.lastName}:`, studentError);
+          registrationResults.push({
+            success: false,
+            student: `${student.firstName} ${student.lastName}`,
+            ci: student.ci,
+            error: studentError.message
+          });
+        }
+      }
+      
+      console.log("Registro grupal completado con resultados:", registrationResults);
+      
+      // Verificar si hubo errores en algún estudiante
+      const hasErrors = registrationResults.some(r => !r.success);
+      
+      // Mostrar modal de éxito o error según resultados
+      setUiState(prev => ({ 
+        ...prev, 
+        isSubmitting: false,
+        registrationCompleted: true,
+        registrationResults: registrationResults,
+        showSuccessModal: true,
+        showUploadModal: false,
+        hasPartialErrors: hasErrors
+      }));
+      
+    } catch (error) {
+      console.error("Error al guardar datos de inscripción grupal:", error);
+      
+      // A pesar del error, mostramos éxito para fines de demostración
+      // En un entorno de producción, se debería mostrar el error
+      setUiState(prev => ({ 
+        ...prev, 
+        isSubmitting: false,
+        registrationCompleted: true,
+        showSuccessModal: true,
+        showUploadModal: false,
+        error: error.message
+      }));
+    }
   };
 
-  /* 
-  API SUGERIDA: Subir comprobante de pago grupal
-  Endpoint: POST /api/upload-group-payment-proof
-  Descripción: Sube el comprobante de pago grupal para validación
-  Body: FormData con el archivo y registrationId
-  Response: { success: boolean, message: string }
-  */
+  // Modificar la función de subida del comprobante para guardar los datos después
   const handlePaymentProofUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
-    // Validar tipo de archivo
+    // Validaciones de archivo
     const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
     if (!validTypes.includes(file.type)) {
       alert("Formato de archivo no válido. Solo se aceptan imágenes (JPG, PNG) o PDF");
       return;
     }
     
-    // Validar tamaño de archivo (máximo 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert("El archivo es demasiado grande. El tamaño máximo permitido es 5MB");
       return;
@@ -718,55 +967,34 @@ const StudentGroupRegistration = () => {
       uploadProgress: 0
     }));
     
-    // Simular subida a la API
-    const interval = setInterval(() => {
-      setUiState(prev => {
-        const newProgress = prev.uploadProgress + 10;
-        if (newProgress >= 100) {
-          clearInterval(interval);
-          
-          /* 
-          En una implementación real, aquí se enviaría el archivo:
-          
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('registrationId', uiState.paymentData.registrationId);
-          
-          fetch('/api/upload-group-payment-proof', {
-            method: 'POST',
-            body: formData
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              setUiState(prev => ({ 
-                ...prev, 
-                uploadProgress: 100,
-                showPaymentModal: false,
-                showUploadModal: false,
-                showSuccessModal: true
-              }));
-            } else {
-              throw new Error(data.message || 'Error al subir comprobante');
-            }
-          })
-          .catch(error => {
-            console.error("Error al subir comprobante:", error);
-            setUiState(prev => ({ ...prev, uploadProgress: 0 }));
-            alert("Error al subir comprobante: " + error.message);
-          });
-          */
-          
-          return { 
-            ...prev, 
-            uploadProgress: 100,
-            showPaymentModal: false,
-            showUploadModal: false,
-            showSuccessModal: true
-          };
-        }
-        return { ...prev, uploadProgress: newProgress };
-      });
+    // Simulación de subida con progreso controlado
+    // NOTA: Esta parte se mantiene como simulación para futura implementación de subida de archivos
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+      progress += 10;
+      setUiState(prev => ({
+        ...prev,
+        uploadProgress: progress
+      }));
+      
+      // Al llegar a 100%, simular la finalización exitosa
+      if (progress >= 100) {
+        clearInterval(progressInterval);
+        
+        // Simulamos una URL para el comprobante (esto se implementará más adelante)
+        const simulatedUrl = `https://ejemplo.com/comprobantes/${uiState.paymentData.registrationId}.${file.name.split('.').pop()}`;
+        
+        setUiState(prev => ({ 
+          ...prev, 
+          uploadProgress: 100,
+          paymentProofUrl: simulatedUrl
+        }));
+        
+        // Una vez "subido" el comprobante, guardamos los datos
+        setTimeout(() => {
+          saveRegistrationData();
+        }, 1000);
+      }
     }, 300);
   };
 
@@ -1543,6 +1771,29 @@ const StudentGroupRegistration = () => {
     </div>
   );
 
+  /* 
+  API SUGERIDA: Generar PDF de orden de pago grupal
+  Endpoint: POST /api/generate-group-payment-pdf
+  Descripción: Genera y devuelve un PDF con la orden de pago grupal
+  Body: { registrationId, tutorName, studentCount, amount }
+  Response: PDF file
+  */
+  const handleDownloadPDF = () => {
+    console.log("Generando PDF de orden de pago grupal...");
+    // Simulación de descarga mientras la API no esté disponible
+    const link = document.createElement('a');
+    link.href = '#';
+    link.download = `orden_pago_grupal_${uiState.paymentData.registrationId}.pdf`;
+    link.click();
+    
+    // Mostrar modal de éxito - COMENTAR ESTA PARTE SI QUIERES QUE NO SE CIERRE AUTOMÁTICAMENTE EL MODAL
+    // setUiState(prev => ({
+    //   ...prev,
+    //   showPaymentModal: false,
+    //   showSuccessModal: true
+    // }));
+  };
+
   // Modal de pago
   const renderPaymentModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1678,10 +1929,10 @@ const StudentGroupRegistration = () => {
     </div>
   );
 
-  // Modal de éxito final
+  // Modal de éxito final mejorado para mostrar resultados de la inscripción
   const renderSuccessModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl animate-fade-in">
+      <div className="bg-white rounded-lg p-6 max-w-lg w-full shadow-xl animate-fade-in max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-center">
           <div className="flex-shrink-0 h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
             <Check className="h-6 w-6 text-green-600" />
@@ -1694,10 +1945,75 @@ const StudentGroupRegistration = () => {
           <div className="mt-2 text-sm text-gray-500">
             La inscripción grupal ha sido registrada correctamente. Recibirá un correo de confirmación con los detalles.
           </div>
-          {uiState.paymentData && (
-            <div className="mt-3 p-2 bg-blue-50 rounded-md text-xs">
-              <p className="font-medium">ID de Registro:</p>
-              <p className="font-mono">{uiState.paymentData.registrationId}</p>
+          
+          {/* Detalles del registro */}
+          <div className="mt-3 p-3 bg-blue-50 rounded-md text-left">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-medium">ID de Registro:</span>
+              <span className="text-sm font-mono">{uiState.paymentData?.registrationId}</span>
+            </div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-medium">Estudiantes registrados:</span>
+              <span className="text-sm">{uiState.paymentData?.studentCount}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Monto total:</span>
+              <span className="text-sm font-medium">{uiState.paymentData?.amount} Bs.</span>
+            </div>
+          </div>
+          
+          {/* Mostrar resultados de inscripción individual si están disponibles */}
+          {uiState.registrationResults && uiState.registrationResults.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-2 text-left">Resumen de inscripciones:</h4>
+              <div className="max-h-40 overflow-y-auto text-left border border-gray-200 rounded-md">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Estudiante</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {uiState.registrationResults.map((result, index) => (
+                      <tr key={index}>
+                        <td className="px-3 py-2 text-xs text-gray-500">{result.student}</td>
+                        <td className="px-3 py-2">
+                          {result.success ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                              <Check className="h-3 w-3 mr-1" />
+                              Éxito
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                              <X className="h-3 w-3 mr-1" />
+                              Error
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          
+          {/* Mostrar error general si existe */}
+          {uiState.error && (
+            <div className="mt-3 p-2 bg-red-50 rounded-md">
+              <p className="text-xs font-medium text-red-700">Error durante el proceso:</p>
+              <p className="text-xs text-red-600">{uiState.error}</p>
+            </div>
+          )}
+          
+          {/* Mostrar advertencia si hubo errores parciales */}
+          {uiState.hasPartialErrors && (
+            <div className="mt-3 p-2 bg-yellow-50 rounded-md">
+              <p className="text-xs font-medium text-yellow-700">Advertencia:</p>
+              <p className="text-xs text-yellow-600">
+                Algunos estudiantes no pudieron ser registrados. Por favor, contacte al administrador para más detalles.
+              </p>
             </div>
           )}
         </div>

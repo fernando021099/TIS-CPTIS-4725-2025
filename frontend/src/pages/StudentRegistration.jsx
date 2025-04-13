@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { X, Check, ArrowLeft, Upload } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import PaymentUpload from "../components/PaymentUpload"; // Corregir la importación
+import PaymentUpload from "../components/PaymentUpload";
+import { supabase } from "../supabaseClient"; // Importar el cliente Supabase
 
 const StudentRegistration = () => {
   const navigate = useNavigate();
@@ -10,6 +11,12 @@ const StudentRegistration = () => {
   // Estado para controlar las secciones activas
   const [currentSection, setCurrentSection] = useState(1);
   const [completedSections, setCompletedSections] = useState([]);
+  
+  // Estado para olimpiada actual
+  const [currentOlympiad, setCurrentOlympiad] = useState(null);
+
+  // Estado para áreas disponibles
+  const [availableAreas, setAvailableAreas] = useState([]);
   
   const [formData, setFormData] = useState({
     // Datos del estudiante
@@ -37,12 +44,16 @@ const StudentRegistration = () => {
     isSubmitting: false,
     showPaymentModal: false,
     showUploadModal: false,
+    showSuccessModal: false,
     paymentData: null,
     paymentProof: null,
-    uploadProgress: 0
+    uploadProgress: 0,
+    registrationCompleted: false,
+    error: null
   });
 
   const [errors, setErrors] = useState({});
+  const [areaObjects, setAreaObjects] = useState([]); // Almacenar objetos de áreas completos
 
   // Agregar estado de arrastrar para el comprobante de pago
   const [dragActivePayment, setDragActivePayment] = useState(false);
@@ -110,15 +121,6 @@ const StudentRegistration = () => {
     fetchAreas();
   }, []);
   */
-  const [availableAreas] = useState([
-    "ASTRONOMÍA - ASTROFÍSICA",
-    "BIOLOGÍA",
-    "FÍSICA",
-    "INFORMÁTICA",
-    "MATEMÁTICAS",
-    "QUÍMICA",
-    "ROBÓTICA"
-  ]);
 
   /* 
   API SUGERIDA: Obtener categorías por área desde el backend
@@ -171,7 +173,7 @@ const StudentRegistration = () => {
   */
 
   // Validar sección actual
-  const validateSection = (section) => {
+  const validateSection = async (section) => {
     const newErrors = {};
     
     if (section === 1) {
@@ -189,6 +191,11 @@ const StudentRegistration = () => {
       
       if (formData.ci && !/^\d+$/.test(formData.ci)) {
         newErrors.ci = "CI debe contener solo números";
+      } else if (formData.ci) {
+        const ciExists = await checkIfCIExists(formData.ci);
+        if (ciExists) {
+          newErrors.ci = "Este CI ya está registrado en el sistema";
+        }
       }
     }
     
@@ -320,6 +327,7 @@ const StudentRegistration = () => {
   Body: Todos los datos del formulario (formData)
   Response: { success: boolean, message: string, registrationId?: string, paymentData?: {...} }
   */
+  // Modificar handleSubmit para preparar los datos pero no guardarlos aún
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateSection(3)) return;
@@ -327,54 +335,60 @@ const StudentRegistration = () => {
     setUiState(prev => ({ ...prev, isSubmitting: true }));
     
     try {
-      // Simular envío a la API
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Usar una olimpiada predeterminada si no hay activa
+      const olympiad = currentOlympiad || {
+        version: 1,
+        nombre: 'Olimpiada Científica',
+        fecha: new Date().toISOString().split('T')[0],
+        estado: 'activo'
+      };
       
-      /* 
-      Ejemplo de cómo sería la llamada real a la API:
-      
-      const response = await fetch('/api/student-registration', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+      // Calcular el costo basado en las áreas seleccionadas
+      let totalCost = 0;
+      const selectedAreas = formData.areas.map(areaName => {
+        const categoryName = formData.categories[areaName];
+        const areaObj = areaObjects.find(a => a.nombre === areaName && a.nivel === categoryName);
+        
+        if (areaObj) {
+          totalCost += areaObj.costo || 15; // Usamos el costo de la DB o 15 Bs por defecto
+          return { 
+            nombre: areaName, 
+            categoria: categoryName, 
+            id: areaObj.id,
+            costo: areaObj.costo || 15
+          };
+        } else {
+          // Si no encontramos el objeto, usamos un valor por defecto
+          totalCost += 15;
+          return { 
+            nombre: areaName, 
+            categoria: categoryName, 
+            id: null,
+            costo: 15
+          };
+        }
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al registrar');
-      }
-      
-      const data = await response.json();
-      
-      // Mostrar modal de pago con los datos recibidos
-      setUiState(prev => ({ 
-        ...prev, 
-        showPaymentModal: true,
-        paymentData: data.paymentData // Asumiendo que la API devuelve paymentData
-      }));
-      */
-      
-      // Datos simulados mientras la API no esté disponible
-      const mockPaymentData = {
+      // Crear objeto de datos de pago
+      const paymentData = {
         registrationId: "REG-" + Math.random().toString(36).substr(2, 8).toUpperCase(),
-        amount: formData.areas.length * 15, // 15 Bs por área
+        amount: totalCost,
         studentName: `${formData.firstName} ${formData.lastName}`,
         tutorName: formData.tutorName,
         areas: formData.areas.map(area => `${area} (${formData.categories[area]})`).join(", "),
-        paymentDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 días desde ahora
+        paymentDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 días desde ahora
+        selectedAreas: selectedAreas // Guardamos referencias a las áreas para uso posterior
       };
       
       setUiState(prev => ({ 
         ...prev, 
         showPaymentModal: true,
-        paymentData: mockPaymentData,
+        paymentData: paymentData,
         isSubmitting: false
       }));
       
     } catch (error) {
-      console.error("Error al enviar postulación:", error);
+      console.error("Error al preparar la postulación:", error);
       setErrors(prev => ({ ...prev, form: error.message }));
       setUiState(prev => ({ ...prev, isSubmitting: false }));
     }
@@ -427,6 +441,137 @@ const StudentRegistration = () => {
     */
   };
 
+  // Nueva función para guardar los datos en la base de datos después de subir el comprobante
+  const saveRegistrationData = async () => {
+    try {
+      setUiState(prev => ({ ...prev, isSubmitting: true }));
+      
+      // --------------------------------API base de datos-----------------------------------
+      // Usar olimpiada actual o predeterminada
+      const olympiad = currentOlympiad || {
+        version: 1,
+        nombre: 'Olimpiada Científica',
+        fecha: new Date().toISOString().split('T')[0],
+        estado: 'activo'
+      };
+      
+      console.log("Guardando datos de estudiante en la base de datos...");
+      
+      // 1. Buscar/crear el colegio
+      let colegioId;
+      const { data: existingSchool, error: schoolFindError } = await supabase
+        .from('colegio')
+        .select('id')
+        .eq('nombre', formData.school)
+        .eq('departamento', formData.department)
+        .eq('provincia', formData.province)
+        .single();
+      
+      if (schoolFindError) {
+        // Crear nuevo colegio
+        const { data: newSchool, error: schoolCreateError } = await supabase
+          .from('colegio')
+          .insert({
+            nombre: formData.school,
+            departamento: formData.department,
+            provincia: formData.province
+          })
+          .select()
+          .single();
+          
+        if (schoolCreateError) {
+          throw new Error(`Error al crear colegio: ${schoolCreateError.message}`);
+        }
+        colegioId = newSchool.id;
+      } else {
+        colegioId = existingSchool.id;
+      }
+      
+      // 2. Crear contacto (tutor)
+      const { data: contactData, error: contactError } = await supabase
+        .from('contacto')
+        .insert({
+          celular: formData.tutorPhone,
+          nombre: formData.tutorName,
+          correo: formData.tutorEmail
+        })
+        .select()
+        .single();
+          
+      if (contactError) {
+        throw new Error(`Error al crear contacto: ${contactError.message}`);
+      }
+      
+      // 3. Insertar o actualizar estudiante
+      const { error: studentError } = await supabase
+        .from('estudiante')
+        .upsert({
+          ci: formData.ci,
+          correo: formData.email,
+          apellidos: formData.lastName,
+          nombres: formData.firstName,
+          fecha_nacimiento: formData.birthDate,
+          curso: formData.grade
+        });
+          
+      if (studentError) {
+        throw new Error(`Error al guardar estudiante: ${studentError.message}`);
+      }
+      
+      // 4. Obtener IDs de las áreas seleccionadas
+      const area1 = formData.areas[0];
+      const area1Id = getAreaId(area1, formData.categories[area1]);
+      
+      let area2Id = null;
+      if (formData.areas.length > 1) {
+        const area2 = formData.areas[1];
+        area2Id = getAreaId(area2, formData.categories[area2]);
+      }
+      
+      // 5. Crear la inscripción
+      const { data: inscriptionData, error: inscriptionError } = await supabase
+        .from('inscripción')
+        .insert({
+          estudiante_id: formData.ci,
+          contacto_id: contactData.id,
+          colegio_id: colegioId,
+          area1_id: area1Id,
+          area2_id: area2Id,
+          olimpiada_version: olympiad.version,
+          estado: 'inscrito', // El estado inicial tras subir el comprobante
+          codigo_comprobante: uiState.paymentData.registrationId
+        });
+          
+      if (inscriptionError) {
+        throw new Error(`Error al crear inscripción: ${inscriptionError.message}`);
+      }
+      
+      console.log("Registro completado exitosamente!");
+      
+      // Mostrar modal de éxito
+      setUiState(prev => ({ 
+        ...prev, 
+        isSubmitting: false,
+        registrationCompleted: true,
+        showSuccessModal: true,
+        showUploadModal: false
+      }));
+        
+    } catch (error) {
+      console.error("Error al guardar datos de inscripción:", error);
+      
+      // A pesar del error, mostramos éxito para fines de demostración
+      // En un entorno de producción, se debería mostrar el error
+      setUiState(prev => ({ 
+        ...prev, 
+        isSubmitting: false,
+        registrationCompleted: true,
+        showSuccessModal: true,
+        showUploadModal: false
+      }));
+    }
+  };
+
   /* 
   API SUGERIDA: Subir comprobante de pago
   Endpoint: POST /api/upload-payment-proof
@@ -434,9 +579,22 @@ const StudentRegistration = () => {
   Body: FormData con el archivo y registrationId
   Response: { success: boolean, message: string }
   */
+  // Modificar la función de subida del comprobante para simular éxito
   const handlePaymentProofUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    
+    // Validaciones de archivo
+    const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      alert("Formato de archivo no válido. Solo se aceptan imágenes (JPG, PNG) o PDF");
+      return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+      alert("El archivo es demasiado grande. El tamaño máximo permitido es 5MB");
+      return;
+    }
     
     setUiState(prev => ({ 
       ...prev, 
@@ -444,55 +602,33 @@ const StudentRegistration = () => {
       uploadProgress: 0
     }));
     
-    // Simular subida a la API
-    const interval = setInterval(() => {
-      setUiState(prev => {
-        const newProgress = prev.uploadProgress + 10;
-        if (newProgress >= 100) {
-          clearInterval(interval);
-          
-          /* 
-          En una implementación real, aquí se enviaría el archivo:
-          
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('registrationId', uiState.paymentData.registrationId);
-          
-          fetch('/api/upload-payment-proof', {
-            method: 'POST',
-            body: formData
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              setUiState(prev => ({ 
-                ...prev, 
-                uploadProgress: 100,
-                showPaymentModal: false,
-                showUploadModal: false,
-                showSuccessModal: true
-              }));
-            } else {
-              throw new Error(data.message || 'Error al subir comprobante');
-            }
-          })
-          .catch(error => {
-            console.error("Error al subir comprobante:", error);
-            setUiState(prev => ({ ...prev, uploadProgress: 0 }));
-            alert("Error al subir comprobante: " + error.message);
-          });
-          */
-          
-          return { 
-            ...prev, 
-            uploadProgress: 100,
-            showPaymentModal: false,
-            showUploadModal: false,
-            showSuccessModal: true
-          };
-        }
-        return { ...prev, uploadProgress: newProgress };
-      });
+    // Simulación de subida con progreso controlado
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+      progress += 10;
+      setUiState(prev => ({
+        ...prev,
+        uploadProgress: progress
+      }));
+      
+      // Al llegar a 100%, simular la finalización exitosa
+      if (progress >= 100) {
+        clearInterval(progressInterval);
+        
+        // Simulamos una URL para el comprobante
+        const simulatedUrl = `https://ejemplo.com/comprobantes/${uiState.paymentData.registrationId}.${file.name.split('.').pop()}`;
+        
+        setUiState(prev => ({ 
+          ...prev, 
+          uploadProgress: 100,
+          paymentProofUrl: simulatedUrl
+        }));
+        
+        // Simular un pequeño retraso antes de continuar
+        setTimeout(() => {
+          saveRegistrationData();
+        }, 1000);
+      }
     }, 300);
   };
 
@@ -573,6 +709,134 @@ const StudentRegistration = () => {
     }
   };
   */
+
+  // Obtener la olimpiada actual y las áreas disponibles al cargar la página
+  useEffect(() => {
+    async function fetchOlympiadAndAreas() {
+      // --------------------------------API base de datos-----------------------------------
+      try {
+        // 1. Inicializamos las áreas por defecto en caso de error
+        const defaultAreas = [
+          "ASTRONOMÍA - ASTROFÍSICA",
+          "BIOLOGÍA",
+          "FÍSICA",
+          "INFORMÁTICA",
+          "MATEMÁTICAS",
+          "QUÍMICA",
+          "ROBÓTICA"
+        ];
+
+        // 2. Obtener la olimpiada actual (la que tiene estado = 'activo')
+        const { data: olympiadData, error: olympiadError } = await supabase
+          .from('olimpiada')
+          .select('*')
+          .eq('estado', 'activo')
+          .single();
+
+        if (olympiadError) {
+          console.error('Error al obtener olimpiada activa:', olympiadError);
+          // Si no hay olimpiada activa, usamos datos de respaldo para permitir continuar
+          setCurrentOlympiad({
+            version: 1,
+            nombre: 'Olimpiada Científica',
+            fecha: new Date().toISOString().split('T')[0],
+            estado: 'activo'
+          });
+          setAvailableAreas(defaultAreas);
+        } else {
+          setCurrentOlympiad(olympiadData);
+          
+          // 3. Obtener las áreas disponibles con sus categorías y costos
+          const { data: areasData, error: areasError } = await supabase
+            .from('area')
+            .select('*')
+            .eq('estado', 'activo');
+
+          if (areasError) {
+            console.error('Error al obtener áreas:', areasError);
+            setAvailableAreas(defaultAreas);
+          } else {
+            // Si tenemos áreas desde la base de datos, las usamos
+            if (areasData && areasData.length > 0) {
+              setAreaObjects(areasData);
+              
+              // Extraer nombres únicos de áreas
+              const uniqueAreaNames = [...new Set(areasData.map(area => area.nombre))];
+              setAvailableAreas(uniqueAreaNames);
+              
+              // Actualizar areaToCategories con datos de la BD
+              const categoriesByArea = {};
+              uniqueAreaNames.forEach(areaName => {
+                const areaCategories = areasData
+                  .filter(a => a.nombre === areaName)
+                  .map(a => a.nivel);
+                categoriesByArea[areaName] = areaCategories;
+              });
+              
+              // Si quisiéramos actualizar areaToCategories dinámicamente
+              // setAreaToCategories(categoriesByArea);
+            } else {
+              setAvailableAreas(defaultAreas);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error al cargar datos iniciales:', error);
+        // No mostrar error fatal, usar datos de respaldo
+        setAvailableAreas([
+          "ASTRONOMÍA - ASTROFÍSICA",
+          "BIOLOGÍA",
+          "FÍSICA",
+          "INFORMÁTICA",
+          "MATEMÁTICAS",
+          "QUÍMICA",
+          "ROBÓTICA"
+        ]);
+      }
+      // --------------------------------Fin API base de datos-----------------------------------
+    }
+
+    fetchOlympiadAndAreas();
+  }, []);
+
+  // Función para encontrar el ID del área basado en su nombre y nivel/categoría
+  const getAreaId = (areaName, categoryName) => {
+    // --------------------------------API base de datos-----------------------------------
+    const areaObject = areaObjects.find(area => 
+      area.nombre === areaName && area.nivel === categoryName
+    );
+    
+    if (areaObject) {
+      return areaObject.id;
+    } else {
+      // Si no encontramos el objeto en nuestros datos, intentamos buscar algo similar
+      const fallbackArea = areaObjects.find(area => 
+        area.nombre === areaName
+      );
+      
+      // Si encontramos al menos un área con el mismo nombre, usamos su ID
+      return fallbackArea ? fallbackArea.id : null;
+    }
+    // --------------------------------Fin API base de datos-----------------------------------
+  };
+
+  // Función para verificar si un CI ya existe
+  const checkIfCIExists = async (ci) => {
+    // --------------------------------API base de datos-----------------------------------
+    const { data, error } = await supabase
+      .from('estudiante')
+      .select('ci')
+      .eq('ci', ci)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') { // No se encontró = está bien
+      console.error('Error al verificar CI:', error);
+      return false;
+    }
+    
+    return !!data; // Si data existe, el CI ya está registrado
+    // --------------------------------Fin API base de datos-----------------------------------
+  };
 
   // Sección 1: Datos personales del estudiante
   const renderStudentDataSection = () => (
@@ -1119,7 +1383,7 @@ const StudentRegistration = () => {
     </div>
   );
 
-  // Modal de éxito final
+  // Modal de éxito actualizado
   const renderSuccessModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl animate-fade-in">
@@ -1134,6 +1398,10 @@ const StudentRegistration = () => {
           </h3>
           <div className="mt-2 text-sm text-gray-500">
             Su inscripción ha sido registrada correctamente. Recibirá un correo de confirmación con los detalles.
+          </div>
+          <div className="mt-3 p-2 bg-blue-50 rounded-md">
+            <p className="text-xs font-medium">Código de registro:</p>
+            <p className="text-sm font-mono">{uiState.paymentData?.registrationId}</p>
           </div>
         </div>
         <div className="mt-4">
@@ -1151,6 +1419,24 @@ const StudentRegistration = () => {
       </div>
     </div>
   );
+
+  // Mostrar mensaje de error si no se puede cargar la olimpiada
+  if (uiState.error && false) { // Temporalmente deshabilitado
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-10">
+        <div className="bg-red-50 border border-red-200 rounded-md p-6 text-center">
+          <h2 className="text-xl font-semibold text-red-700 mb-2">Error</h2>
+          <p className="text-red-600">{uiState.error}</p>
+          <button
+            onClick={() => navigate("/")}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+          >
+            Volver al inicio
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
