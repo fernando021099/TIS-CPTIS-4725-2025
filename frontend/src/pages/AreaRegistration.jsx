@@ -140,6 +140,7 @@ const AreaRegistration = () => {
     const finalName = formData.name === "Otro (especificar)" ? formData.customName : formData.name
     const finalCategory = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory : formData.categoryLevel
     
+    // Validación del campo de área
     if (!finalName.trim()) newErrors.name = "Nombre de área requerido"
 
     if (formData.name === "Otro (especificar)"){
@@ -152,10 +153,22 @@ const AreaRegistration = () => {
         newErrors.name = "Solo se permiten letras mayúsculas sin números ni caracteres especiales"
       }
     }
-    //if (formData.name === "Otro (especificar)" && !formData.customName.trim()) newErrors.name = "Debe ingresar un nombre"
     
+    // Validación del campo categoría/nivel
     if (!finalCategory) newErrors.categoryLevel = "Seleccione categoría/nivel"
-    if (formData.categoryLevel === "Otro (especificar)" && !formData.customCategory.trim()) newErrors.categoryLevel = "Debe ingresar una categoría/nivel"
+    
+    if (formData.categoryLevel === "Otro (especificar)") {
+      const customCategory = formData.customCategory.trim()
+      const lettersAndNumbers = /^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 ]+$/ // Letras (cualquier caso), números, espacios
+  
+      if (!customCategory) {
+        newErrors.categoryLevel = "Debe ingresar una categoría/nivel"
+      } else if (!lettersAndNumbers.test(customCategory)) {
+        newErrors.categoryLevel = "Solo se permiten letras y números (sin caracteres especiales)"
+      }
+    }
+    
+    // Validación del campo costo
     if (!formData.cost || Number(formData.cost) <= 0) newErrors.cost = "Costo inválido (debe ser mayor a 0)"
     if (Number(formData.cost) > 10000) newErrors.cost = "Costo demasiado alto"
     
