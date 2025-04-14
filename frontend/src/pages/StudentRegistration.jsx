@@ -268,13 +268,18 @@ const StudentRegistration = () => {
         }
       }
 
-      if (!formData.tutorEmail) newErrors.tutorEmail = "Correo del tutor requerido";
-      if (!formData.tutorPhone) newErrors.tutorPhone = "Teléfono del tutor requerido";
-      
-      if (formData.tutorEmail && !/^\S+@\S+\.\S+$/.test(formData.tutorEmail)) {
-        newErrors.tutorEmail = "Correo electrónico inválido";
+      //Validación para el correo electronico del tutor
+      if (!formData.tutorEmail) {
+        newErrors.tutorEmail = "Correo del tutor requerido";
+      } else {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+        if (!emailRegex.test(formData.tutorEmail)) {
+          newErrors.tutorEmail = "Correo electrónico inválido. Use un formato válido como ejemplo@dominio.com";
+        }
       }
+
       
+      if (!formData.tutorPhone) newErrors.tutorPhone = "Teléfono del tutor requerido";
       if (formData.tutorPhone && !/^[0-9+]+$/.test(formData.tutorPhone)) {
         newErrors.tutorPhone = "Teléfono inválido";
       }
