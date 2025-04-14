@@ -299,8 +299,18 @@ const StudentRegistration = () => {
     }
     
     if (section === 3) {
-      // Validación de datos educativos
-      if (!formData.school) newErrors.school = "Colegio requerido";
+      // Validación para Colegio
+      if (!formData.school) {
+        newErrors.school = "Colegio requerido";
+      } else {
+        const schoolName = formData.school.trim();
+        if (!/^[A-Za-zÁÉÍÓÚÑáéíóúñ\s]+$/.test(schoolName)) {
+          newErrors.school = "El nombre del colegio solo debe contener letras y espacios (sin números ni símbolos)";
+        } else if (schoolName.length < 3 || schoolName.length > 100) {
+          newErrors.school = "El nombre del colegio debe tener entre 3 y 100 caracteres";
+        }
+      }
+
       if (!formData.grade) newErrors.grade = "Curso requerido";
       if (!formData.department) newErrors.department = "Departamento requerido";
       if (!formData.province) newErrors.province = "Provincia requerida";
