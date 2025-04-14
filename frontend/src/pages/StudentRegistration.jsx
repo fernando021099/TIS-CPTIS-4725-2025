@@ -171,8 +171,17 @@ const StudentRegistration = () => {
     const newErrors = {};
     
     if (section === 1) {
-      // Validación de datos del estudiante
-      if (!formData.email) newErrors.email = "Correo electrónico requerido";
+      // Validacion para correo electronico
+      if (!formData.email) {
+        newErrors.email = "Correo electrónico requerido";  // Verifica que no esté vacío
+      } else {
+        // Expresión regular para verificar formato de correo electrónico válido
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      
+        if (!emailRegex.test(formData.email)) {
+          newErrors.email = "Formato de correo electrónico inválido"; // Rechaza formatos incorrectos
+        }
+      }
 
       //Validacion para el Apellido del estudiante 
       if (!formData.lastName) {
@@ -215,13 +224,11 @@ const StudentRegistration = () => {
       }
       
       // Validaciones de formato
-      if (formData.email && !/^\S+@\S+\.\S+$/.test(formData.email)) {
-        newErrors.email = "Correo electrónico inválido";
-      }
       
-      if (formData.ci && !/^\d+$/.test(formData.ci)) {
-        newErrors.ci = "CI debe contener solo números";
-      }
+      
+      //if (formData.ci && !/^\d+$/.test(formData.ci)) {
+        //newErrors.ci = "CI debe contener solo números";
+      //}
     }
     
     if (section === 2) {
