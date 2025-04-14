@@ -223,12 +223,34 @@ const StudentRegistration = () => {
         }
       }
       
-      // Validaciones de formato
+      // Validar fecha de nacimiento 
+      if (!formData.birthDate) {
+        newErrors.birthDate = "Debe ingresar una fecha válida en el formato correcto (dd/mm/aaaa)";
+      } else {
+        const [year, month, day] = formData.birthDate.split("-").map(Number);
+        const birthDate = new Date(year, month - 1, day);
+        const today = new Date();
       
+        const isValidDate =
+          birthDate.getFullYear() === year &&
+          birthDate.getMonth() === month - 1 &&
+          birthDate.getDate() === day;
       
-      //if (formData.ci && !/^\d+$/.test(formData.ci)) {
-        //newErrors.ci = "CI debe contener solo números";
-      //}
+        // Calcular edad
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+      
+        if (!isValidDate) {
+          newErrors.birthDate = "La fecha ingresada no es válida (puede no existir en el calendario)";
+        } else if (birthDate > today) {
+          newErrors.birthDate = "La fecha no puede estar en el futuro";
+        } else if (age < 6 || age > 18) {
+          newErrors.birthDate = "Edad fuera del rango permitido (debe tener entre 6 y 18 años)";
+        }
+      }
     }
     
     if (section === 2) {
