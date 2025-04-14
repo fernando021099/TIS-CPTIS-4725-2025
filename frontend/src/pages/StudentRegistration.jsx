@@ -255,7 +255,19 @@ const StudentRegistration = () => {
     
     if (section === 2) {
       // Validación de datos del tutor
-      if (!formData.tutorName) newErrors.tutorName = "Nombre del tutor requerido";
+      if (!formData.tutorName) {
+        newErrors.tutorName = "Nombre del tutor requerido";
+      } else {
+        const nameRegex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/;
+        if (!nameRegex.test(formData.tutorName)) {
+          newErrors.tutorName = "El nombre solo debe contener letras y espacios, sin números ni caracteres especiales";
+        } else if (formData.tutorName.length < 5) {
+          newErrors.tutorName = "El nombre debe tener al menos 5 caracteres";
+        } else if (formData.tutorName.length > 100) {
+          newErrors.tutorName = "El nombre no debe exceder los 100 caracteres";
+        }
+      }
+
       if (!formData.tutorEmail) newErrors.tutorEmail = "Correo del tutor requerido";
       if (!formData.tutorPhone) newErrors.tutorPhone = "Teléfono del tutor requerido";
       
