@@ -200,8 +200,19 @@ const StudentRegistration = () => {
         }
       }
 
-      if (!formData.ci) newErrors.ci = "CI requerido";
-      if (!formData.birthDate) newErrors.birthDate = "Fecha de nacimiento requerida";
+      //Validaciones para CI
+      if (!formData.ci || formData.ci.trim() === "") {
+        newErrors.ci = "CI requerido";
+      } else {
+        const trimmedCI = formData.ci.trim();
+        const onlyDigits = /^\d+$/;
+      
+        if (!onlyDigits.test(trimmedCI)) {
+          newErrors.ci = "Solo se permiten caracteres numéricos, sin letras ni símbolos";
+        } else if (trimmedCI.length < 5 || trimmedCI.length > 12) {
+          newErrors.ci = "El CI debe tener entre 5 y 12 dígitos";
+        }
+      }
       
       // Validaciones de formato
       if (formData.email && !/^\S+@\S+\.\S+$/.test(formData.email)) {
