@@ -278,10 +278,23 @@ const StudentRegistration = () => {
         }
       }
 
-      
-      if (!formData.tutorPhone) newErrors.tutorPhone = "Teléfono del tutor requerido";
-      if (formData.tutorPhone && !/^[0-9+]+$/.test(formData.tutorPhone)) {
-        newErrors.tutorPhone = "Teléfono inválido";
+      //Validación para Teléfono
+      if (!formData.tutorPhone) {
+        newErrors.tutorPhone = "Teléfono del tutor requerido"; 
+      } else {
+        const phone = formData.tutorPhone.trim(); // Eliminar espacios innecesarios
+        if (!/^[0-9]+$/.test(phone)) {
+          newErrors.tutorPhone = "El teléfono solo debe contener números sin espacios ni caracteres especiales";
+        }
+        else if (/^(?:\d)\1{7}$/.test(phone) || phone === "12345678" || phone === "01234567") {
+          newErrors.tutorPhone = "Número de teléfono no válido (secuencial o repetido)";
+        }
+        else if (phone.length !== 8) {
+          newErrors.tutorPhone = "El teléfono debe tener exactamente 8 dígitos";
+        }
+        else if (!/^[67]/.test(phone)) {
+          newErrors.tutorPhone = "El teléfono debe comenzar con 6 o 7";
+        }
       }
     }
     
