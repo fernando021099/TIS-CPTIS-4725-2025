@@ -173,8 +173,20 @@ const StudentRegistration = () => {
     if (section === 1) {
       // Validación de datos del estudiante
       if (!formData.email) newErrors.email = "Correo electrónico requerido";
-      if (!formData.lastName) newErrors.lastName = "Apellidos requeridos";
+
+      //Validacion para el Apellido del estudiante 
+      if (!formData.lastName) {
+        newErrors.lastName = "Apellidos requeridos";
+      } else {
+        const onlyLettersAndSpaces = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
       
+        if (!onlyLettersAndSpaces.test(formData.lastName)) {
+          newErrors.lastName = "Solo se permiten letras y espacios";
+        } else if (formData.lastName.length < 3 || formData.lastName.length > 50) {
+          newErrors.lastName = "Los apellidos deben tener entre 3 y 50 caracteres";
+        }
+      }
+
       //Validaciones para el nombre del estudiante
       if (!formData.firstName) {
         newErrors.firstName = "Nombres requeridos";
