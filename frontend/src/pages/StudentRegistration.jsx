@@ -322,7 +322,7 @@ const StudentRegistration = () => {
           newErrors.grade = "El curso debe tener entre 3 y 30 caracteres";
         }
       }
-
+      //Validaciones para departamento y provincia
       if (!formData.department) newErrors.department = "Departamento requerido";
       if (!formData.province) newErrors.province = "Provincia requerida";
       
