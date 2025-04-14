@@ -311,7 +311,18 @@ const StudentRegistration = () => {
         }
       }
 
-      if (!formData.grade) newErrors.grade = "Curso requerido";
+      //Validación para Curso
+      if (!formData.grade) {
+        newErrors.grade = "Curso requerido";
+      } else {
+        const gradeText = formData.grade.trim();
+        if (!/^[A-Za-zÁÉÍÓÚÑáéíóúñ0-9\s]+$/.test(gradeText)) {
+          newErrors.grade = "El curso solo debe contener letras, números y espacios";
+        } else if (gradeText.length < 3 || gradeText.length > 30) {
+          newErrors.grade = "El curso debe tener entre 3 y 30 caracteres";
+        }
+      }
+
       if (!formData.department) newErrors.department = "Departamento requerido";
       if (!formData.province) newErrors.province = "Provincia requerida";
       
