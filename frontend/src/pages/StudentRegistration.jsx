@@ -171,42 +171,158 @@ const StudentRegistration = () => {
     const newErrors = {};
     
     if (section === 1) {
-      // Validación de datos del estudiante
-      if (!formData.email) newErrors.email = "Correo electrónico requerido";
-      if (!formData.lastName) newErrors.lastName = "Apellidos requeridos";
-      if (!formData.firstName) newErrors.firstName = "Nombres requeridos";
-      if (!formData.ci) newErrors.ci = "CI requerido";
-      if (!formData.birthDate) newErrors.birthDate = "Fecha de nacimiento requerida";
+      // Validacion para correo electronico
+      if (!formData.email) {
+        newErrors.email = "Correo electrónico requerido";  // Verifica que no esté vacío
+      } else {
+        // Expresión regular para verificar formato de correo electrónico válido
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
       
-      // Validaciones de formato
-      if (formData.email && !/^\S+@\S+\.\S+$/.test(formData.email)) {
-        newErrors.email = "Correo electrónico inválido";
+        if (!emailRegex.test(formData.email)) {
+          newErrors.email = "Formato de correo electrónico inválido"; // Rechaza formatos incorrectos
+        }
+      }
+
+      //Validacion para el Apellido del estudiante 
+      if (!formData.lastName) {
+        newErrors.lastName = "Apellidos requeridos";
+      } else {
+        const onlyLettersAndSpaces = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
+      
+        if (!onlyLettersAndSpaces.test(formData.lastName)) {
+          newErrors.lastName = "Solo se permiten letras y espacios";
+        } else if (formData.lastName.length < 3 || formData.lastName.length > 50) {
+          newErrors.lastName = "Los apellidos deben tener entre 3 y 50 caracteres";
+        }
+      }
+
+      //Validaciones para el nombre del estudiante
+      if (!formData.firstName) {
+        newErrors.firstName = "Nombres requeridos";
+      } else {
+        const onlyLettersAndSpaces = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
+      
+        if (!onlyLettersAndSpaces.test(formData.firstName)) {
+          newErrors.firstName = "Solo se permiten letras y espacios";
+        } else if (formData.firstName.length < 3 || formData.firstName.length > 20) {
+          newErrors.firstName = "El nombre debe tener entre 3 y 20 caracteres";
+        }
+      }
+
+      //Validaciones para CI
+      if (!formData.ci || formData.ci.trim() === "") {
+        newErrors.ci = "CI requerido";
+      } else {
+        const trimmedCI = formData.ci.trim();
+        const onlyDigits = /^\d+$/;
+      
+        if (!onlyDigits.test(trimmedCI)) {
+          newErrors.ci = "Solo se permiten caracteres numéricos, sin letras ni símbolos";
+        } else if (trimmedCI.length < 5 || trimmedCI.length > 12) {
+          newErrors.ci = "El CI debe tener entre 5 y 12 dígitos";
+        }
       }
       
-      if (formData.ci && !/^\d+$/.test(formData.ci)) {
-        newErrors.ci = "CI debe contener solo números";
+      // Validar fecha de nacimiento 
+      if (!formData.birthDate) {
+        newErrors.birthDate = "Debe ingresar una fecha válida en el formato correcto (dd/mm/aaaa)";
+      } else {
+        const [year, month, day] = formData.birthDate.split("-").map(Number);
+        const birthDate = new Date(year, month - 1, day);
+        const today = new Date();
+      
+        const isValidDate =
+          birthDate.getFullYear() === year &&
+          birthDate.getMonth() === month - 1 &&
+          birthDate.getDate() === day;
+      
+        // Calcular edad
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+      
+        if (!isValidDate) {
+          newErrors.birthDate = "La fecha ingresada no es válida (puede no existir en el calendario)";
+        } else if (birthDate > today) {
+          newErrors.birthDate = "La fecha no puede estar en el futuro";
+        } else if (age < 6 || age > 18) {
+          newErrors.birthDate = "Edad fuera del rango permitido (debe tener entre 6 y 18 años)";
+        }
       }
     }
     
     if (section === 2) {
       // Validación de datos del tutor
-      if (!formData.tutorName) newErrors.tutorName = "Nombre del tutor requerido";
-      if (!formData.tutorEmail) newErrors.tutorEmail = "Correo del tutor requerido";
-      if (!formData.tutorPhone) newErrors.tutorPhone = "Teléfono del tutor requerido";
-      
-      if (formData.tutorEmail && !/^\S+@\S+\.\S+$/.test(formData.tutorEmail)) {
-        newErrors.tutorEmail = "Correo electrónico inválido";
+      if (!formData.tutorName) {
+        newErrors.tutorName = "Nombre del tutor requerido";
+      } else {
+        const nameRegex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/;
+        if (!nameRegex.test(formData.tutorName)) {
+          newErrors.tutorName = "El nombre solo debe contener letras y espacios, sin números ni caracteres especiales";
+        } else if (formData.tutorName.length < 5) {
+          newErrors.tutorName = "El nombre debe tener al menos 5 caracteres";
+        } else if (formData.tutorName.length > 100) {
+          newErrors.tutorName = "El nombre no debe exceder los 100 caracteres";
+        }
       }
-      
-      if (formData.tutorPhone && !/^[0-9+]+$/.test(formData.tutorPhone)) {
-        newErrors.tutorPhone = "Teléfono inválido";
+
+      //Validación para el correo electronico del tutor
+      if (!formData.tutorEmail) {
+        newErrors.tutorEmail = "Correo del tutor requerido";
+      } else {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+        if (!emailRegex.test(formData.tutorEmail)) {
+          newErrors.tutorEmail = "Correo electrónico inválido. Use un formato válido como ejemplo@dominio.com";
+        }
+      }
+
+      //Validación para Teléfono
+      if (!formData.tutorPhone) {
+        newErrors.tutorPhone = "Teléfono del tutor requerido"; 
+      } else {
+        const phone = formData.tutorPhone.trim(); // Eliminar espacios innecesarios
+        if (!/^[0-9]+$/.test(phone)) {
+          newErrors.tutorPhone = "El teléfono solo debe contener números sin espacios ni caracteres especiales";
+        }
+        else if (/^(?:\d)\1{7}$/.test(phone) || phone === "12345678" || phone === "01234567") {
+          newErrors.tutorPhone = "Número de teléfono no válido (secuencial o repetido)";
+        }
+        else if (phone.length !== 8) {
+          newErrors.tutorPhone = "El teléfono debe tener exactamente 8 dígitos";
+        }
+        else if (!/^[67]/.test(phone)) {
+          newErrors.tutorPhone = "El teléfono debe comenzar con 6 o 7";
+        }
       }
     }
     
     if (section === 3) {
-      // Validación de datos educativos
-      if (!formData.school) newErrors.school = "Colegio requerido";
-      if (!formData.grade) newErrors.grade = "Curso requerido";
+      // Validación para Colegio
+      if (!formData.school) {
+        newErrors.school = "Colegio requerido";
+      } else {
+        const schoolName = formData.school.trim();
+        if (!/^[A-Za-zÁÉÍÓÚÑáéíóúñ\s]+$/.test(schoolName)) {
+          newErrors.school = "El nombre del colegio solo debe contener letras y espacios (sin números ni símbolos)";
+        } else if (schoolName.length < 3 || schoolName.length > 100) {
+          newErrors.school = "El nombre del colegio debe tener entre 3 y 100 caracteres";
+        }
+      }
+
+      //Validación para Curso
+      if (!formData.grade) {
+        newErrors.grade = "Curso requerido";
+      } else {
+        const gradeText = formData.grade.trim();
+        if (!/^[A-Za-zÁÉÍÓÚÑáéíóúñ0-9\s]+$/.test(gradeText)) {
+          newErrors.grade = "El curso solo debe contener letras, números y espacios";
+        } else if (gradeText.length < 3 || gradeText.length > 30) {
+          newErrors.grade = "El curso debe tener entre 3 y 30 caracteres";
+        }
+      }
+      //Validaciones para departamento y provincia
       if (!formData.department) newErrors.department = "Departamento requerido";
       if (!formData.province) newErrors.province = "Provincia requerida";
       
