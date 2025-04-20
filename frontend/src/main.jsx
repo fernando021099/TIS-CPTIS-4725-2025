@@ -1,13 +1,13 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import App from './App'
 import HomePage from './pages/HomePage'
 import AreaRegistration from './pages/AreaRegistration'
 import AreaList from './pages/AreaList'
 import StudentRegistration from './pages/StudentRegistration'
 import StudentGroupRegistration from './pages/StudentGroupRegistration'
-import StudentsApprovedList from './pages/StudentsApprovedList' // Importación corregida
+import StudentsApprovedList from './pages/StudentsApprovedList'
 import './index.css'
 
 const router = createBrowserRouter([
@@ -36,9 +36,14 @@ const router = createBrowserRouter([
         element: <StudentGroupRegistration />,
       },
       {
-        path: "student-applications", // O "approved-applications" si prefieres
-        element: <StudentsApprovedList />, // Nombre exacto del componente
+        path: "student-applications",
+        element: <StudentsApprovedList />,
       },
+      // Redirección para cualquier ruta no definida
+      {
+        path: "*",
+        element: <Navigate to="/" replace />,
+      }
     ],
   },
 ])

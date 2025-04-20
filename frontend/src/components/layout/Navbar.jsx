@@ -42,9 +42,16 @@ export default function Navbar() {
       hasDropdown: true,
       dropdownItems: [
         { name: "Individual", link: "/student-registration" },
-        { name: "Grupal", link: "/group-registration" }, // Cambiado de "#" a "/group-registration"
-
+        { name: "Grupal", link: "/group-registration" },
         { name: "Institucional", link: "#" },
+      ],
+    },
+    {
+      name: "Gestión de Áreas",  // Nuevo menú desplegable
+      hasDropdown: true,
+      dropdownItems: [
+        { name: "Registrar nueva área", link: "/register" },
+        { name: "Ver listado de áreas", link: "/areas" }
       ],
     },
     {
@@ -60,7 +67,7 @@ export default function Navbar() {
       name: "Reportes",
       hasDropdown: true,
       dropdownItems: [
-        { name: "Postulaciones", link: "/student-applications" }, // Nuevo ítem añadido
+        { name: "Postulaciones", link: "/student-applications" },
         { name: "Resultados", link: "#" },
         { name: "Estadísticas", link: "#" },
         { name: "Certificados", link: "#" },
@@ -189,4 +196,3 @@ export default function Navbar() {
     </div>
   )
 }
-
