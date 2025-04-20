@@ -7,21 +7,16 @@ const StudentGroupRegistration = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   
-  // Estado para controlar las secciones activas
   const [currentSection, setCurrentSection] = useState(1);
   const [completedSections, setCompletedSections] = useState([]);
-  
-  // Estado para el método de inscripción seleccionado
   const [registrationMethod, setRegistrationMethod] = useState(null);
   
-  // Datos del tutor
   const [tutorData, setTutorData] = useState({
     name: "",
     email: "",
     phone: ""
   });
 
-  // Estado para estudiantes (formulario manual)
   const [students, setStudents] = useState([
     {
       id: Date.now(),
@@ -33,53 +28,33 @@ const StudentGroupRegistration = () => {
       grade: "",
       department: "Cochabamba",
       province: "",
-      areas: [], // Áreas seleccionadas
-      categories: {} // Categorías por área
+      areas: [],
+      categories: {}
     }
   ]);
 
-  // Estado para el archivo Excel cargado
   const [excelData, setExcelData] = useState(null);
   const [excelFileName, setExcelFileName] = useState("");
   const [excelErrors, setExcelErrors] = useState([]);
   
-  // Estado para la UI
   const [uiState, setUiState] = useState({
     isSubmitting: false,
     showSuccessModal: false,
     showPaymentModal: false,
     showErrorsModal: false,
-    paymentData: null,
-    uploadProgress: 0,
-    paymentProof: null
+    paymentData: null
   });
 
   const [errors, setErrors] = useState({});
 
-  /* 
-  API SUGERIDA: Obtener departamentos desde el backend
-  Endpoint: GET /api/departments
-  Descripción: Devuelve la lista de departamentos disponibles
-  */
   const departmentOptions = ["Cochabamba", "La Paz", "Santa Cruz", "Oruro", "Potosí", "Chuquisaca", "Tarija", "Beni", "Pando"];
   
-  /* 
-  API SUGERIDA: Obtener provincias por departamento desde el backend
-  Endpoint: GET /api/provinces?department=<department>
-  Descripción: Devuelve las provincias para un departamento específico
-  */
   const provinceOptions = {
     "Cochabamba": ["Cercado", "Quillacollo", "Chapare", "Ayopaya", "Esteban Arce", "Arani", "Arque", "Capinota", "Germán Jordán", "Mizque", "Punata", "Tiraque"],
     "La Paz": ["Murillo", "Omasuyos", "Camacho", "Muñecas", "Larecaja", "Franz Tamayo", "Ingavi", "Loayza", "Inquisivi", "Sud Yungas", "Los Andes", "Aroma"],
     "Santa Cruz": ["Andrés Ibáñez", "Warnes", "Velasco", "Ichilo", "Chiquitos", "Sara", "Cordillera", "Vallegrande", "Florida", "Obispo Santistevan", "Ñuflo de Chávez", "Ángel Sandoval"],
-    // ... otras provincias
   };
 
-  /* 
-  API SUGERIDA: Obtener áreas disponibles desde el backend
-  Endpoint: GET /api/competition-areas
-  Descripción: Devuelve las áreas de competencia disponibles
-  */
   const areaOptions = [
     "ASTRONOMÍA - ASTROFÍSICA",
     "BIOLOGÍA",
@@ -90,11 +65,6 @@ const StudentGroupRegistration = () => {
     "ROBÓTICA"
   ];
 
-  /* 
-  API SUGERIDA: Obtener categorías por área desde el backend
-  Endpoint: GET /api/competition-categories?area=<area>
-  Descripción: Devuelve las categorías disponibles para un área específica
-  */
   const areaToCategories = {
     "ASTRONOMÍA - ASTROFÍSICA": ["3P", "4P", "5P", "6P", "1S", "2S", "3S", "4S", "5S", "6S"],
     "BIOLOGÍA": ["2S", "3S", "4S", "5S", "6S"],
@@ -105,28 +75,23 @@ const StudentGroupRegistration = () => {
     "ROBÓTICA": ["Builders P", "Builders S", "Lego P", "Lego S"]
   };
 
-  // Manejar cambios en los datos del tutor
   const handleTutorChange = (e) => {
     const { name, value } = e.target;
     setTutorData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
   };
 
-  // Manejar cambios en los datos de un estudiante
   const handleStudentChange = (id, e) => {
     const { name, value } = e.target;
-    
     setStudents(prev => prev.map(student => 
       student.id === id ? { ...student, [name]: value } : student
     ));
   };
 
-  // Manejar selección de áreas para un estudiante
   const handleStudentAreaSelection = (studentId, area) => {
     setStudents(prev => prev.map(student => {
       if (student.id !== studentId) return student;
       
-      // Si el área ya está seleccionada, la quitamos
       if (student.areas.includes(area)) {
         const newCategories = { ...student.categories };
         delete newCategories[area];
@@ -138,14 +103,13 @@ const StudentGroupRegistration = () => {
         };
       }
       
-      // Si no está seleccionada y hay menos de 2, la agregamos
       if (student.areas.length < 2) {
         return {
           ...student,
           areas: [...student.areas, area],
           categories: {
             ...student.categories,
-            [area]: "" // Inicializar categoría vacía
+            [area]: ""
           }
         };
       }
@@ -154,7 +118,6 @@ const StudentGroupRegistration = () => {
     }));
   };
 
-  // Manejar cambio de categoría para un área de estudiante
   const handleStudentCategoryChange = (studentId, area, category) => {
     setStudents(prev => prev.map(student => {
       if (student.id !== studentId) return student;
@@ -169,7 +132,6 @@ const StudentGroupRegistration = () => {
     }));
   };
 
-  // Agregar nuevo estudiante al formulario
   const addStudent = () => {
     if (students.length >= 20) return;
     setStudents(prev => [
@@ -190,13 +152,11 @@ const StudentGroupRegistration = () => {
     ]);
   };
 
-  // Eliminar estudiante del formulario
   const removeStudent = (id) => {
     if (students.length <= 1) return;
     setStudents(prev => prev.filter(student => student.id !== id));
   };
 
-  // Validar sección actual
   const validateSection = (section) => {
     const newErrors = {};
     
@@ -218,7 +178,6 @@ const StudentGroupRegistration = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Validar todos los estudiantes del formulario manual
   const validateAllStudents = () => {
     const errorsList = [];
     
@@ -233,20 +192,17 @@ const StudentGroupRegistration = () => {
       if (!student.department) studentErrors.department = "Departamento requerido";
       if (!student.province) studentErrors.province = "Provincia requerida";
       
-      // Validación de áreas
       if (student.areas.length === 0) {
         studentErrors.areas = "Debe seleccionar al menos un área";
       } else if (student.areas.length > 2) {
         studentErrors.areas = "Máximo 2 áreas por estudiante";
       }
       
-      // Validación específica para Robótica
       const hasRobotics = student.areas.includes("ROBÓTICA");
       if (hasRobotics && student.areas.length > 1) {
         studentErrors.areas = "Si postula a ROBÓTICA, no puede postular a otra área";
       }
       
-      // Validar que todas las áreas tengan categoría
       student.areas.forEach(area => {
         if (!student.categories[area]) {
           studentErrors[`category_${area}`] = `Seleccione categoría para ${area}`;
@@ -264,14 +220,12 @@ const StudentGroupRegistration = () => {
     return errorsList;
   };
 
-  // Validar datos del Excel
   const validateExcelData = (data) => {
     const errorsList = [];
     
     data.forEach((row, index) => {
       const rowErrors = {};
       
-      // Validar campos requeridos
       if (!row.Apellidos) rowErrors.lastName = "Apellidos requeridos";
       if (!row.Nombres) rowErrors.firstName = "Nombres requeridos";
       if (!row.CI) rowErrors.ci = "CI requerido";
@@ -281,12 +235,10 @@ const StudentGroupRegistration = () => {
       if (!row.Provincia) rowErrors.province = "Provincia requerida";
       if (!row.Áreas) rowErrors.areas = "Áreas requeridas";
       
-      // Validación de formato de CI
       if (row.CI && !/^[0-9]+$/.test(row.CI)) {
         rowErrors.ci = "CI debe contener solo números";
       }
       
-      // Validación de áreas
       if (row.Áreas) {
         const areas = row.Áreas.split(',').map(a => a.trim());
         
@@ -296,14 +248,12 @@ const StudentGroupRegistration = () => {
           rowErrors.areas = "Máximo 2 áreas por estudiante";
         }
         
-        // Validar que las áreas existan en las opciones
         areas.forEach(area => {
           if (!areaOptions.includes(area)) {
             rowErrors.areas = `Área no válida: ${area}`;
           }
         });
         
-        // Validación específica para Robótica
         const hasRobotics = areas.includes("ROBÓTICA");
         if (hasRobotics && areas.length > 1) {
           rowErrors.areas = "Si postula a ROBÓTICA, no puede postular a otra área";
@@ -312,7 +262,7 @@ const StudentGroupRegistration = () => {
       
       if (Object.keys(rowErrors).length > 0) {
         errorsList.push({
-          rowNumber: index + 2, // +2 porque la primera fila es encabezado y index empieza en 0
+          rowNumber: index + 2,
           errors: rowErrors
         });
       }
@@ -332,18 +282,15 @@ const StudentGroupRegistration = () => {
     setCurrentSection(prev => prev - 1);
   };
 
-  // Manejar selección de método de inscripción
   const selectRegistrationMethod = (method) => {
     setRegistrationMethod(method);
     goToNextSection();
   };
 
-  // Manejar carga de archivo Excel con ExcelJS
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
-    // Validar tipo de archivo
     const validTypes = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
       'application/vnd.ms-excel'
@@ -368,28 +315,24 @@ const StudentGroupRegistration = () => {
       const worksheet = workbook.worksheets[0];
       const jsonData = [];
       
-      // Leer encabezados y validar formato
       const headers = [];
       worksheet.getRow(1).eachCell((cell) => {
         headers.push(cell.value?.toString().trim());
       });
       
-      // Columnas requeridas
       const requiredColumns = [
         'Apellidos', 'Nombres', 'CI', 'Colegio', 
         'Curso', 'Departamento', 'Provincia', 'Áreas'
       ];
       
-      // Verificar que todas las columnas requeridas estén presentes
       const missingColumns = requiredColumns.filter(col => !headers.includes(col));
       
       if (missingColumns.length > 0) {
         throw new Error(`El archivo no tiene el formato correcto. Faltan las columnas: ${missingColumns.join(', ')}`);
       }
       
-      // Leer filas de datos
       worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return; // Saltar encabezados
+        if (rowNumber === 1) return;
         
         const rowData = {};
         row.eachCell((cell, colNumber) => {
@@ -408,7 +351,6 @@ const StudentGroupRegistration = () => {
         throw new Error("El archivo no contiene datos de estudiantes");
       }
       
-      // Validar datos del Excel
       const excelErrors = validateExcelData(jsonData);
       
       if (excelErrors.length > 0) {
@@ -427,7 +369,6 @@ const StudentGroupRegistration = () => {
     }
   };
 
-  // Generar Excel con ExcelJS - Versión mejorada
   const generateExcelFromForm = async () => {
     try {
       const workbook = new ExcelJS.Workbook();
@@ -438,7 +379,6 @@ const StudentGroupRegistration = () => {
       
       const worksheet = workbook.addWorksheet("Estudiantes");
       
-      // Configurar columnas con estilos
       worksheet.columns = [
         { header: "Apellidos", key: "Apellidos", width: 25, style: { font: { bold: true } } },
         { header: "Nombres", key: "Nombres", width: 25 },
@@ -452,7 +392,6 @@ const StudentGroupRegistration = () => {
         { header: "Categorías", key: "Categorías", width: 30 }
       ];
       
-      // Agregar datos
       students.forEach(student => {
         worksheet.addRow({
           "Apellidos": student.lastName,
@@ -468,7 +407,6 @@ const StudentGroupRegistration = () => {
         });
       });
       
-      // Estilizar encabezados
       const headerRow = worksheet.getRow(1);
       headerRow.eachCell(cell => {
         cell.font = { 
@@ -494,9 +432,8 @@ const StudentGroupRegistration = () => {
         };
       });
       
-      // Aplicar bordes a todas las celdas de datos
       worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber > 1) { // Skip header row
+        if (rowNumber > 1) {
           row.eachCell(cell => {
             cell.border = {
               top: { style: 'thin', color: { argb: 'FFD3D3D3' } },
@@ -512,7 +449,6 @@ const StudentGroupRegistration = () => {
         }
       });
       
-      // Autoajustar columnas
       worksheet.columns.forEach(column => {
         if (column.values) {
           const maxLength = column.values.reduce((max, value) => {
@@ -527,11 +463,9 @@ const StudentGroupRegistration = () => {
         }
       });
       
-      // Agregar información del tutor como metadata
       workbook.properties.company = tutorData.name;
       workbook.properties.manager = tutorData.email;
       
-      // Generar archivo
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { 
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
@@ -544,7 +478,6 @@ const StudentGroupRegistration = () => {
       link.click();
       document.body.removeChild(link);
       
-      // Limpiar
       setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (error) {
       console.error("Error al generar Excel:", error);
@@ -552,20 +485,12 @@ const StudentGroupRegistration = () => {
     }
   };
 
-  /* 
-  API PRINCIPAL: Enviar datos de inscripción grupal
-  Endpoint: POST /api/group-registration
-  Descripción: Registra a los estudiantes en el sistema
-  Body: { tutor: {...}, students: [...] }
-  Response: { success: boolean, message: string, registrationId?: string, paymentData?: {...} }
-  */
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     setUiState(prev => ({ ...prev, isSubmitting: true }));
     
     try {
-      // Validar según el método seleccionado
       let validationErrors = [];
       let studentsToSubmit = [];
       
@@ -597,12 +522,10 @@ const StudentGroupRegistration = () => {
           department: row.Departamento,
           province: row.Provincia,
           areas: row.Áreas.split(',').map(a => a.trim()),
-          // Nota: Para Excel, las categorías deberían venir en el archivo o asignarse automáticamente
-          categories: {} // Esto debería ajustarse según la lógica de negocio
+          categories: {}
         }));
       }
       
-      // Si hay errores, mostrarlos y no continuar
       if (validationErrors.length > 0) {
         setExcelErrors(validationErrors);
         setUiState(prev => ({ 
@@ -613,38 +536,14 @@ const StudentGroupRegistration = () => {
         return;
       }
       
-      // Simular envío a la API
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      /* 
-      Ejemplo de cómo sería la llamada real a la API:
-      
-      const response = await fetch('/api/group-registration', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tutor: tutorData,
-          students: studentsToSubmit
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al registrar');
-      }
-      
-      const data = await response.json();
-      */
-      
-      // Datos simulados mientras la API no esté disponible
       const mockPaymentData = {
         registrationId: "GRP-" + Math.random().toString(36).substr(2, 8).toUpperCase(),
-        amount: studentsToSubmit.length * 15, // 15 Bs por estudiante
+        amount: studentsToSubmit.length * 15,
         tutorName: tutorData.name,
         studentCount: studentsToSubmit.length,
-        paymentDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 días desde ahora
+        paymentDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
         paymentCode: "PAGO-" + Math.random().toString(36).substr(2, 6).toUpperCase()
       };
       
@@ -662,112 +561,129 @@ const StudentGroupRegistration = () => {
     }
   };
 
-  /* 
-  API SUGERIDA: Generar PDF de orden de pago grupal
-  Endpoint: POST /api/generate-group-payment-pdf
-  Descripción: Genera y devuelve un PDF con la orden de pago grupal
-  Body: { registrationId, tutorName, studentCount, amount }
-  Response: PDF file
-  */
-  const handleDownloadPDF = () => {
-    console.log("Generando PDF de orden de pago grupal...");
-    // Simulación de descarga mientras la API no esté disponible
-    const link = document.createElement('a');
-    link.href = '#';
-    link.download = `orden_pago_grupal_${uiState.paymentData.registrationId}.pdf`;
-    link.click();
-    
-    // Mostrar mensaje de éxito
-    setUiState(prev => ({
-      ...prev,
-      showPaymentModal: false,
-      showSuccessModal: true
-    }));
-  };
-
-  /* 
-  API SUGERIDA: Subir comprobante de pago grupal
-  Endpoint: POST /api/upload-group-payment-proof
-  Descripción: Sube el comprobante de pago grupal para validación
-  Body: FormData con el archivo y registrationId
-  Response: { success: boolean, message: string }
-  */
-  const handlePaymentProofUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    // Validar tipo de archivo
-    const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
-    if (!validTypes.includes(file.type)) {
-      alert("Formato de archivo no válido. Solo se aceptan imágenes (JPG, PNG) o PDF");
-      return;
-    }
-    
-    // Validar tamaño de archivo (máximo 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert("El archivo es demasiado grande. El tamaño máximo permitido es 5MB");
-      return;
-    }
-    
-    setUiState(prev => ({ 
-      ...prev, 
-      paymentProof: file,
-      uploadProgress: 0
-    }));
-    
-    // Simular subida a la API
-    const interval = setInterval(() => {
-      setUiState(prev => {
-        const newProgress = prev.uploadProgress + 10;
-        if (newProgress >= 100) {
-          clearInterval(interval);
-          
-          /* 
-          En una implementación real, aquí se enviaría el archivo:
-          
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('registrationId', uiState.paymentData.registrationId);
-          
-          fetch('/api/upload-group-payment-proof', {
-            method: 'POST',
-            body: formData
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              setUiState(prev => ({ 
-                ...prev, 
-                uploadProgress: 100,
-                showPaymentModal: false,
-                showUploadModal: false,
-                showSuccessModal: true
-              }));
-            } else {
-              throw new Error(data.message || 'Error al subir comprobante');
-            }
-          })
-          .catch(error => {
-            console.error("Error al subir comprobante:", error);
-            setUiState(prev => ({ ...prev, uploadProgress: 0 }));
-            alert("Error al subir comprobante: " + error.message);
-          });
-          */
-          
-          return { 
-            ...prev, 
-            uploadProgress: 100,
-            showPaymentModal: false,
-            showUploadModal: false,
-            showSuccessModal: true
-          };
-        }
-        return { ...prev, uploadProgress: newProgress };
+  const handleDownloadPDF = async () => {
+    try {
+      setUiState(prev => ({ ...prev, isSubmitting: true }));
+      
+      const { registrationId, tutorName, studentCount, amount, paymentCode, paymentDeadline } = uiState.paymentData;
+      
+      const { jsPDF } = await import('jspdf');
+      
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
       });
-    }, 300);
+      
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 20;
+      
+      doc.setFontSize(18);
+      doc.setTextColor(33, 37, 41);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ORDEN DE PAGO GRUPAL', pageWidth / 2, 30, { align: 'center' });
+      
+      doc.setDrawColor(13, 110, 253);
+      doc.setLineWidth(0.5);
+      doc.line(margin, 35, pageWidth - margin, 35);
+      
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      
+      let yPosition = 45;
+      
+      const addField = (label, value) => {
+        doc.setTextColor(33, 37, 41);
+        doc.text(`${label}:`, margin, yPosition);
+        doc.setTextColor(13, 110, 253);
+        doc.text(value, margin + 50, yPosition);
+        yPosition += 7;
+      };
+      
+      addField('ID de Registro', registrationId);
+      addField('Fecha de Emisión', new Date().toLocaleDateString());
+      addField('Tutor Responsable', tutorName);
+      addField('Número de Estudiantes', studentCount.toString());
+      addField('Monto Total', `${amount} Bs.`);
+      addField('Código de Pago', paymentCode);
+      addField('Fecha Límite de Pago', paymentDeadline.toLocaleDateString());
+      
+      yPosition += 10;
+      doc.setTextColor(33, 37, 41);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Instrucciones para el Pago:', margin, yPosition);
+      yPosition += 7;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(108, 117, 125);
+      const instructions = [
+        '1. Presente esta orden en las cajas autorizadas de la FCyT.',
+        '2. Realice el pago correspondiente en efectivo o transferencia.',
+        '3. Guarde el comprobante de pago proporcionado por la caja.'
+      ];
+      
+      instructions.forEach(instruction => {
+        doc.text(instruction, margin + 5, yPosition);
+        yPosition += 7;
+      });
+      
+      yPosition += 10;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Resumen de Inscripción', margin, yPosition);
+      yPosition += 7;
+      
+      doc.setFillColor(233, 236, 239);
+      doc.rect(margin, yPosition, pageWidth - 2 * margin, 8, 'F');
+      doc.setTextColor(33, 37, 41);
+      doc.text('Concepto', margin + 5, yPosition + 5);
+      doc.text('Cantidad', pageWidth - margin - 40, yPosition + 5, { align: 'right' });
+      doc.text('Total', pageWidth - margin - 10, yPosition + 5, { align: 'right' });
+      yPosition += 8;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(73, 80, 87);
+      doc.text('Inscripción por estudiante', margin + 5, yPosition + 5);
+      doc.text(studentCount.toString(), pageWidth - margin - 40, yPosition + 5, { align: 'right' });
+      doc.text('15 Bs.', pageWidth - margin - 25, yPosition + 5, { align: 'right' });
+      doc.text(`${amount} Bs.`, pageWidth - margin - 10, yPosition + 5, { align: 'right' });
+      yPosition += 8;
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text('TOTAL A PAGAR', margin + 5, yPosition + 5);
+      doc.text(`${amount} Bs.`, pageWidth - margin - 10, yPosition + 5, { align: 'right' });
+      
+      doc.setFontSize(10);
+      doc.setTextColor(108, 117, 125);
+      doc.text('Sistema de Inscripciones - FCyT', pageWidth / 2, 285, { align: 'center' });
+      
+      const pdfBlob = doc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `orden_pago_grupal_${registrationId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(pdfUrl);
+      }, 100);
+      
+      setUiState(prev => ({
+        ...prev,
+        showPaymentModal: false,
+        showSuccessModal: true,
+        isSubmitting: false
+      }));
+      
+    } catch (error) {
+      console.error("Error al generar PDF:", error);
+      setUiState(prev => ({ ...prev, isSubmitting: false }));
+      alert("Error al generar el PDF. Por favor intente nuevamente.");
+    }
   };
 
-  // Sección 1: Datos del tutor
   const renderTutorDataSection = () => (
     <div className="space-y-4">
       <h3 className="text-lg font-medium text-gray-900 mb-4">
@@ -854,7 +770,6 @@ const StudentGroupRegistration = () => {
     </div>
   );
 
-  // Sección 2: Selección de método de inscripción
   const renderMethodSelectionSection = () => (
     <div className="space-y-6">
       <h3 className="text-lg font-medium text-gray-900 mb-4">
@@ -862,7 +777,6 @@ const StudentGroupRegistration = () => {
       </h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Opción 1: Formulario manual */}
         <div 
           onClick={() => selectRegistrationMethod("form")}
           className="border-2 border-gray-200 rounded-lg p-6 cursor-pointer hover:border-blue-500 transition-colors hover:bg-blue-50"
@@ -879,7 +793,6 @@ const StudentGroupRegistration = () => {
           </div>
         </div>
         
-        {/* Opción 2: Cargar Excel */}
         <div 
           onClick={() => selectRegistrationMethod("excel")}
           className="border-2 border-gray-200 rounded-lg p-6 cursor-pointer hover:border-blue-500 transition-colors hover:bg-blue-50"
@@ -908,7 +821,6 @@ const StudentGroupRegistration = () => {
     </div>
   );
 
-  // Sección 3a: Formulario manual para estudiantes
   const renderManualFormSection = () => (
     <div className="space-y-6">
       <h3 className="text-lg font-medium text-gray-900 mb-4">
@@ -1074,7 +986,6 @@ const StudentGroupRegistration = () => {
                 </select>
               </div>
               
-              {/* Selección de áreas para el estudiante */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Áreas de competencia (Máximo 2) <span className="text-red-500">*</span>
@@ -1111,7 +1022,6 @@ const StudentGroupRegistration = () => {
                   ))}
                 </div>
                 
-                {/* Mostrar categorías para cada área seleccionada */}
                 {student.areas.map(area => (
                   <div key={area} className="mt-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1188,7 +1098,6 @@ const StudentGroupRegistration = () => {
     </div>
   );
 
-  // Sección 3b: Carga de archivo Excel
   const renderExcelUploadSection = () => (
     <div className="space-y-6">
       <h3 className="text-lg font-medium text-gray-900 mb-4">
@@ -1266,7 +1175,6 @@ const StudentGroupRegistration = () => {
         )}
       </div>
       
-      {/* Mostrar errores de validación */}
       {excelErrors.length > 0 && (
         <div className="border border-red-200 rounded-lg p-4 bg-red-50">
           <h4 className="text-sm font-medium text-red-800 mb-2">
@@ -1286,7 +1194,6 @@ const StudentGroupRegistration = () => {
         </div>
       )}
       
-      {/* Vista previa de datos */}
       {excelData && (
         <div className="border border-gray-200 rounded-lg overflow-hidden">
           <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
@@ -1365,13 +1272,11 @@ const StudentGroupRegistration = () => {
     </div>
   );
 
-  // Generar plantilla Excel
   const generateTemplateExcel = async () => {
     try {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet("Plantilla");
       
-      // Configurar columnas con estilos
       worksheet.columns = [
         { header: "Apellidos", key: "Apellidos", width: 25 },
         { header: "Nombres", key: "Nombres", width: 25 },
@@ -1383,7 +1288,6 @@ const StudentGroupRegistration = () => {
         { header: "Áreas", key: "Áreas", width: 30 }
       ];
       
-      // Agregar datos de ejemplo
       worksheet.addRow({
         "Apellidos": "Perez",
         "Nombres": "Juan",
@@ -1395,7 +1299,6 @@ const StudentGroupRegistration = () => {
         "Áreas": "MATEMÁTICAS, BIOLOGÍA"
       });
       
-      // Estilizar encabezados
       const headerRow = worksheet.getRow(1);
       headerRow.eachCell(cell => {
         cell.font = { 
@@ -1421,7 +1324,6 @@ const StudentGroupRegistration = () => {
         };
       });
       
-      // Aplicar bordes a las celdas de ejemplo
       const exampleRow = worksheet.getRow(2);
       exampleRow.eachCell(cell => {
         cell.border = {
@@ -1440,15 +1342,13 @@ const StudentGroupRegistration = () => {
         };
       });
       
-      // Agregar nota explicativa
-      worksheet.addRow([]); // Fila vacía
+      worksheet.addRow([]);
       
       const noteRow = worksheet.addRow(["NOTA: Las áreas disponibles son: " + areaOptions.join(", ")]);
       noteRow.font = { italic: true, size: 10 };
       noteRow.getCell(1).alignment = { wrapText: true };
       worksheet.mergeCells(`A${noteRow.number}:H${noteRow.number}`);
       
-      // Autoajustar columnas
       worksheet.columns.forEach(column => {
         if (column.values) {
           const maxLength = column.values.reduce((max, value) => {
@@ -1463,7 +1363,6 @@ const StudentGroupRegistration = () => {
         }
       });
       
-      // Generar archivo
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { 
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
@@ -1476,7 +1375,6 @@ const StudentGroupRegistration = () => {
       link.click();
       document.body.removeChild(link);
       
-      // Limpiar
       setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (error) {
       console.error("Error al generar plantilla Excel:", error);
@@ -1484,7 +1382,6 @@ const StudentGroupRegistration = () => {
     }
   };
 
-  // Modal de errores de validación
   const renderErrorsModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-2xl w-full shadow-xl animate-fade-in max-h-[80vh] overflow-y-auto">
@@ -1525,7 +1422,6 @@ const StudentGroupRegistration = () => {
     </div>
   );
 
-  // Modal de pago
   const renderPaymentModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in">
@@ -1564,127 +1460,24 @@ const StudentGroupRegistration = () => {
             
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
               <p className="text-yellow-700 text-sm">
-                <span className="font-medium">Importante:</span> Debe presentar esta orden de pago en las cajas de la FCyT para completar la inscripción grupal. Posteriormente, deberá subir el comprobante de pago en el sistema.
+                <span className="font-medium">Importante:</span> Debe presentar esta orden de pago en las cajas de la FCyT para completar la inscripción grupal.
               </p>
             </div>
           </div>
         </div>
-        <div className="mt-6 flex flex-col space-y-3">
+        <div className="mt-6">
           <button
             onClick={handleDownloadPDF}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center"
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center"
           >
             <Download className="h-4 w-4 mr-2" />
             Descargar Orden de Pago (PDF)
           </button>
-          <button
-            onClick={() => setUiState(prev => ({ 
-              ...prev, 
-              showPaymentModal: false,
-              showUploadModal: true 
-            }))}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 flex items-center justify-center"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Subir Comprobante
-          </button>
         </div>
       </div>
     </div>
   );
 
-  // Modal para subir comprobante de pago
-  const renderUploadModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in">
-        <div className="text-center">
-          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-            <Upload className="h-6 w-6 text-blue-600" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mt-3">
-            Subir Comprobante de Pago
-          </h3>
-          <div className="mt-4 text-sm text-gray-600 text-left space-y-3">
-            <p>Por favor suba una imagen o PDF del comprobante de pago grupal.</p>
-            
-            <div className="mt-4 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-              <input
-                type="file"
-                onChange={handlePaymentProofUpload}
-                accept="image/*,.pdf"
-                className="hidden"
-                id="paymentProofInput"
-              />
-              <label htmlFor="paymentProofInput" className="cursor-pointer">
-                {uiState.paymentProof ? (
-                  <>
-                    <Check className="h-10 w-10 text-green-500 mx-auto mb-3" />
-                    <p className="text-sm font-medium text-gray-900 mb-1 truncate max-w-xs mx-auto">
-                      {uiState.paymentProof.name}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {Math.round(uiState.paymentProof.size / 1024)} KB
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
-                    <p className="text-sm font-medium text-gray-900 mb-1">
-                      Seleccionar archivo
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Formatos soportados: JPG, PNG, PDF
-                    </p>
-                  </>
-                )}
-              </label>
-            </div>
-            
-            {/* Barra de progreso */}
-            {uiState.uploadProgress > 0 && (
-              <div className="pt-4">
-                <div className="flex justify-between text-sm text-gray-600 mb-1">
-                  <span>Subiendo archivo...</span>
-                  <span>{uiState.uploadProgress}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-blue-600 h-2.5 rounded-full" 
-                    style={{ width: `${uiState.uploadProgress}%` }}
-                  ></div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="mt-6 flex justify-between">
-          <button
-            onClick={() => setUiState(prev => ({ 
-              ...prev, 
-              showUploadModal: false,
-              showPaymentModal: true 
-            }))}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-          >
-            Volver
-          </button>
-          <button
-            disabled={!uiState.paymentProof || uiState.uploadProgress > 0}
-            className={`px-4 py-2 text-white rounded-md ${
-              !uiState.paymentProof || uiState.uploadProgress > 0
-                ? "bg-blue-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"
-            }`}
-            onClick={() => document.getElementById('paymentProofInput').click()}
-          >
-            {uiState.uploadProgress > 0 ? "Subiendo..." : "Cambiar Archivo"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Modal de éxito final
   const renderSuccessModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl animate-fade-in">
@@ -1739,7 +1532,6 @@ const StudentGroupRegistration = () => {
         <div className="w-24"></div>
       </div>
 
-      {/* Indicador de pasos */}
       <div className="mb-6">
         <nav className="flex items-center justify-center">
           <ol className="flex items-center space-x-4">
@@ -1788,10 +1580,8 @@ const StudentGroupRegistration = () => {
         </form>
       </div>
 
-      {/* Modales */}
       {uiState.showErrorsModal && renderErrorsModal()}
       {uiState.showPaymentModal && renderPaymentModal()}
-      {uiState.showUploadModal && renderUploadModal()}
       {uiState.showSuccessModal && renderSuccessModal()}
     </div>
   );

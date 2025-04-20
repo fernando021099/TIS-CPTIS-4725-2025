@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Check, ArrowLeft, Upload } from "lucide-react";
+import { X, Check, ArrowLeft, Upload, Download } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const StudentRegistration = () => {
@@ -35,77 +35,19 @@ const StudentRegistration = () => {
   const [uiState, setUiState] = useState({
     isSubmitting: false,
     showPaymentModal: false,
-    showUploadModal: false,
-    paymentData: null,
-    paymentProof: null,
-    uploadProgress: 0
+    showSuccessModal: false,
+    paymentData: null
   });
 
   const [errors, setErrors] = useState({});
 
-  /* 
-  API SUGERIDA: Obtener departamentos desde el backend
-  Endpoint: GET /api/departments
-  Descripción: Devuelve la lista de departamentos disponibles
-  Ejemplo de implementación:
-  
-  useEffect(() => {
-    const fetchDepartments = async () => {
-      try {
-        const response = await fetch('/api/departments');
-        const data = await response.json();
-        // Actualizar departmentOptions con los datos recibidos
-      } catch (error) {
-        console.error("Error al obtener departamentos:", error);
-      }
-    };
-    fetchDepartments();
-  }, []);
-  */
   const departmentOptions = ["Cochabamba", "La Paz", "Santa Cruz", "Oruro", "Potosí", "Chuquisaca", "Tarija", "Beni", "Pando"];
   
-  /* 
-  API SUGERIDA: Obtener provincias por departamento desde el backend
-  Endpoint: GET /api/provinces?department=<department>
-  Descripción: Devuelve las provincias para un departamento específico
-  Ejemplo de implementación:
-  
-  const fetchProvinces = async (department) => {
-    try {
-      const response = await fetch(`/api/provinces?department=${department}`);
-      const data = await response.json();
-      // Actualizar provinceOptions con los datos recibidos
-    } catch (error) {
-      console.error("Error al obtener provincias:", error);
-    }
-  };
-  */
   const provinceOptions = {
     "Cochabamba": ["Cercado", "Quillacollo", "Chapare", "Ayopaya", "Esteban Arce", "Arani", "Arque", "Capinota", "Germán Jordán", "Mizque", "Punata", "Tiraque"],
     // ... otras provincias
   };
 
-  /* 
-  API SUGERIDA: Obtener áreas disponibles desde el backend
-  Endpoint: GET /api/competition-areas
-  Descripción: Devuelve las áreas de competencia disponibles
-  Ejemplo de implementación:
-  
-  const [availableAreas, setAvailableAreas] = useState([]);
-  
-  useEffect(() => {
-    const fetchAreas = async () => {
-      try {
-        const response = await fetch('/api/competition-areas');
-        const data = await response.json();
-        setAvailableAreas(data);
-      } catch (error) {
-        console.error("Error al obtener áreas:", error);
-      }
-    };
-    fetchAreas();
-  }, []);
-  */
   const [availableAreas] = useState([
     "ASTRONOMÍA - ASTROFÍSICA",
     "BIOLOGÍA",
@@ -116,22 +58,6 @@ const StudentRegistration = () => {
     "ROBÓTICA"
   ]);
 
-  /* 
-  API SUGERIDA: Obtener categorías por área desde el backend
-  Endpoint: GET /api/competition-categories?area=<area>
-  Descripción: Devuelve las categorías disponibles para un área específica
-  Ejemplo de implementación:
-  
-  const fetchCategories = async (area) => {
-    try {
-      const response = await fetch(`/api/competition-categories?area=${area}`);
-      const data = await response.json();
-      // Actualizar areaToCategories con los datos recibidos
-    } catch (error) {
-      console.error("Error al obtener categorías:", error);
-    }
-  };
-  */
   const areaToCategories = {
     "ASTRONOMÍA - ASTROFÍSICA": ["3P", "4P", "5P", "6P", "1S", "2S", "3S", "4S", "5S", "6S"],
     "BIOLOGÍA": ["2S", "3S", "4S", "5S", "6S"],
@@ -142,44 +68,17 @@ const StudentRegistration = () => {
     "ROBÓTICA": ["Builders P", "Builders S", "Lego P", "Lego S"]
   };
 
-  /* 
-  API SUGERIDA: Validar CI (opcional)
-  Endpoint: POST /api/validate-ci
-  Descripción: Verifica si el CI ya está registrado en el sistema
-  Ejemplo de implementación:
-  
-  const validateCI = async (ci) => {
-    try {
-      const response = await fetch('/api/validate-ci', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ci })
-      });
-      const data = await response.json();
-      return data.isValid; // Asumiendo que el endpoint devuelve { isValid: boolean }
-    } catch (error) {
-      console.error("Error al validar CI:", error);
-      return true; // En caso de error, asumir que es válido
-    }
-  };
-  */
-
-  // Validar sección actual
   const validateSection = (section) => {
     const newErrors = {};
     
     if (section === 1) {
       // Validacion para correo electronico
       if (!formData.email) {
-        newErrors.email = "Correo electrónico requerido";  // Verifica que no esté vacío
+        newErrors.email = "Correo electrónico requerido";
       } else {
-        // Expresión regular para verificar formato de correo electrónico válido
         const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      
         if (!emailRegex.test(formData.email)) {
-          newErrors.email = "Formato de correo electrónico inválido"; // Rechaza formatos incorrectos
+          newErrors.email = "Formato de correo electrónico inválido";
         }
       }
 
@@ -188,7 +87,6 @@ const StudentRegistration = () => {
         newErrors.lastName = "Apellidos requeridos";
       } else {
         const onlyLettersAndSpaces = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
-      
         if (!onlyLettersAndSpaces.test(formData.lastName)) {
           newErrors.lastName = "Solo se permiten letras y espacios";
         } else if (formData.lastName.length < 3 || formData.lastName.length > 50) {
@@ -201,7 +99,6 @@ const StudentRegistration = () => {
         newErrors.firstName = "Nombres requeridos";
       } else {
         const onlyLettersAndSpaces = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
-      
         if (!onlyLettersAndSpaces.test(formData.firstName)) {
           newErrors.firstName = "Solo se permiten letras y espacios";
         } else if (formData.firstName.length < 3 || formData.firstName.length > 20) {
@@ -215,7 +112,6 @@ const StudentRegistration = () => {
       } else {
         const trimmedCI = formData.ci.trim();
         const onlyDigits = /^\d+$/;
-      
         if (!onlyDigits.test(trimmedCI)) {
           newErrors.ci = "Solo se permiten caracteres numéricos, sin letras ni símbolos";
         } else if (trimmedCI.length < 5 || trimmedCI.length > 12) {
@@ -282,7 +178,7 @@ const StudentRegistration = () => {
       if (!formData.tutorPhone) {
         newErrors.tutorPhone = "Teléfono del tutor requerido"; 
       } else {
-        const phone = formData.tutorPhone.trim(); // Eliminar espacios innecesarios
+        const phone = formData.tutorPhone.trim();
         if (!/^[0-9]+$/.test(phone)) {
           newErrors.tutorPhone = "El teléfono solo debe contener números sin espacios ni caracteres especiales";
         }
@@ -363,10 +259,6 @@ const StudentRegistration = () => {
 
     if (name === "department") {
       setFormData(prev => ({ ...prev, province: "" }));
-      /* 
-      Llamar a API de provincias cuando se selecciona un departamento
-      fetchProvinces(value);
-      */
     }
   };
 
@@ -425,13 +317,6 @@ const StudentRegistration = () => {
     setCurrentSection(prev => prev - 1);
   };
 
-  /* 
-  API PRINCIPAL: Enviar formulario de registro
-  Endpoint: POST /api/student-registration
-  Descripción: Registra al estudiante en el sistema
-  Body: Todos los datos del formulario (formData)
-  Response: { success: boolean, message: string, registrationId?: string, paymentData?: {...} }
-  */
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateSection(3)) return;
@@ -442,32 +327,6 @@ const StudentRegistration = () => {
       // Simular envío a la API
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      /* 
-      Ejemplo de cómo sería la llamada real a la API:
-      
-      const response = await fetch('/api/student-registration', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al registrar');
-      }
-      
-      const data = await response.json();
-      
-      // Mostrar modal de pago con los datos recibidos
-      setUiState(prev => ({ 
-        ...prev, 
-        showPaymentModal: true,
-        paymentData: data.paymentData // Asumiendo que la API devuelve paymentData
-      }));
-      */
-      
       // Datos simulados mientras la API no esté disponible
       const mockPaymentData = {
         registrationId: "REG-" + Math.random().toString(36).substr(2, 8).toUpperCase(),
@@ -475,7 +334,8 @@ const StudentRegistration = () => {
         studentName: `${formData.firstName} ${formData.lastName}`,
         tutorName: formData.tutorName,
         areas: formData.areas.map(area => `${area} (${formData.categories[area]})`).join(", "),
-        paymentDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 días desde ahora
+        paymentDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 días desde ahora
+        paymentCode: "PAGO-" + Math.random().toString(36).substr(2, 6).toUpperCase()
       };
       
       setUiState(prev => ({ 
@@ -492,139 +352,150 @@ const StudentRegistration = () => {
     }
   };
 
-  /* 
-  API SUGERIDA: Generar PDF de orden de pago
-  Endpoint: POST /api/generate-payment-pdf
-  Descripción: Genera y devuelve un PDF con la orden de pago
-  Body: { registrationId, studentName, tutorName, areas, amount }
-  Response: PDF file
-  */
-  const handleDownloadPDF = () => {
-    console.log("Generando PDF de orden de pago...");
-    // Simulación de descarga mientras la API no esté disponible
-    const link = document.createElement('a');
-    link.href = '#';
-    link.download = `orden_pago_${uiState.paymentData.registrationId}.pdf`;
-    link.click();
-    
-    /*
-    Ejemplo de implementación real:
-    
-    fetch('/api/generate-payment-pdf', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        registrationId: uiState.paymentData.registrationId,
-        studentName: uiState.paymentData.studentName,
-        tutorName: uiState.paymentData.tutorName,
-        areas: uiState.paymentData.areas,
-        amount: uiState.paymentData.amount
-      })
-    })
-    .then(response => response.blob())
-    .then(blob => {
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `orden_pago_${uiState.paymentData.registrationId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-    })
-    .catch(error => {
-      console.error("Error al generar PDF:", error);
-    });
-    */
-  };
-
-  /* 
-  API SUGERIDA: Subir comprobante de pago
-  Endpoint: POST /api/upload-payment-proof
-  Descripción: Sube el comprobante de pago para validación
-  Body: FormData con el archivo y registrationId
-  Response: { success: boolean, message: string }
-  */
-  const handlePaymentProofUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    setUiState(prev => ({ 
-      ...prev, 
-      paymentProof: file,
-      uploadProgress: 0
-    }));
-    
-    // Simular subida a la API
-    const interval = setInterval(() => {
-      setUiState(prev => {
-        const newProgress = prev.uploadProgress + 10;
-        if (newProgress >= 100) {
-          clearInterval(interval);
-          
-          /* 
-          En una implementación real, aquí se enviaría el archivo:
-          
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('registrationId', uiState.paymentData.registrationId);
-          
-          fetch('/api/upload-payment-proof', {
-            method: 'POST',
-            body: formData
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              setUiState(prev => ({ 
-                ...prev, 
-                uploadProgress: 100,
-                showPaymentModal: false,
-                showUploadModal: false,
-                showSuccessModal: true
-              }));
-            } else {
-              throw new Error(data.message || 'Error al subir comprobante');
-            }
-          })
-          .catch(error => {
-            console.error("Error al subir comprobante:", error);
-            setUiState(prev => ({ ...prev, uploadProgress: 0 }));
-            alert("Error al subir comprobante: " + error.message);
-          });
-          */
-          
-          return { 
-            ...prev, 
-            uploadProgress: 100,
-            showPaymentModal: false,
-            showUploadModal: false,
-            showSuccessModal: true
-          };
-        }
-        return { ...prev, uploadProgress: newProgress };
-      });
-    }, 300);
-  };
-
-  /* 
-  API SUGERIDA: Verificar estado de pago
-  Endpoint: GET /api/payment-status/:registrationId
-  Descripción: Verifica si el pago ya fue realizado
-  Ejemplo de implementación:
-  
-  const checkPaymentStatus = async (registrationId) => {
+  const handleDownloadPDF = async () => {
     try {
-      const response = await fetch(`/api/payment-status/${registrationId}`);
-      const data = await response.json();
-      return data.paid; // Asumiendo que devuelve { paid: boolean }
+      setUiState(prev => ({ ...prev, isSubmitting: true }));
+      
+      if (!uiState.paymentData) {
+        throw new Error("No hay datos de pago disponibles");
+      }
+
+      const { registrationId, tutorName, studentName, amount, paymentCode, paymentDeadline } = uiState.paymentData;
+      
+      // Importación dinámica de jsPDF
+      const { jsPDF } = await import('jspdf');
+      
+      // Crear nuevo documento PDF
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      // Configuración inicial
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 20;
+      
+      // Título
+      doc.setFontSize(18);
+      doc.setTextColor(33, 37, 41);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ORDEN DE PAGO', pageWidth / 2, 30, { align: 'center' });
+      
+      // Línea divisoria
+      doc.setDrawColor(13, 110, 253);
+      doc.setLineWidth(0.5);
+      doc.line(margin, 35, pageWidth - margin, 35);
+      
+      // Datos principales
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      
+      let yPosition = 45;
+      
+      // Función para agregar campo con valor
+      const addField = (label, value) => {
+        doc.setTextColor(33, 37, 41);
+        doc.text(`${label}:`, margin, yPosition);
+        doc.setTextColor(13, 110, 253);
+        doc.text(value, margin + 50, yPosition);
+        yPosition += 7;
+      };
+      
+      addField('ID de Registro', registrationId);
+      addField('Fecha de Emisión', new Date().toLocaleDateString());
+      addField('Estudiante', studentName);
+      addField('Tutor', tutorName);
+      addField('Áreas', uiState.paymentData.areas);
+      addField('Monto Total', `${amount} Bs.`);
+      addField('Código de Pago', paymentCode);
+      addField('Fecha Límite de Pago', paymentDeadline.toLocaleDateString());
+      
+      // Instrucciones
+      yPosition += 10;
+      doc.setTextColor(33, 37, 41);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Instrucciones para el Pago:', margin, yPosition);
+      yPosition += 7;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(108, 117, 125);
+      const instructions = [
+        '1. Presente esta orden en las cajas autorizadas de la FCyT.',
+        '2. Realice el pago correspondiente en efectivo o transferencia.',
+        '3. Guarde el comprobante de pago proporcionado por la caja.'
+      ];
+      
+      instructions.forEach(instruction => {
+        doc.text(instruction, margin + 5, yPosition);
+        yPosition += 7;
+      });
+      
+      // Tabla de resumen
+      yPosition += 10;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Resumen de Inscripción', margin, yPosition);
+      yPosition += 7;
+      
+      // Encabezado de tabla
+      doc.setFillColor(233, 236, 239);
+      doc.rect(margin, yPosition, pageWidth - 2 * margin, 8, 'F');
+      doc.setTextColor(33, 37, 41);
+      doc.text('Concepto', margin + 5, yPosition + 5);
+      doc.text('Cantidad', pageWidth - margin - 40, yPosition + 5, { align: 'right' });
+      doc.text('Total', pageWidth - margin - 10, yPosition + 5, { align: 'right' });
+      yPosition += 8;
+      
+      // Contenido de tabla
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(73, 80, 87);
+      doc.text('Inscripción por área', margin + 5, yPosition + 5);
+      doc.text(formData.areas.length.toString(), pageWidth - margin - 40, yPosition + 5, { align: 'right' });
+      doc.text('15 Bs.', pageWidth - margin - 25, yPosition + 5, { align: 'right' });
+      doc.text(`${amount} Bs.`, pageWidth - margin - 10, yPosition + 5, { align: 'right' });
+      yPosition += 8;
+      
+      // Total
+      doc.setFont('helvetica', 'bold');
+      doc.text('TOTAL A PAGAR', margin + 5, yPosition + 5);
+      doc.text(`${amount} Bs.`, pageWidth - margin - 10, yPosition + 5, { align: 'right' });
+      
+      // Pie de página
+      doc.setFontSize(10);
+      doc.setTextColor(108, 117, 125);
+      doc.text('Sistema de Inscripciones - FCyT', pageWidth / 2, 285, { align: 'center' });
+      
+      // Generar el PDF como Blob
+      const pdfBlob = doc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      
+      // Crear enlace de descarga
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `orden_pago_${registrationId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Limpiar
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(pdfUrl);
+      }, 100);
+      
+      // Mostrar mensaje de éxito
+      setUiState(prev => ({
+        ...prev,
+        showPaymentModal: false,
+        showSuccessModal: true,
+        isSubmitting: false
+      }));
+      
     } catch (error) {
-      console.error("Error al verificar estado de pago:", error);
-      return false;
+      console.error("Error al generar PDF:", error);
+      setUiState(prev => ({ ...prev, isSubmitting: false }));
+      alert("Error al generar el PDF. Por favor intente nuevamente.");
     }
   };
-  */
 
   // Sección 1: Datos personales del estudiante
   const renderStudentDataSection = () => (
@@ -1064,7 +935,10 @@ const StudentRegistration = () => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in">
         <div className="text-center">
-          <h3 className="text-lg font-medium text-gray-900">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+            <Check className="h-6 w-6 text-blue-600" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mt-3">
             Orden de Pago Generada
           </h3>
           <div className="mt-4 text-sm text-gray-600 text-left space-y-2">
@@ -1077,103 +951,18 @@ const StudentRegistration = () => {
             
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
               <p className="text-yellow-700 text-sm">
-                <span className="font-medium">Importante:</span> Debe presentar esta orden de pago en las cajas de la FCyT para completar su inscripción. Posteriormente, deberá subir el comprobante de pago en el sistema.
+                <span className="font-medium">Importante:</span> Debe presentar esta orden de pago en las cajas de la FCyT para completar su inscripción.
               </p>
             </div>
           </div>
         </div>
-        <div className="mt-6 flex flex-col space-y-2">
+        <div className="mt-6">
           <button
             onClick={handleDownloadPDF}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center"
           >
+            <Download className="h-4 w-4 mr-2" />
             Descargar Orden de Pago (PDF)
-          </button>
-          <button
-            onClick={() => setUiState(prev => ({ 
-              ...prev, 
-              showPaymentModal: false,
-              showUploadModal: true 
-            }))}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-          >
-            Continuar con Comprobante
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Modal para subir comprobante de pago
-  const renderUploadModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in">
-        <div className="text-center">
-          <h3 className="text-lg font-medium text-gray-900">
-            Subir Comprobante de Pago
-          </h3>
-          <div className="mt-4 text-sm text-gray-600 text-left space-y-2">
-            <p>Por favor suba una imagen o PDF del comprobante de pago.</p>
-            
-            <div className="mt-4 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-              <input
-                type="file"
-                onChange={handlePaymentProofUpload}
-                accept="image/*,.pdf"
-                className="hidden"
-                id="paymentProofInput"
-              />
-              <label htmlFor="paymentProofInput" className="cursor-pointer">
-                <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
-                <p className="text-sm font-medium text-gray-900 mb-1">
-                  {uiState.paymentProof 
-                    ? uiState.paymentProof.name 
-                    : "Haga clic para seleccionar archivo"}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Formatos soportados: JPG, PNG, PDF
-                </p>
-              </label>
-            </div>
-            
-            {/* Barra de progreso */}
-            {uiState.uploadProgress > 0 && (
-              <div className="pt-4">
-                <div className="flex justify-between text-sm text-gray-600 mb-1">
-                  <span>Subiendo archivo...</span>
-                  <span>{uiState.uploadProgress}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-blue-600 h-2.5 rounded-full" 
-                    style={{ width: `${uiState.uploadProgress}%` }}
-                  ></div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="mt-6 flex justify-between">
-          <button
-            onClick={() => setUiState(prev => ({ 
-              ...prev, 
-              showUploadModal: false,
-              showPaymentModal: true 
-            }))}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-          >
-            Volver
-          </button>
-          <button
-            disabled={!uiState.paymentProof || uiState.uploadProgress > 0}
-            className={`px-4 py-2 text-white rounded-md ${
-              !uiState.paymentProof || uiState.uploadProgress > 0
-                ? "bg-blue-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"
-            }`}
-            onClick={() => document.getElementById('paymentProofInput').click()}
-          >
-            {uiState.uploadProgress > 0 ? "Subiendo..." : "Subir Comprobante"}
           </button>
         </div>
       </div>
@@ -1196,6 +985,12 @@ const StudentRegistration = () => {
           <div className="mt-2 text-sm text-gray-500">
             Su inscripción ha sido registrada correctamente. Recibirá un correo de confirmación con los detalles.
           </div>
+          {uiState.paymentData && (
+            <div className="mt-3 p-2 bg-blue-50 rounded-md text-xs">
+              <p className="font-medium">ID de Registro:</p>
+              <p className="font-mono">{uiState.paymentData.registrationId}</p>
+            </div>
+          )}
         </div>
         <div className="mt-4">
           <button
@@ -1279,7 +1074,6 @@ const StudentRegistration = () => {
 
       {/* Modales */}
       {uiState.showPaymentModal && renderPaymentModal()}
-      {uiState.showUploadModal && renderUploadModal()}
       {uiState.showSuccessModal && renderSuccessModal()}
     </div>
   );
