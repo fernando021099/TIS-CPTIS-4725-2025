@@ -77,8 +77,27 @@ const StudentGroupRegistration = () => {
 
   const handleTutorChange = (e) => {
     const { name, value } = e.target;
+  
+  // Validación para el nombre (solo letras y espacios)
+  if (name === "name") {
+    const lettersOnly = /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/;
+    if (value === "" || lettersOnly.test(value)) {
+      setTutorData(prev => ({ ...prev, [name]: value }));
+    }
+  } 
+   // Validación para el teléfono (solo números y máximo 8 dígitos)
+   else if (name === "phone") {
+    const numbersOnly = /^[0-9]*$/;
+    if (value === "" || (numbersOnly.test(value) && value.length <= 8)) {
+      setTutorData(prev => ({ ...prev, [name]: value }));
+    }
+  } 
+  // Para el email (sin cambios)
+  else {
     setTutorData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
+  }
+  
+  if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
   };
 
   const handleStudentChange = (id, e) => {
@@ -169,8 +188,9 @@ const StudentGroupRegistration = () => {
         newErrors.tutorEmail = "Correo electrónico inválido";
       }
       
-      if (tutorData.phone && !/^[0-9+]+$/.test(tutorData.phone)) {
-        newErrors.tutorPhone = "Teléfono inválido";
+      // Validación actualizada para teléfono (exactamente 8 dígitos)
+    if (tutorData.phone && (!/^[0-9]{8}$/.test(tutorData.phone))) {
+      newErrors.tutorPhone = "Teléfono debe tener exactamente 8 dígitos";
       }
     }
     
@@ -234,6 +254,34 @@ const StudentGroupRegistration = () => {
       if (!row.Departamento) rowErrors.department = "Departamento requerido";
       if (!row.Provincia) rowErrors.province = "Provincia requerida";
       if (!row.Áreas) rowErrors.areas = "Áreas requeridas";
+
+      // Validaciones nuevas
+    if (!row['Correo electrónico']) {
+      rowErrors.email = "Correo electrónico requerido";
+    } else if (!/^\S+@\S+\.\S+$/.test(row['Correo electrónico'])) {
+      rowErrors.email = "Correo electrónico inválido";
+    }
+    
+    if (!row['Datos del tutor(relación)']) {
+      rowErrors.tutorRelation = "Relación con el tutor requerida";
+    }
+    
+    if (!row['Nombre completo del tutor']) {
+      rowErrors.tutorName = "Nombre completo del tutor requerido";
+    }
+    
+    if (!row['Correo electrónico del tutor']) {
+      rowErrors.tutorEmail = "Correo electrónico del tutor requerido";
+    } else if (!/^\S+@\S+\.\S+$/.test(row['Correo electrónico del tutor'])) {
+      rowErrors.tutorEmail = "Correo electrónico del tutor inválido";
+    }
+    
+    if (!row['Teléfono del tutor']) {
+      rowErrors.tutorPhone = "Teléfono del tutor requerido";
+    } else if (!/^[0-9+]+$/.test(row['Teléfono del tutor'])) {
+      rowErrors.tutorPhone = "Teléfono del tutor inválido";
+    }
+    
       
       if (row.CI && !/^[0-9]+$/.test(row.CI)) {
         rowErrors.ci = "CI debe contener solo números";
@@ -321,8 +369,11 @@ const StudentGroupRegistration = () => {
       });
       
       const requiredColumns = [
-        'Apellidos', 'Nombres', 'CI', 'Colegio', 
-        'Curso', 'Departamento', 'Provincia', 'Áreas'
+        'Apellidos', 'Nombres', 'CI', 'Fecha de nacimiento', 'Colegio', 
+        'Curso', 'Departamento', 'Provincia', 'Áreas',
+        'Correo electrónico', 'Datos del tutor(relación)', 
+        'Nombre completo del tutor', 'Correo electrónico del tutor', 
+        'Teléfono del tutor'
       ];
       
       const missingColumns = requiredColumns.filter(col => !headers.includes(col));
@@ -1281,22 +1332,34 @@ const StudentGroupRegistration = () => {
         { header: "Apellidos", key: "Apellidos", width: 25 },
         { header: "Nombres", key: "Nombres", width: 25 },
         { header: "CI", key: "CI", width: 15 },
+        { header: "Fecha de nacimiento", key: "Fecha de nacimiento", width: 15 },
         { header: "Colegio", key: "Colegio", width: 30 },
         { header: "Curso", key: "Curso", width: 15 },
         { header: "Departamento", key: "Departamento", width: 15 },
         { header: "Provincia", key: "Provincia", width: 15 },
-        { header: "Áreas", key: "Áreas", width: 30 }
+        { header: "Áreas", key: "Áreas", width: 30 },
+        { header: "Correo electrónico", key: "Correo electrónico", width: 30 },
+        { header: "Datos del tutor(relación)", key: "Datos del tutor(relación)", width: 25 },
+        { header: "Nombre completo del tutor", key: "Nombre completo del tutor", width: 30 },
+        { header: "Correo electrónico del tutor", key: "Correo electrónico del tutor", width: 30 },
+        { header: "Teléfono del tutor", key: "Teléfono del tutor", width: 15 }
       ];
       
       worksheet.addRow({
-        "Apellidos": "Perez",
-        "Nombres": "Juan",
-        "CI": "1234567",
-        "Colegio": "Colegio Ejemplo",
-        "Curso": "4to de secundaria",
-        "Departamento": "Cochabamba",
-        "Provincia": "Cercado",
-        "Áreas": "MATEMÁTICAS, BIOLOGÍA"
+       "Apellidos": "Perez",
+      "Nombres": "Juan",
+      "CI": "1234567",
+      "Fecha de nacimiento": "01/01/2010",
+      "Colegio": "Colegio Ejemplo",
+      "Curso": "4to de secundaria",
+      "Departamento": "Cochabamba",
+      "Provincia": "Cercado",
+      "Áreas": "MATEMÁTICAS, BIOLOGÍA",
+      "Correo electrónico": "juan.perez@example.com",
+      "Datos del tutor(relación)": "Padre",
+      "Nombre completo del tutor": "Carlos Perez",
+      "Correo electrónico del tutor": "carlos.perez@example.com",
+      "Teléfono del tutor": "77712345"
       });
       
       const headerRow = worksheet.getRow(1);
