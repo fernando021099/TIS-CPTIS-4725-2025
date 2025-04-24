@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { X, Check, ArrowLeft, List } from "lucide-react"
+import { X, Check, ArrowLeft, List, ChevronDown, ChevronUp } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from '../supabaseClient'
 
@@ -12,36 +12,42 @@ const AreaRegistration = () => {
     customCategory: "",
     cost: "",
     description: "",
+    // Nuevos campos para restricciones
+    maxCombination: 1, // Por defecto 1 (solo esta área)
+    isExclusive: false, // Para áreas como Robótica que no permiten combinación
+    allowedCombinations: [] // Áreas permitidas para combinación (vacío = todas)
   })
 
   const [uiState, setUiState] = useState({
     showCustomNameInput: false,
     showCustomCategoryInput: false,
     isSubmitting: false,
-    showSuccessModal: false
+    showSuccessModal: false,
+    showRestrictionsSection: false // Para mostrar/ocultar la sección de restricciones
   })
 
   const [errors, setErrors] = useState({})
-  const [connectionStatus, setConnectionStatus] = useState({ message: "", type: "" }) // Para mostrar estado de conexión
-  
-  // Datos de opciones para áreas y niveles
+  const [connectionStatus, setConnectionStatus] = useState({ message: "", type: "" })
   const [areaOptions, setAreaOptions] = useState([])
   const [areaToLevels, setAreaToLevels] = useState({})
+  const [allAreas, setAllAreas] = useState([]) // Para el selector de combinaciones permitidas
 
-  // Integración API: Obtener opciones
+  // Obtener opciones al cargar
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        // Obtener áreas únicas
-        const { data: areas, error: areasError } = await supabase
+        // Obtener áreas existentes para las combinaciones
+        const { data: existingAreas, error: areasError } = await supabase
           .from('area')
           .select('nombre')
           .order('nombre')
         
         if (areasError) throw areasError
         
-        // Crear lista de opciones únicas
-        const uniqueAreas = [...new Set(areas.map(a => a.nombre))]
+        const uniqueAreas = [...new Set(existingAreas.map(a => a.nombre))]
+        setAllAreas(uniqueAreas)
+        
+        // Opciones para el select principal
         const options = [...uniqueAreas, "Otro (especificar)"]
         setAreaOptions(options)
         
@@ -60,34 +66,31 @@ const AreaRegistration = () => {
         }
         
         setAreaToLevels(levelsMap)
-        
-        setConnectionStatus({ 
-          message: "Conexión Supabase exitosa", 
-          type: "success" 
-        })
+        setConnectionStatus({ message: "Conexión exitosa", type: "success" })
       } catch (error) {
         console.error("Error cargando opciones:", error)
-        setConnectionStatus({ 
-          message: "Error al obtener datos", 
-          type: "error" 
-        })
-        
-        // Valores por defecto en caso de error
+        setConnectionStatus({ message: "Error al obtener datos", type: "error" })
         setAreaOptions([
-          "ASTRONOMÍA - ASTROFÍSICA",
-          "BIOLOGÍA",
-          "FÍSICA",
-          "INFORMÁTICA",
-          "MATEMÁTICAS",
-          "QUÍMICA",
-          "ROBÓTICA",
-          "Otro (especificar)"
+          "ASTRONOMÍA - ASTROFÍSICA", "BIOLOGÍA", "FÍSICA", "INFORMÁTICA", 
+          "MATEMÁTICAS", "QUÍMICA", "ROBÓTICA", "Otro (especificar)"
         ])
       }
     }
     
     fetchOptions()
   }, [])
+
+  // Cuando se selecciona Robótica, configurar como exclusiva automáticamente
+  useEffect(() => {
+    if (formData.name === "ROBÓTICA") {
+      setFormData(prev => ({
+        ...prev,
+        isExclusive: true,
+        maxCombination: 1,
+        allowedCombinations: []
+      }))
+    }
+  }, [formData.name])
 
   const getLevelOptions = () => {
     if (!formData.name || formData.name === "Otro (especificar)") return []
@@ -109,7 +112,13 @@ const AreaRegistration = () => {
       name: value,
       customName: isOtherOption ? prev.customName : "",
       categoryLevel: isOtherOption ? "Otro (especificar)" : "",
-      customCategory: isOtherOption ? prev.customCategory : ""
+      customCategory: isOtherOption ? prev.customCategory : "",
+      // Resetear restricciones al cambiar área (excepto si es Robótica)
+      ...(value !== "ROBÓTICA" && {
+        isExclusive: false,
+        maxCombination: 1,
+        allowedCombinations: []
+      })
     }))
     
     setUiState(prev => ({
@@ -133,6 +142,42 @@ const AreaRegistration = () => {
       ...prev,
       showCustomCategoryInput: isOtherOption
     }))
+  }
+
+  // Nuevas funciones para manejar restricciones
+  const handleRestrictionChange = (e) => {
+    const { name, value, type, checked } = e.target
+    
+    // Si desmarcan exclusiva y es Robótica, no permitir
+    if (name === "isExclusive" && formData.name === "ROBÓTICA" && !checked) {
+      return
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+      // Si marcan como exclusiva, resetear combinaciones
+      ...(name === "isExclusive" && checked && {
+        allowedCombinations: [],
+        maxCombination: 1
+      })
+    }))
+  }
+
+  const handleAllowedCombinationChange = (area) => {
+    setFormData(prev => {
+      // No permitir cambios si es Robótica
+      if (prev.name === "ROBÓTICA") return prev
+      
+      const newCombinations = prev.allowedCombinations.includes(area)
+        ? prev.allowedCombinations.filter(a => a !== area)
+        : [...prev.allowedCombinations, area]
+      
+      return {
+        ...prev,
+        allowedCombinations: newCombinations
+      }
+    })
   }
 
   useEffect(() => {
@@ -187,45 +232,44 @@ const AreaRegistration = () => {
     setUiState(prev => ({ ...prev, isSubmitting: true }))
     
     try {
-      // Preparar los datos
       const nombre = formData.name === "Otro (especificar)" ? formData.customName : formData.name
       const nivel = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory : formData.categoryLevel
       
-      // Crear nueva área en Supabase
+      // Configuración final para Robótica (asegurarse aunque ya está protegido en UI)
+      const isRobotics = nombre === "ROBÓTICA"
+      const finalIsExclusive = isRobotics ? true : formData.isExclusive
+      const finalMaxCombination = isRobotics ? 1 : formData.maxCombination
+      const finalAllowedCombinations = isRobotics ? [] : formData.allowedCombinations
+      
       const { data, error } = await supabase
         .from('area')
         .insert([
           { 
-            nombre: nombre,
-            nivel: nivel,
+            nombre,
+            nivel,
             descripcion: formData.description,
             estado: 'ACTIVO',
-            costo: Number(formData.cost) // Ahora guardamos el costo como número en la base de datos
+            costo: Number(formData.cost),
+            // Campos de restricciones
+            max_combinacion: finalMaxCombination,
+            es_exclusiva: finalIsExclusive,
+            combinaciones_permitidas: finalAllowedCombinations.length > 0 
+              ? finalAllowedCombinations 
+              : null
           }
         ])
         .select()
       
       if (error) throw error
       
-      setConnectionStatus({ 
-        message: "Área registrada correctamente en la base de datos", 
-        type: "success" 
-      })
-      
-      // Mostrar modal de éxito
+      setConnectionStatus({ message: "Área registrada correctamente", type: "success" })
       setUiState(prev => ({ ...prev, showSuccessModal: true }))
       resetForm()
       
-      // Redirigir después de 2 segundos
-      setTimeout(() => {
-        navigate('/areas')
-      }, 2000)
+      setTimeout(() => navigate('/areas'), 2000)
     } catch (error) {
       console.error("Error al registrar área:", error)
-      setConnectionStatus({ 
-        message: "Error al registrar área en la base de datos", 
-        type: "error" 
-      })
+      setConnectionStatus({ message: "Error al registrar área", type: "error" })
     } finally {
       setUiState(prev => ({ ...prev, isSubmitting: false }))
     }
@@ -239,11 +283,15 @@ const AreaRegistration = () => {
       customCategory: "",
       cost: "",
       description: "",
+      maxCombination: 1,
+      isExclusive: false,
+      allowedCombinations: []
     })
     setUiState(prev => ({
       ...prev,
       showCustomNameInput: false,
-      showCustomCategoryInput: false
+      showCustomCategoryInput: false,
+      showRestrictionsSection: false
     }))
   }
 
@@ -262,7 +310,7 @@ const AreaRegistration = () => {
           Registro de Áreas
         </h1>
         <button
-          onClick={() => navigate('/areas')} // Asegúrate de que esta ruta coincida con tu configuración de enrutamiento
+          onClick={() => navigate('/areas')}
           className="flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
         >
           <List className="h-5 w-5 mr-1" />
@@ -286,7 +334,6 @@ const AreaRegistration = () => {
         </div>
       )}
 
-      {/* Resto del código del formulario sigue igual... */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -432,12 +479,102 @@ const AreaRegistration = () => {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   placeholder="Descripción breve del área"
                 />
-                {/* Aquí se agrega el mensaje de error si existe */}
                 {errors.description && (
                   <p className="text-red-500 text-sm mt-1">{errors.description}</p>
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Sección para restricciones de combinación */}
+          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={() => setUiState(prev => ({ ...prev, showRestrictionsSection: !prev.showRestrictionsSection }))}
+              className="flex items-center justify-between w-full text-left text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+            >
+              <span>Configurar restricciones de combinación (opcional)</span>
+              {uiState.showRestrictionsSection ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </button>
+            
+            {uiState.showRestrictionsSection && (
+              <div className="mt-4 space-y-4 pl-2 border-l-2 border-blue-200 dark:border-blue-800">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="isExclusive"
+                    name="isExclusive"
+                    checked={formData.isExclusive}
+                    onChange={handleRestrictionChange}
+                    disabled={formData.name === "ROBÓTICA"}
+                    className={`h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 ${
+                      formData.name === "ROBÓTICA" ? "cursor-not-allowed opacity-50" : ""
+                    }`}
+                  />
+                  <label htmlFor="isExclusive" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                    Área exclusiva (no permite combinación con otras)
+                    {formData.name === "ROBÓTICA" && (
+                      <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
+                        (Obligatorio para Robótica)
+                      </span>
+                    )}
+                  </label>
+                </div>
+                
+                {!formData.isExclusive && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Máximo de áreas combinables (incluyendo esta)
+                      </label>
+                      <select
+                        name="maxCombination"
+                        value={formData.maxCombination}
+                        onChange={handleRestrictionChange}
+                        disabled={formData.name === "ROBÓTICA"}
+                        className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white ${
+                          formData.name === "ROBÓTICA" ? "cursor-not-allowed opacity-50" : ""
+                        }`}
+                      >
+                        <option value="1">1 (solo esta área)</option>
+                        <option value="2">2 áreas</option>
+                        <option value="3">3 áreas</option>
+                        <option value="0">Sin límite (no recomendado)</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Áreas permitidas para combinación (dejar vacío para permitir todas)
+                      </label>
+                      <div className={`space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-200 dark:border-gray-700 rounded-md ${
+                        formData.name === "ROBÓTICA" ? "opacity-50 cursor-not-allowed" : ""
+                      }`}>
+                        {allAreas.filter(a => a !== formData.name).map(area => (
+                          <div key={area} className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id={`combine-${area}`}
+                              checked={formData.allowedCombinations.includes(area)}
+                              onChange={() => handleAllowedCombinationChange(area)}
+                              disabled={formData.name === "ROBÓTICA"}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600"
+                            />
+                            <label htmlFor={`combine-${area}`} className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                              {area}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Seleccione las áreas con las que esta área puede combinarse
+                        {formData.name === "ROBÓTICA" && " (No aplica para Robótica)"}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Botones de acción */}
