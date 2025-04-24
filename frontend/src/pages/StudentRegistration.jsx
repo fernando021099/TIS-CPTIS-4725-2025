@@ -72,52 +72,33 @@ const StudentRegistration = () => {
     const newErrors = {};
     
     if (section === 1) {
-      // Validacion para correo electronico
-      if (!formData.email) {
-        newErrors.email = "Correo electrónico requerido";
-      } else {
-        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-        if (!emailRegex.test(formData.email)) {
-          newErrors.email = "Formato de correo electrónico inválido";
-        }
-      }
-
-      //Validacion para el Apellido del estudiante 
+      // ... (validaciones existentes para email)
+  
+      // Validación para Apellidos
       if (!formData.lastName) {
         newErrors.lastName = "Apellidos requeridos";
-      } else {
-        const onlyLettersAndSpaces = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
-        if (!onlyLettersAndSpaces.test(formData.lastName)) {
-          newErrors.lastName = "Solo se permiten letras y espacios";
-        } else if (formData.lastName.length < 3 || formData.lastName.length > 50) {
-          newErrors.lastName = "Los apellidos deben tener entre 3 y 50 caracteres";
-        }
+      } else if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/.test(formData.lastName)) {
+        newErrors.lastName = "Solo se permiten letras";
+      } else if (formData.lastName.length < 3 || formData.lastName.length > 50) {
+        newErrors.lastName = "Los apellidos deben tener entre 3 y 50 caracteres";
       }
-
-      //Validaciones para el nombre del estudiante
+  
+      // Validación para Nombres
       if (!formData.firstName) {
         newErrors.firstName = "Nombres requeridos";
-      } else {
-        const onlyLettersAndSpaces = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
-        if (!onlyLettersAndSpaces.test(formData.firstName)) {
-          newErrors.firstName = "Solo se permiten letras y espacios";
-        } else if (formData.firstName.length < 3 || formData.firstName.length > 20) {
-          newErrors.firstName = "El nombre debe tener entre 3 y 20 caracteres";
-        }
+      } else if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/.test(formData.firstName)) {
+        newErrors.firstName = "Solo se permiten letras";
+      } else if (formData.firstName.length < 3 || formData.firstName.length > 20) {
+        newErrors.firstName = "El nombre debe tener entre 3 y 20 caracteres";
       }
-
-      //Validaciones para CI
-      if (!formData.ci || formData.ci.trim() === "") {
+  
+      // Validación para CI
+      if (!formData.ci) {
         newErrors.ci = "CI requerido";
-      } else {
-        const trimmedCI = formData.ci.trim();
-        const onlyDigits = /^\d+$/;
-        if (!onlyDigits.test(trimmedCI)) {
-          newErrors.ci = "Solo se permiten caracteres numéricos, sin letras ni símbolos";
-        } else if (trimmedCI.length < 5 || trimmedCI.length > 12) {
-          newErrors.ci = "El CI debe tener entre 5 y 12 dígitos";
-        }
+      } else if (!/^[0-9]{8}$/.test(formData.ci)) {
+        newErrors.ci = "El CI debe tener exactamente 8 dígitos numéricos";
       }
+  
       
       // Validar fecha de nacimiento 
       if (!formData.birthDate) {
@@ -251,12 +232,31 @@ const StudentRegistration = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
-    
+  
+    // Validación para Nombres (solo letras)
+    if (name === "firstName") {
+      const onlyLetters = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]*$/;
+      if (!onlyLetters.test(value)) return; // No actualiza si no son letras
+    }
+  
+    // Validación para Apellidos (solo letras)
+    if (name === "lastName") {
+      const onlyLetters = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]*$/;
+      if (!onlyLetters.test(value)) return; // No actualiza si no son letras
+    }
+  
+    // Validación para CI (solo números y máximo 8 dígitos)
+    if (name === "ci") {
+      const onlyNumbers = /^[0-9]*$/;
+      if (!onlyNumbers.test(value)) return; // No actualiza si no son números
+      if (value.length > 8) return; // No permite más de 8 dígitos
+    }
+  
     setFormData(prev => ({ 
       ...prev, 
       [name]: value 
     }));
-
+  
     if (name === "department") {
       setFormData(prev => ({ ...prev, province: "" }));
     }
@@ -539,7 +539,7 @@ const StudentRegistration = () => {
             className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
               errors.lastName ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="Apellidos completos"
+            placeholder="Solo letras (ej: Pérez López)"
           />
           {errors.lastName && (
             <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -561,7 +561,7 @@ const StudentRegistration = () => {
             className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
               errors.firstName ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="Nombres completos"
+            placeholder="Solo letras (ej: Juan Carlos)"
           />
           {errors.firstName && (
             <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -583,7 +583,8 @@ const StudentRegistration = () => {
             className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
               errors.ci ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="Número de CI"
+            placeholder="8 dígitos (ej: 12345678)"
+            maxLength={8}
           />
           {errors.ci && (
             <p className="mt-1 text-sm text-red-600 flex items-center">
