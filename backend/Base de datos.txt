@@ -1,0 +1,102 @@
+-- BASE DE DATOS PRINCIPAL
+
+CREATE TABLE olimpiada (
+    version INT PRIMARY KEY,
+    nombre VARCHAR(50),
+    fecha VARCHAR(50),
+    estado VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE area (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    categoria VARCHAR(50) NOT NULL,
+    descripcion TEXT,
+    estado VARCHAR(50) NOT NULL,
+    costo INT,
+    modo VARCHAR(20)
+);
+
+CREATE TABLE estudiante (
+    ci VARCHAR(20) PRIMARY KEY,
+    correo VARCHAR(100) NOT NULL,
+    apellidos VARCHAR(100) NOT NULL,
+    nombres VARCHAR(100) NOT NULL,
+    fecha_nacimiento DATE NOT NULL,
+    curso VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE contacto (
+    id SERIAL PRIMARY KEY,
+    celular VARCHAR(20) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    correo VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE colegio (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(150) NOT NULL,
+    departamento VARCHAR(100) NOT NULL,
+    provincia VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE inscripción (
+    id SERIAL PRIMARY KEY,
+    estudiante_id VARCHAR(20) REFERENCES estudiante(ci) ON DELETE CASCADE,
+    contacto_id INT REFERENCES contacto(id) ON DELETE SET NULL,
+    colegio_id INT REFERENCES colegio(id) ON DELETE SET NULL,
+    area1_id INT REFERENCES area(id) ON DELETE SET NULL,
+    area2_id INT REFERENCES area(id) ON DELETE SET NULL,
+    olimpiada_version INT REFERENCES olimpiada(version) ON DELETE CASCADE,
+    estado VARCHAR(20) NOT NULL,
+    codigo_comprobante VARCHAR(20),
+    fecha DATE
+);
+
+
+
+--Datos insertados
+
+INSERT INTO area (nombre, categoria, descripcion, estado, costo, modo) VALUES
+('ASTRONOMIA_ASTROFISICA', '3P', '3ro Primaria', 'activo', 15, 'normal'),
+('ASTRONOMIA_ASTROFISICA', '4P', '4to Primaria', 'activo', 15, 'normal'),
+('ASTRONOMIA_ASTROFISICA', '5P', '5to Primaria', 'activo', 15, 'normal'),
+('ASTRONOMIA_ASTROFISICA', '6P', '6to Primaria', 'activo', 15, 'normal'),
+('ASTRONOMIA_ASTROFISICA', '1S', '1ro Secundaria', 'activo', 15, 'normal'),
+('ASTRONOMIA_ASTROFISICA', '2S', '2do Secundaria', 'activo', 15, 'normal'),
+('ASTRONOMIA_ASTROFISICA', '3S', '3ro Secundaria', 'activo', 15, 'normal'),
+('ASTRONOMIA_ASTROFISICA', '4S', '4to Secundaria', 'activo', 15, 'normal'),
+('ASTRONOMIA_ASTROFISICA', '5S', '5to Secundaria', 'activo', 15, 'normal'),
+('ASTRONOMIA_ASTROFISICA', '6S', '6to Secundaria', 'activo', 15, 'normal'),
+('BIOLOGIA', '2S', '2do Secundaria', 'activo', 15, 'normal'),
+('BIOLOGIA', '3S', '3ro Secundaria', 'activo', 15, 'normal'),
+('BIOLOGIA', '4S', '4to Secundaria', 'activo', 15, 'normal'),
+('BIOLOGIA', '5S', '5to Secundaria', 'activo', 15, 'normal'),
+('BIOLOGIA', '6S', '6to Secundaria', 'activo', 15, 'normal'),
+('FISICA', '4S', '4to Secundaria', 'activo', 15, 'normal'),
+('FISICA', '5S', '5to Secundaria', 'activo', 15, 'normal'),
+('FISICA', '6S', '6to Secundaria', 'activo', 15, 'normal'),
+('INFORMATICA', 'Guacamayo', '5to a 6to Primaria', 'activo', 15, 'normal'),
+('INFORMATICA', 'Guanaco', '1ro a 3ro Secundaria', 'activo', 15, 'normal'),
+('INFORMATICA', 'Londra', '1ro a 3ro Secundaria', 'activo', 15, 'normal'),
+('INFORMATICA', 'Jucumari', '4to a 6to Secundaria', 'activo', 15, 'normal'),
+('INFORMATICA', 'Bufeo', '1ro a 3ro Secundaria', 'activo', 15, 'normal'),
+('INFORMATICA', 'Puma', '4to a 6to Secundaria', 'activo', 15, 'normal'),
+('MATEMATICAS', 'Primer Nivel', '1ro Secundaria', 'activo', 15, 'normal'),
+('MATEMATICAS', 'Segundo Nivel', '2do Secundaria', 'activo', 15, 'normal'),
+('MATEMATICAS', 'Tercer Nivel', '3ro Secundaria', 'activo', 15, 'normal'),
+('MATEMATICAS', 'Cuarto Nivel', '4to Secundaria', 'activo', 15, 'normal'),
+('MATEMATICAS', 'Quinto Nivel', '5to Secundaria', 'activo', 15, 'normal'),
+('MATEMATICAS', 'Sexto Nivel', '6to Secundaria', 'activo', 15, 'normal'),
+('QUIMICA', '2S', '2do Secundaria', 'activo', 15, 'normal'),
+('QUIMICA', '3S', '3ro Secundaria', 'activo', 15, 'normal'),
+('QUIMICA', '4S', '4to Secundaria', 'activo', 15, 'normal'),
+('QUIMICA', '5S', '5to Secundaria', 'activo', 15, 'normal'),
+('QUIMICA', '6S', '6to Secundaria', 'activo', 15, 'normal'),
+('ROBOTICA', 'Builders P', '5to a 6to Primaria', 'activo', 15, 'unico'),
+('ROBOTICA', 'Builders S', '1ro a 6to Secundaria', 'activo', 15, 'unico'),
+('ROBOTICA', 'Lego P', '5to a 6to Primaria', 'activo', 15, 'unico'),
+('ROBOTICA', 'Lego S', '1ro a 6to Secundaria', 'activo', 15, 'unico');
+
+
+
