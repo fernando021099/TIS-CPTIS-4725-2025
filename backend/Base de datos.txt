@@ -99,4 +99,13 @@ INSERT INTO area (nombre, categoria, descripcion, estado, costo, modo) VALUES
 ('ROBOTICA', 'Lego S', '1ro a 6to Secundaria', 'activo', 15, 'unico');
 
 
+--Prueba las URLs:
+http://127.0.0.1:8000/api/areas
+http://127.0.0.1:8000/api/olimpiadas
 
+--Limpia la caché por si acaso: 
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear (aunque la caché de vistas no debería importar ya).
+
+php artisan serve 

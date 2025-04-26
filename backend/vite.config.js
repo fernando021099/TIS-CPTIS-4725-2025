@@ -1,13 +1,13 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
-import tailwindcss from '@tailwindcss/vite';
+// import tailwindcss from '@tailwindcss/vite'; // Puedes eliminar esta línea si no usarás Tailwind en el backend
 
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js'],
+            input: [], // Vaciar este array
             refresh: true,
         }),
-        tailwindcss(),
+        // tailwindcss(), // Puedes eliminar esta línea si no usarás Tailwind en el backend
     ],
 });
