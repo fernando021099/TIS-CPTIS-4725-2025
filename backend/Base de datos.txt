@@ -103,8 +103,12 @@ INSERT INTO area (nombre, categoria, descripcion, estado, costo, modo) VALUES
 
 
 --Prueba las URLs:
-http://127.0.0.1:8000/api/areas
 http://127.0.0.1:8000/api/olimpiadas
+http://127.0.0.1:8000/api/areas
+http://127.0.0.1:8000/api/estudiantes
+http://127.0.0.1:8000/api/contactos
+http://127.0.0.1:8000/api/colegios
+http://127.0.0.1:8000/api/inscripciones
 
 --Limpia la caché por si acaso: 
 php artisan config:clear
