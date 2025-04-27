@@ -3,7 +3,7 @@
 CREATE TABLE olimpiada (
     version INT PRIMARY KEY,
     nombre VARCHAR(50),
-    fecha VARCHAR(50),
+    fecha DATE, -- Cambiado de VARCHAR(50) a DATE
     estado VARCHAR(50) NOT NULL
 );
 
@@ -56,6 +56,9 @@ CREATE TABLE inscripción (
 
 
 --Datos insertados
+-- (El INSERT que hiciste ya está en la base de datos, no necesitas añadirlo aquí necesariamente)
+-- INSERT INTO olimpiada (version, nombre, fecha,  estado) VALUES
+-- (2024, 'Oh! SanSi', '2025-06-09', 'habilitado'); -- Formato estándar YYYY-MM-DD
 
 INSERT INTO area (nombre, categoria, descripcion, estado, costo, modo) VALUES
 ('ASTRONOMIA_ASTROFISICA', '3P', '3ro Primaria', 'activo', 15, 'normal'),
@@ -108,4 +111,4 @@ php artisan config:clear
 php artisan route:clear
 php artisan view:clear (aunque la caché de vistas no debería importar ya).
 
-php artisan serve 
+php artisan serve

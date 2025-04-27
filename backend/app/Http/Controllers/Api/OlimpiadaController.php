@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Olimpiada;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Log; // Para logs si es necesario
+use Illuminate\Validation\Rule; // Para reglas de validación
 
 class OlimpiadaController extends Controller
 {
@@ -13,9 +16,7 @@ class OlimpiadaController extends Controller
      */
     public function index()
     {
-        // Recupera todas las olimpiadas de la base de datos
         $olimpiadas = Olimpiada::all();
-        // Devuelve las olimpiadas como una respuesta JSON
         return response()->json($olimpiadas);
     }
 
@@ -24,35 +25,81 @@ class OlimpiadaController extends Controller
      */
     public function store(Request $request)
     {
-        // Lógica para guardar una nueva olimpiada (se implementará después si es necesario)
-        return response()->json(['message' => 'Store method not implemented yet'], 501);
+        $validatedData = $request->validate([
+            'version' => 'required|integer|unique:olimpiada,version', // Clave primaria, debe ser única
+            'nombre' => 'required|string|max:50',
+            'fecha' => 'required|date_format:Y-m-d', // Validar formato fecha AAAA-MM-DD
+            'estado' => 'required|string|max:50', // Puedes usar Rule::in(['habilitado', 'cerrado', ...]) si tienes estados fijos
+        ]);
+
+        try {
+            // Como la PK no es autoincremental, la pasamos directamente
+            $olimpiada = Olimpiada::create($validatedData);
+            return response()->json($olimpiada, 201); // 201 Created
+        } catch (\Exception $e) {
+            Log::error('Error creating olimpiada: '.$e->getMessage());
+            return response()->json(['message' => 'Error al crear la olimpiada'], 500);
+        }
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Olimpiada $olimpiada)
+    public function show($version) // Cambiado para aceptar 'version' directamente
     {
-        // Devuelve la olimpiada específica encontrada por Route Model Binding
-        // Nota: Asegúrate que la ruta use 'olimpiada' como parámetro {olimpiada}
-        return response()->json($olimpiada);
+        try {
+            // Usamos findOrFail con la clave primaria 'version'
+            $olimpiada = Olimpiada::findOrFail($version);
+            return response()->json($olimpiada);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['message' => 'Olimpiada no encontrada'], 404);
+        }
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Olimpiada $olimpiada)
+    public function update(Request $request, $version) // Cambiado para aceptar 'version'
     {
-        // Lógica para actualizar una olimpiada (se implementará después si es necesario)
-        return response()->json(['message' => 'Update method not implemented yet'], 501);
+         $validatedData = $request->validate([
+            // No validamos 'version' aquí porque no debería cambiar
+            'nombre' => 'sometimes|required|string|max:50', // 'sometimes' significa que solo valida si está presente
+            'fecha' => 'sometimes|required|date_format:Y-m-d',
+            'estado' => 'sometimes|required|string|max:50',
+        ]);
+
+        try {
+            $olimpiada = Olimpiada::findOrFail($version);
+            $olimpiada->update($validatedData);
+            return response()->json($olimpiada);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['message' => 'Olimpiada no encontrada'], 404);
+        } catch (\Exception $e) {
+            Log::error('Error updating olimpiada: '.$e->getMessage());
+            return response()->json(['message' => 'Error al actualizar la olimpiada'], 500);
+        }
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Olimpiada $olimpiada)
+    public function destroy($version) // Cambiado para aceptar 'version'
     {
-        // Lógica para eliminar una olimpiada (se implementará después si es necesario)
-        return response()->json(['message' => 'Destroy method not implemented yet'], 501);
+        try {
+            $olimpiada = Olimpiada::findOrFail($version);
+            $olimpiada->delete();
+            // Considerar el ON DELETE CASCADE en la tabla 'inscripción'
+            return response()->json(null, 204); // 204 No Content
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['message' => 'Olimpiada no encontrada'], 404);
+        } catch (\Exception $e) {
+            // Podría fallar si hay restricciones de FK no manejadas por CASCADE
+            Log::error('Error deleting olimpiada: '.$e->getMessage());
+             // Verificar si el error es por restricción de FK
+            if (str_contains($e->getMessage(), 'violates foreign key constraint')) {
+                 return response()->json(['message' => 'No se puede eliminar la olimpiada porque tiene inscripciones asociadas.'], 409); // 409 Conflict
+            }
+            return response()->json(['message' => 'Error al eliminar la olimpiada'], 500);
+        }
     }
 }

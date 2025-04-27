@@ -29,6 +29,16 @@ class Olimpiada extends Model
     ];
 
     /**
+     * Los atributos que deben ser convertidos a tipos nativos.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'fecha' => 'date', // Añadir esto para castear la columna fecha
+    ];
+
+
+    /**
      * Obtiene las inscripciones asociadas a la olimpiada.
      */
     public function inscripciones()
