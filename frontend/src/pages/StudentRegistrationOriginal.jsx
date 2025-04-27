@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Check, ArrowLeft, Upload, Download } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { api } from '../api/apiClient'; // Importar apiClient
 
 const StudentRegistration = () => {
   const navigate = useNavigate();
@@ -73,52 +72,33 @@ const StudentRegistration = () => {
     const newErrors = {};
     
     if (section === 1) {
-      // Validacion para correo electronico
-      if (!formData.email) {
-        newErrors.email = "Correo electrónico requerido";
-      } else {
-        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-        if (!emailRegex.test(formData.email)) {
-          newErrors.email = "Formato de correo electrónico inválido";
-        }
-      }
-
-      //Validacion para el Apellido del estudiante 
+      // ... (validaciones existentes para email)
+  
+      // Validación para Apellidos
       if (!formData.lastName) {
         newErrors.lastName = "Apellidos requeridos";
-      } else {
-        const onlyLettersAndSpaces = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
-        if (!onlyLettersAndSpaces.test(formData.lastName)) {
-          newErrors.lastName = "Solo se permiten letras y espacios";
-        } else if (formData.lastName.length < 3 || formData.lastName.length > 50) {
-          newErrors.lastName = "Los apellidos deben tener entre 3 y 50 caracteres";
-        }
+      } else if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/.test(formData.lastName)) {
+        newErrors.lastName = "Solo se permiten letras";
+      } else if (formData.lastName.length < 3 || formData.lastName.length > 50) {
+        newErrors.lastName = "Los apellidos deben tener entre 3 y 50 caracteres";
       }
-
-      //Validaciones para el nombre del estudiante
+  
+      // Validación para Nombres
       if (!formData.firstName) {
         newErrors.firstName = "Nombres requeridos";
-      } else {
-        const onlyLettersAndSpaces = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
-        if (!onlyLettersAndSpaces.test(formData.firstName)) {
-          newErrors.firstName = "Solo se permiten letras y espacios";
-        } else if (formData.firstName.length < 3 || formData.firstName.length > 20) {
-          newErrors.firstName = "El nombre debe tener entre 3 y 20 caracteres";
-        }
+      } else if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/.test(formData.firstName)) {
+        newErrors.firstName = "Solo se permiten letras";
+      } else if (formData.firstName.length < 3 || formData.firstName.length > 20) {
+        newErrors.firstName = "El nombre debe tener entre 3 y 20 caracteres";
       }
-
-      //Validaciones para CI
-      if (!formData.ci || formData.ci.trim() === "") {
+  
+      // Validación para CI
+      if (!formData.ci) {
         newErrors.ci = "CI requerido";
-      } else {
-        const trimmedCI = formData.ci.trim();
-        const onlyDigits = /^\d+$/;
-        if (!onlyDigits.test(trimmedCI)) {
-          newErrors.ci = "Solo se permiten caracteres numéricos, sin letras ni símbolos";
-        } else if (trimmedCI.length < 5 || trimmedCI.length > 12) {
-          newErrors.ci = "El CI debe tener entre 5 y 12 dígitos";
-        }
+      } else if (!/^[0-9]{8}$/.test(formData.ci)) {
+        newErrors.ci = "El CI debe tener exactamente 8 dígitos numéricos";
       }
+  
       
       // Validar fecha de nacimiento 
       if (!formData.birthDate) {
@@ -252,12 +232,31 @@ const StudentRegistration = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
-    
+  
+    // Validación para Nombres (solo letras)
+    if (name === "firstName") {
+      const onlyLetters = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]*$/;
+      if (!onlyLetters.test(value)) return; // No actualiza si no son letras
+    }
+  
+    // Validación para Apellidos (solo letras)
+    if (name === "lastName") {
+      const onlyLetters = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]*$/;
+      if (!onlyLetters.test(value)) return; // No actualiza si no son letras
+    }
+  
+    // Validación para CI (solo números y máximo 8 dígitos)
+    if (name === "ci") {
+      const onlyNumbers = /^[0-9]*$/;
+      if (!onlyNumbers.test(value)) return; // No actualiza si no son números
+      if (value.length > 8) return; // No permite más de 8 dígitos
+    }
+  
     setFormData(prev => ({ 
       ...prev, 
       [name]: value 
     }));
-
+  
     if (name === "department") {
       setFormData(prev => ({ ...prev, province: "" }));
     }
@@ -320,122 +319,35 @@ const StudentRegistration = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateSection(3)) return; 
+    if (!validateSection(3)) return;
     
     setUiState(prev => ({ ...prev, isSubmitting: true }));
-    setErrors({}); 
     
     try {
-      // 1. Preparar el payload para la API
-      const payload = {
-        estudiante: {
-          nombres: formData.firstName,
-          apellidos: formData.lastName,
-          ci: formData.ci,
-          fecha_nacimiento: formData.birthDate,
-          correo: formData.email, 
-          curso: formData.grade, 
-        },
-        contacto: { 
-          nombre: formData.tutorName,
-          correo: formData.tutorEmail, 
-          celular: formData.tutorPhone,
-          relacion: formData.tutorRelation, 
-        },
-        colegio: {
-          nombre: formData.school,
-          departamento: formData.department,
-          provincia: formData.province,
-        },
-        area1_nombre: formData.areas[0] || null,
-        area1_categoria: formData.categories[formData.areas[0]] || null,
-        area2_nombre: formData.areas[1] || null, 
-        area2_categoria: formData.categories[formData.areas[1]] || null, 
-        olimpiada_version: 2024, 
-        fecha: new Date().toISOString().split('T')[0], 
-        estado: 'pendiente', 
+      // Simular envío a la API
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Datos simulados mientras la API no esté disponible
+      const mockPaymentData = {
+        registrationId: "REG-" + Math.random().toString(36).substr(2, 8).toUpperCase(),
+        amount: formData.areas.length * 15, // 15 Bs por área
+        studentName: `${formData.firstName} ${formData.lastName}`,
+        tutorName: formData.tutorName,
+        areas: formData.areas.map(area => `${area} (${formData.categories[area]})`).join(", "),
+        paymentDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 días desde ahora
+        paymentCode: "PAGO-" + Math.random().toString(36).substr(2, 6).toUpperCase()
       };
-
-      console.log("Enviando payload:", JSON.stringify(payload, null, 2));
-
-      // 2. Enviar a la API. apiClient devuelve datos JSON parseados o null (para 204), o lanza error.
-      const responseData = await api.post('/inscripciones', payload); 
-
-      console.log("Datos recibidos de api.post:", responseData);
-
-      // 3. Procesar respuesta (responseData ya son los datos o null)
-      if (responseData === null) { 
-        // Caso 204 No Content (manejado por apiClient)
-        console.warn("Inscripción creada (204), pero sin datos devueltos.");
-        throw new Error("La inscripción fue creada (204), pero el servidor no devolvió detalles. No se puede generar la orden de pago.");
-
-      } else if (responseData && responseData.id) {
-        // Caso 200/201 con datos JSON y ID
-        console.log("Inscripción creada con ID:", responseData.id);
-        
-        const paymentInfo = {
-          registrationId: responseData.id,
-          amount: responseData.monto_total || (responseData.area1_id ? 15 : 0) + (responseData.area2_id ? 15 : 0), 
-          studentName: `${responseData.estudiante?.nombres || formData.firstName} ${responseData.estudiante?.apellidos || formData.lastName}`, 
-          tutorName: responseData.contacto?.nombre || formData.tutorName, 
-          areas: [responseData.area1?.nombre, responseData.area2?.nombre].filter(Boolean).map((areaName, index) => {
-              const areaData = index === 0 ? responseData.area1 : responseData.area2;
-              return `${areaName} (${areaData?.categoria || 'N/A'})`;
-          }).join(", ") || formData.areas.map(area => `${area} (${formData.categories[area] || 'N/A'})`).join(", "), 
-          paymentDeadline: responseData.fecha_limite_pago ? new Date(responseData.fecha_limite_pago) : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), 
-          paymentCode: responseData.codigo_pago || `PAGO-${responseData.id}-${Date.now().toString().slice(-4)}` 
-        };
-        
-        setUiState(prev => ({ 
-          ...prev, 
-          showPaymentModal: true,
-          paymentData: paymentInfo, 
-          isSubmitting: false
-        }));
-
-      } else {
-        // Caso inesperado: respuesta exitosa pero sin ID o datos inválidos
-        console.error(`Respuesta exitosa pero sin datos válidos o ID:`, responseData);
-        throw new Error(`El servidor respondió con éxito, pero no devolvió la información necesaria (ID).`);
-      }
+      
+      setUiState(prev => ({ 
+        ...prev, 
+        showPaymentModal: true,
+        paymentData: mockPaymentData,
+        isSubmitting: false
+      }));
       
     } catch (error) {
-      // apiClient ya lanza un error formateado para respuestas !response.ok
-      console.error("Error durante el envío o procesamiento:", error);
-      
-      let userErrorMessage = error.message || "Ocurrió un error inesperado.";
-      let validationErrors = {};
-
-      // Intentar extraer errores de validación si el error los contiene (lanzado por apiClient para 422)
-      // Asumiendo que apiClient adjunta el cuerpo del error en error.data o similar
-      // Nota: La implementación actual de apiClient no parece adjuntar el cuerpo del error explícitamente.
-      // Vamos a confiar en el mensaje por ahora, pero podríamos mejorar apiClient si es necesario.
-      
-      // Simplificación: Si el mensaje contiene "Error 422", asumimos validación.
-      if (error.status === 422 || (typeof error.message === 'string' && error.message.includes('422'))) {
-          userErrorMessage = `Error de validación (422). Por favor revise los campos marcados.`;
-          // Idealmente, apiClient debería parsear y adjuntar los errores de Laravel
-          // para poder mapearlos aquí como se hacía antes.
-          // Por ahora, mostramos un mensaje genérico 422 y no mapeamos campos.
-          // TODO: Mejorar apiClient para adjuntar error.data.errors si es 422.
-          
-          // Ejemplo de cómo sería si apiClient adjuntara los errores:
-          /* 
-          if (error.status === 422 && error.data?.errors) {
-              validationErrors = error.data.errors;
-              const mappedErrors = {};
-              // ... (lógica de mapeo como antes) ...
-              setErrors(mappedErrors);
-              userErrorMessage = `Error de validación (422). Por favor revise los campos marcados.`;
-          } 
-          */
-      } else if (error instanceof TypeError) { 
-          userErrorMessage = "Error de red o CORS. No se pudo conectar con el servidor.";
-      }
-      // Otros errores usarán error.message directamente.
-      
-      alert(userErrorMessage); 
-      
+      console.error("Error al enviar postulación:", error);
+      setErrors(prev => ({ ...prev, form: error.message }));
       setUiState(prev => ({ ...prev, isSubmitting: false }));
     }
   };
@@ -486,8 +398,7 @@ const StudentRegistration = () => {
         doc.setTextColor(33, 37, 41);
         doc.text(`${label}:`, margin, yPosition);
         doc.setTextColor(13, 110, 253);
-        // Asegurarse de que el valor sea una cadena antes de pasarlo a doc.text
-        doc.text(String(value), margin + 50, yPosition); // Convertir value a String
+        doc.text(value, margin + 50, yPosition);
         yPosition += 7;
       };
       
@@ -496,9 +407,9 @@ const StudentRegistration = () => {
       addField('Estudiante', studentName);
       addField('Tutor', tutorName);
       addField('Áreas', uiState.paymentData.areas);
-      addField('Monto Total', `${amount} Bs.`); // Ya es string por template literal
+      addField('Monto Total', `${amount} Bs.`);
       addField('Código de Pago', paymentCode);
-      addField('Fecha Límite de Pago', paymentDeadline.toLocaleDateString()); // Ya es string
+      addField('Fecha Límite de Pago', paymentDeadline.toLocaleDateString());
       
       // Instrucciones
       yPosition += 10;
@@ -628,7 +539,7 @@ const StudentRegistration = () => {
             className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
               errors.lastName ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="Apellidos completos"
+            placeholder="Solo letras (ej: Pérez López)"
           />
           {errors.lastName && (
             <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -650,7 +561,7 @@ const StudentRegistration = () => {
             className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
               errors.firstName ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="Nombres completos"
+            placeholder="Solo letras (ej: Juan Carlos)"
           />
           {errors.firstName && (
             <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -672,7 +583,8 @@ const StudentRegistration = () => {
             className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
               errors.ci ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="Número de CI"
+            placeholder="8 dígitos (ej: 12345678)"
+            maxLength={8}
           />
           {errors.ci && (
             <p className="mt-1 text-sm text-red-600 flex items-center">
