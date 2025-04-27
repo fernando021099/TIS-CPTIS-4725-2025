@@ -17,10 +17,14 @@ use App\Http\Controllers\Api\InscripcionController;
 // Rutas de recursos API para los modelos
 Route::apiResource('olimpiadas', OlimpiadaController::class);
 Route::apiResource('areas', AreaController::class);
-Route::apiResource('estudiantes', EstudianteController::class);
+Route::apiResource('estudiantes', EstudianteController::class)->parameters(['estudiantes' => 'ci']); // Indicar que el parámetro es 'ci'
 Route::apiResource('contactos', ContactoController::class);
 Route::apiResource('colegios', ColegioController::class);
 Route::apiResource('inscripciones', InscripcionController::class);
+
+// Ruta específica para inscripción grupal
+Route::post('/inscripciones/grupo', [InscripcionController::class, 'storeGroup']);
+
 
 // Puedes añadir rutas personalizadas aquí si necesitas lógica más específica
 // Ejemplo: Obtener áreas activas

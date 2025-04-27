@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react"
 import { X, Check, ArrowLeft, List } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { supabase } from '../supabaseClient'
+// import { supabase } from '../supabaseClient' // Comentado: No se usa Supabase
+import { api } from '../api/apiClient'; // Importar apiClient
 
 const AreaRegistration = () => {
   const navigate = useNavigate()
@@ -32,6 +33,11 @@ const AreaRegistration = () => {
   useEffect(() => {
     const fetchOptions = async () => {
       try {
+        // Obtener todas las áreas desde la API
+        const allAreasData = await api.get('/areas');
+
+        // Supabase original (comentado)
+        /*
         // Obtener áreas únicas
         const { data: areas, error: areasError } = await supabase
           .from('area')
@@ -50,7 +56,7 @@ const AreaRegistration = () => {
         for (const area of uniqueAreas) {
           const { data: levels, error: levelsError } = await supabase
             .from('area')
-            .select('nivel')
+            .select('nivel') // Supabase usaba 'nivel', API usa 'categoria'
             .eq('nombre', area)
             .order('nivel')
           
@@ -60,19 +66,35 @@ const AreaRegistration = () => {
         }
         
         setAreaToLevels(levelsMap)
+        */
+
+        // Procesar datos de la API para obtener opciones
+        const uniqueAreaNames = [...new Set(allAreasData.map(a => a.nombre))].sort();
+        const options = [...uniqueAreaNames, "Otro (especificar)"];
+        setAreaOptions(options);
+
+        const levelsMap = {};
+        uniqueAreaNames.forEach(name => {
+          levelsMap[name] = [...new Set(
+            allAreasData
+              .filter(a => a.nombre === name)
+              .map(a => a.categoria) // Usar 'categoria' de la API
+          )].sort();
+        });
+        setAreaToLevels(levelsMap);
         
         setConnectionStatus({ 
-          message: "Conexión Supabase exitosa", 
+          message: "Opciones cargadas desde la API", // Mensaje actualizado
           type: "success" 
-        })
+        });
       } catch (error) {
-        console.error("Error cargando opciones:", error)
+        console.error("Error cargando opciones desde API:", error);
         setConnectionStatus({ 
-          message: "Error al obtener datos", 
+          message: `Error al obtener datos: ${error.message}`, 
           type: "error" 
         })
         
-        // Valores por defecto en caso de error
+        // Mantener valores por defecto en caso de error
         setAreaOptions([
           "ASTRONOMÍA - ASTROFÍSICA",
           "BIOLOGÍA",
@@ -84,9 +106,9 @@ const AreaRegistration = () => {
           "Otro (especificar)"
         ])
       }
-    }
+    };
     
-    fetchOptions()
+    fetchOptions();
   }, [])
 
   const getLevelOptions = () => {
@@ -187,28 +209,47 @@ const AreaRegistration = () => {
     setUiState(prev => ({ ...prev, isSubmitting: true }))
     
     try {
-      // Preparar los datos
+      // Preparar los datos para la API
       const nombre = formData.name === "Otro (especificar)" ? formData.customName : formData.name
-      const nivel = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory : formData.categoryLevel
-      
-      // Crear nueva área en Supabase
+      // La API espera 'categoria', el frontend usa 'categoryLevel' o 'customCategory'
+      const categoria = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory : formData.categoryLevel
+      const costo = Number(formData.cost)
+      const descripcion = formData.description
+      const estado = 'activo' // Estado por defecto para nuevas áreas
+      const modo = 'normal' // Modo por defecto (o ajustar si es necesario)
+
+      const areaData = {
+        nombre,
+        categoria,
+        costo,
+        descripcion,
+        estado,
+        modo
+      }
+
+      // Crear nueva área usando apiClient
+      const createdArea = await api.post('/areas', areaData)
+
+      // Supabase original (comentado)
+      /*
       const { data, error } = await supabase
         .from('area')
         .insert([
           { 
             nombre: nombre,
-            nivel: nivel,
+            nivel: nivel, // Supabase usaba 'nivel'
             descripcion: formData.description,
-            estado: 'ACTIVO',
-            costo: Number(formData.cost) // Ahora guardamos el costo como número en la base de datos
+            estado: 'ACTIVO', // Supabase usaba 'ACTIVO'
+            costo: Number(formData.cost) 
           }
         ])
         .select()
       
       if (error) throw error
+      */
       
       setConnectionStatus({ 
-        message: "Área registrada correctamente en la base de datos", 
+        message: "Área registrada correctamente en la API", // Mensaje actualizado
         type: "success" 
       })
       
@@ -218,12 +259,12 @@ const AreaRegistration = () => {
       
       // Redirigir después de 2 segundos
       setTimeout(() => {
-        navigate('/areas')
+        navigate('/areas') // Asegúrate que esta ruta sea correcta
       }, 2000)
     } catch (error) {
-      console.error("Error al registrar área:", error)
+      console.error("Error al registrar área vía API:", error)
       setConnectionStatus({ 
-        message: "Error al registrar área en la base de datos", 
+        message: `Error al registrar área: ${error.message}`, 
         type: "error" 
       })
     } finally {

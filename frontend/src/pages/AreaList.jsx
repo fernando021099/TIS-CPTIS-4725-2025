@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Edit, Trash2, Plus, ChevronLeft, ChevronRight, Check, X, Search, Filter, ChevronDown, ChevronUp } from "lucide-react"
-import { supabase } from '../supabaseClient'
+import { api } from '../api/apiClient'; // Importar apiClient
 import LoadingSpinner from '../components/common/LoadingSpinner'
 
 const AreaList = () => {
@@ -14,42 +14,61 @@ const AreaList = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [showDeleteModal, setShowDeleteModal] = useState(null)
   const [connectionStatus, setConnectionStatus] = useState({ message: "", type: "" })
-  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' })
+  // Cambiar el estado inicial para ordenar por fecha descendente
+  const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' }) 
   const [showFilters, setShowFilters] = useState(false)
   const itemsPerPage = 8
 
   // ============== LLAMADA API: OBTENER ÁREAS ==============
   useEffect(() => {
+    console.log("AreaList: Montando componente y ejecutando fetchAreas..."); // Log al montar
     const fetchAreas = async () => {
       try {
+        setIsLoading(true); // Asegurar que isLoading sea true al inicio de la carga
+        setConnectionStatus({ message: "", type: "" }); // Limpiar estado previo
+        console.log("AreaList: Llamando a api.get('/areas')..."); // Log antes de la llamada
+        // Llamada con apiClient
+        const data = await api.get('/areas');
+        console.log("AreaList: Datos recibidos de la API:", data); // Log de datos crudos
+
+        // Supabase original (comentado)
+        /*
         const { data, error } = await supabase
           .from('area')
           .select('*')
         
         if (error) throw error
+        */
         
+        // Asumiendo que la API devuelve un array de objetos con la misma estructura
+        // que la tabla 'area' (id, nombre, categoria, costo, descripcion, estado, created_at)
         const formattedAreas = data.map(area => ({
           id: area.id,
-          name: area.nombre,
-          categoryLevel: area.nivel,
-          cost: area.costo || 50,
+          name: area.nombre, // Ajustar si los nombres de campo son diferentes
+          categoryLevel: area.categoria, // Ajustar si los nombres de campo son diferentes
+          cost: area.costo ?? 0, // Usar costo de la API, default a 0 si es null/undefined
           description: area.descripcion || "",
-          isActive: area.estado === 'ACTIVO',
-          createdAt: area.created_at || new Date().toISOString()
+          isActive: area.estado === 'activo', // Ajustar si el valor de estado es diferente ('activo' vs 'ACTIVO')
+          // Asegúrate que la API devuelve 'created_at' o un campo similar.
+          // Si no, el ordenamiento por fecha no funcionará.
+          // Usamos 'id' como fallback si no hay fecha, asumiendo que IDs mayores son más recientes.
+          createdAt: area.created_at || area.id 
         }))
+        console.log("AreaList: Datos formateados:", formattedAreas); // Log de datos formateados
         
         setAreas(formattedAreas)
-        setConnectionStatus({ message: "Conexión exitosa", type: "success" })
+        setConnectionStatus({ message: "Datos cargados desde la API", type: "success" }) // Mensaje actualizado
       } catch (error) {
-        console.error("Error cargando áreas:", error)
-        setConnectionStatus({ message: "Error al obtener datos", type: "error" })
+        console.error("Error cargando áreas desde API:", error)
+        setConnectionStatus({ message: `Error al obtener datos: ${error.message}`, type: "error" })
       } finally {
         setIsLoading(false)
+        console.log("AreaList: fetchAreas finalizado."); // Log al finalizar
       }
     }
     
     fetchAreas()
-  }, [])
+  }, []) // El array vacío significa que se ejecuta solo al montar
 
   // Ordenamiento
   const requestSort = (key) => {
@@ -61,14 +80,18 @@ const AreaList = () => {
   }
 
   const sortedAreas = [...areas].sort((a, b) => {
-    if (a[sortConfig.key] < b[sortConfig.key]) {
-      return sortConfig.direction === 'asc' ? -1 : 1
+    // Manejar comparación de fechas/números/strings
+    const valA = a[sortConfig.key];
+    const valB = b[sortConfig.key];
+
+    if (valA < valB) {
+      return sortConfig.direction === 'asc' ? -1 : 1;
     }
-    if (a[sortConfig.key] > b[sortConfig.key]) {
-      return sortConfig.direction === 'asc' ? 1 : -1
+    if (valA > valB) {
+      return sortConfig.direction === 'asc' ? 1 : -1;
     }
-    return 0
-  })
+    return 0;
+  });
 
   // Filtrado combinado
   const filteredAreas = sortedAreas.filter(area => {
@@ -100,15 +123,23 @@ const AreaList = () => {
   const toggleAreaStatus = async (id) => {
     try {
       const areaToUpdate = areas.find(area => area.id === id)
-      const newStatus = areaToUpdate.isActive ? 'INACTIVO' : 'ACTIVO'
+      // Ajustar el valor del nuevo estado según lo que espere la API ('activo'/'inactivo')
+      const newStatus = areaToUpdate.isActive ? 'inactivo' : 'activo' 
       
+      // Llamada con apiClient (PATCH para actualizar parcialmente)
+      await api.patch(`/areas/${id}`, { estado: newStatus });
+
+      // Supabase original (comentado)
+      /*
       const { error } = await supabase
         .from('area')
-        .update({ estado: newStatus })
+        .update({ estado: newStatus === 'activo' ? 'ACTIVO' : 'INACTIVO' }) // Ajustar valor para Supabase
         .eq('id', id)
       
       if (error) throw error
+      */
       
+      // Actualizar estado local
       setAreas(areas.map(area => 
         area.id === id ? { ...area, isActive: !area.isActive } : area
       ))
@@ -118,9 +149,9 @@ const AreaList = () => {
         type: "success" 
       })
     } catch (error) {
-      console.error("Error cambiando estado:", error)
+      console.error("Error cambiando estado vía API:", error)
       setConnectionStatus({ 
-        message: `Error al actualizar (ID: ${id})`, 
+        message: `Error al actualizar (ID: ${id}): ${error.message}`, 
         type: "error" 
       })
     }
@@ -129,13 +160,20 @@ const AreaList = () => {
   // ============== LLAMADA API: ELIMINAR ÁREA ==============
   const handleDelete = async (id) => {
     try {
+      // Llamada con apiClient
+      await api.delete(`/areas/${id}`);
+
+      // Supabase original (comentado)
+      /*
       const { error } = await supabase
         .from('area')
         .delete()
         .eq('id', id)
       
       if (error) throw error
+      */
       
+      // Actualizar estado local
       setAreas(areas.filter(area => area.id !== id))
       setShowDeleteModal(null)
       
@@ -144,11 +182,13 @@ const AreaList = () => {
         type: "success" 
       })
     } catch (error) {
-      console.error("Error eliminando área:", error)
+      console.error("Error eliminando área vía API:", error)
       setConnectionStatus({ 
-        message: `Error al eliminar (ID: ${id})`, 
+        message: `Error al eliminar (ID: ${id}): ${error.message}`, 
         type: "error" 
       })
+      // Considerar no cerrar el modal si hay error
+      // setShowDeleteModal(null); 
     }
   }
 
@@ -300,8 +340,9 @@ const AreaList = () => {
                     sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4 inline ml-1" /> : <ChevronDown className="h-4 w-4 inline ml-1" />
                   )}
                 </button>
+                {/* Cambiar el key a 'createdAt' para el botón de Fecha */}
                 <button
-                  onClick={() => requestSort('createdAt')}
+                  onClick={() => requestSort('createdAt')} 
                   className={`px-3 py-1 text-sm rounded-md ${
                     sortConfig.key === 'createdAt' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'bg-gray-100 dark:bg-gray-700'
                   }`}

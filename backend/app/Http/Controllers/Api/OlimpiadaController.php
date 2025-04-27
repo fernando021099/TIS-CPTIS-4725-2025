@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log; // Para logs si es necesario
 use Illuminate\Validation\Rule; // Para reglas de validación
+use Illuminate\Validation\ValidationException;
 
 class OlimpiadaController extends Controller
 {
@@ -61,19 +62,24 @@ class OlimpiadaController extends Controller
      */
     public function update(Request $request, $version) // Cambiado para aceptar 'version'
     {
-         $validatedData = $request->validate([
-            // No validamos 'version' aquí porque no debería cambiar
-            'nombre' => 'sometimes|required|string|max:50', // 'sometimes' significa que solo valida si está presente
-            'fecha' => 'sometimes|required|date_format:Y-m-d',
-            'estado' => 'sometimes|required|string|max:50',
-        ]);
-
         try {
             $olimpiada = Olimpiada::findOrFail($version);
+
+            $validatedData = $request->validate([
+                // No validamos 'version' aquí porque no debería cambiar
+                'nombre' => 'sometimes|required|string|max:50', // 'sometimes' significa que solo valida si está presente
+                'fecha' => 'sometimes|required|date_format:Y-m-d',
+                'estado' => 'sometimes|required|string|max:50', // Puedes usar Rule::in(...)
+            ]);
+
             $olimpiada->update($validatedData);
             return response()->json($olimpiada);
+
         } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Olimpiada no encontrada'], 404);
+        } catch (ValidationException $e) {
+            Log::warning('Error de validación al actualizar olimpiada: ', $e->errors());
+            throw $e; // Relanzar para que Laravel maneje la respuesta
         } catch (\Exception $e) {
             Log::error('Error updating olimpiada: '.$e->getMessage());
             return response()->json(['message' => 'Error al actualizar la olimpiada'], 500);
@@ -88,16 +94,16 @@ class OlimpiadaController extends Controller
         try {
             $olimpiada = Olimpiada::findOrFail($version);
             $olimpiada->delete();
-            // Considerar el ON DELETE CASCADE en la tabla 'inscripción'
+            // ON DELETE CASCADE en 'inscripción' debería manejar las inscripciones asociadas
             return response()->json(null, 204); // 204 No Content
         } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Olimpiada no encontrada'], 404);
         } catch (\Exception $e) {
-            // Podría fallar si hay restricciones de FK no manejadas por CASCADE
+            // Podría fallar si ON DELETE CASCADE no está configurado o falla
             Log::error('Error deleting olimpiada: '.$e->getMessage());
-             // Verificar si el error es por restricción de FK
+            // Verificar si el error es por restricción de FK (si CASCADE no está activo)
             if (str_contains($e->getMessage(), 'violates foreign key constraint')) {
-                 return response()->json(['message' => 'No se puede eliminar la olimpiada porque tiene inscripciones asociadas.'], 409); // 409 Conflict
+                 return response()->json(['message' => 'No se puede eliminar la olimpiada porque tiene registros relacionados.'], 409); // 409 Conflict
             }
             return response()->json(['message' => 'Error al eliminar la olimpiada'], 500);
         }

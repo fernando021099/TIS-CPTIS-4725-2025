@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { X, Check, ArrowLeft, Upload, Download, Plus, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ExcelJS from 'exceljs';
+import { api } from '../api/apiClient'; // Importar apiClient
 
 const StudentGroupRegistration = () => {
   const navigate = useNavigate();
@@ -55,7 +56,7 @@ const StudentGroupRegistration = () => {
     "Santa Cruz": ["Andrés Ibáñez", "Warnes", "Velasco", "Ichilo", "Chiquitos", "Sara", "Cordillera", "Vallegrande", "Florida", "Obispo Santistevan", "Ñuflo de Chávez", "Ángel Sandoval"],
   };
 
-  const areaOptions = [
+  const areaOptions = [ // Mantener como referencia o fallback
     "ASTRONOMÍA - ASTROFÍSICA",
     "BIOLOGÍA",
     "FÍSICA",
@@ -65,7 +66,7 @@ const StudentGroupRegistration = () => {
     "ROBÓTICA"
   ];
 
-  const areaToCategories = {
+  const areaToCategories = { // Mantener como referencia o fallback
     "ASTRONOMÍA - ASTROFÍSICA": ["3P", "4P", "5P", "6P", "1S", "2S", "3S", "4S", "5S", "6S"],
     "BIOLOGÍA": ["2S", "3S", "4S", "5S", "6S"],
     "FÍSICA": ["4S", "5S", "6S"],
@@ -488,76 +489,137 @@ const StudentGroupRegistration = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Asegurarse que la sección 1 (tutor) esté validada si se avanza desde ahí
+    if (!completedSections.includes(1) && !validateSection(1)) return; 
+    
     setUiState(prev => ({ ...prev, isSubmitting: true }));
+    setExcelErrors([]); // Limpiar errores previos
     
     try {
       let validationErrors = [];
-      let studentsToSubmit = [];
+      let studentsDataForApi = [];
       
+      // 1. Validar datos de estudiantes según el método
       if (registrationMethod === "form") {
         validationErrors = validateAllStudents();
-        studentsToSubmit = students.map(student => ({
-          lastName: student.lastName,
-          firstName: student.firstName,
-          ci: student.ci,
-          birthDate: student.birthDate,
-          school: student.school,
-          grade: student.grade,
-          department: student.department,
-          province: student.province,
-          areas: student.areas,
-          categories: student.categories
-        }));
+        if (validationErrors.length === 0) {
+          studentsDataForApi = students.map(student => ({
+            // Mapear a la estructura esperada por la API de inscripción individual
+            // (Asumiendo que el endpoint grupal acepta un array de estas estructuras)
+            estudiante: {
+              nombres: student.firstName,
+              apellidos: student.lastName,
+              ci: student.ci,
+              fecha_nacimiento: student.birthDate,
+            },
+            colegio: {
+              nombre: student.school,
+              departamento: student.department,
+              provincia: student.province,
+              // Podrías necesitar buscar o crear el colegio en el backend
+            },
+            // area1_id y area2_id necesitarían buscarse en el backend
+            // basado en student.areas y student.categories
+            // Esto es complejo de hacer aquí, el backend debería manejarlo
+            // Enviamos los nombres por ahora para que el backend los procese
+            area1_nombre: student.areas[0] || null,
+            area1_categoria: student.categories[student.areas[0]] || null,
+            area2_nombre: student.areas[1] || null,
+            area2_categoria: student.categories[student.areas[1]] || null,
+            // Asumir que la olimpiada se define en el backend o se pasa de otra forma
+            // olimpiada_version: ??? 
+          }));
+        }
       } else if (registrationMethod === "excel") {
         if (!excelData) {
-          throw new Error("No se ha cargado ningún archivo Excel");
+          throw new Error("No se ha cargado o validado ningún archivo Excel");
         }
-        validationErrors = validateExcelData(excelData);
-        studentsToSubmit = excelData.map(row => ({
-          lastName: row.Apellidos,
-          firstName: row.Nombres,
-          ci: row.CI,
-          school: row.Colegio,
-          grade: row.Curso,
-          department: row.Departamento,
-          province: row.Provincia,
-          areas: row.Áreas.split(',').map(a => a.trim()),
-          categories: {}
-        }));
+        // La validación ya se hizo al cargar, pero podemos re-validar si es necesario
+        validationErrors = validateExcelData(excelData); 
+        if (validationErrors.length === 0) {
+           studentsDataForApi = excelData.map(row => ({
+            estudiante: {
+              nombres: row.Nombres,
+              apellidos: row.Apellidos,
+              ci: row.CI,
+              fecha_nacimiento: null, // Excel no tiene fecha de nacimiento
+            },
+            colegio: {
+              nombre: row.Colegio,
+              departamento: row.Departamento,
+              provincia: row.Provincia,
+            },
+            // Similar al caso del formulario, enviar nombres para procesamiento backend
+            area1_nombre: row.Áreas.split(',').map(a => a.trim())[0] || null,
+            area1_categoria: null, // Excel no tiene categorías
+            area2_nombre: row.Áreas.split(',').map(a => a.trim())[1] || null,
+            area2_categoria: null,
+           }));
+        }
+      } else {
+         throw new Error("Método de registro no seleccionado");
       }
       
+      // 2. Si hay errores de validación, mostrarlos
       if (validationErrors.length > 0) {
-        setExcelErrors(validationErrors);
+        setExcelErrors(validationErrors); // Usar el estado excelErrors para mostrar
         setUiState(prev => ({ 
           ...prev, 
           isSubmitting: false,
-          showErrorsModal: true
+          showErrorsModal: true // Mostrar modal de errores
         }));
-        return;
+        return; // Detener el envío
       }
       
+      // 3. Preparar payload para la API
+      const payload = {
+        contacto_tutor: { // Datos del tutor
+          nombre: tutorData.name,
+          email: tutorData.email,
+          celular: tutorData.phone,
+          // relacion: 'Tutor Grupal' // Podrías añadir un campo para identificar
+        },
+        inscripciones: studentsDataForApi // Array de datos de estudiantes
+        // Podrías necesitar enviar la versión de la olimpiada aquí también
+        // olimpiada_version: ??? 
+      };
+
+      // 4. Enviar a la API (Endpoint hipotético: /inscripciones/grupo)
+      // >>>>> LLAMADA API REAL <<<<<
+      const responseData = await api.post('/inscripciones/grupo', payload);
+
+      // >>>>> LÓGICA MOCK (COMENTADA) <<<<<
+      /*
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const mockPaymentData = {
-        registrationId: "GRP-" + Math.random().toString(36).substr(2, 8).toUpperCase(),
-        amount: studentsToSubmit.length * 15,
+      const mockPaymentData = { ... }; // Datos mock existentes
+      */
+
+      // 5. Procesar respuesta de la API y mostrar modal de pago/éxito
+      // Asumiendo que la API devuelve algo similar a mockPaymentData
+      const paymentInfo = {
+        registrationId: responseData.registro_grupal_id || "GRP-" + Date.now(), // Usar ID de la API si existe
+        amount: responseData.monto_total || studentsDataForApi.length * 15, // Usar monto de la API
         tutorName: tutorData.name,
-        studentCount: studentsToSubmit.length,
-        paymentDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-        paymentCode: "PAGO-" + Math.random().toString(36).substr(2, 6).toUpperCase()
+        studentCount: responseData.cantidad_estudiantes || studentsDataForApi.length, // Usar cantidad de la API
+        paymentDeadline: responseData.fecha_limite_pago ? new Date(responseData.fecha_limite_pago) : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // Usar fecha de la API
+        paymentCode: responseData.codigo_pago || "PAGO-" + Math.random().toString(36).substr(2, 6).toUpperCase() // Usar código de la API
       };
       
       setUiState(prev => ({ 
         ...prev, 
         showPaymentModal: true,
-        paymentData: mockPaymentData,
+        paymentData: paymentInfo, // Usar datos procesados de la API
         isSubmitting: false
       }));
       
     } catch (error) {
-      console.error("Error al enviar postulación:", error);
-      setErrors(prev => ({ ...prev, form: error.message }));
+      console.error("Error al enviar postulación grupal:", error);
+      // Mostrar error genérico o específico de la API
+      setErrors(prev => ({ ...prev, form: `Error al enviar: ${error.message}` }));
       setUiState(prev => ({ ...prev, isSubmitting: false }));
+      // Podrías mostrar el modal de errores también para errores de API
+      // setExcelErrors([{ message: `Error de API: ${error.message}` }]);
+      // setUiState(prev => ({ ...prev, showErrorsModal: true }));
     }
   };
 
@@ -1045,6 +1107,7 @@ const StudentGroupRegistration = () => {
             </div>
           </div>
         ))}
+
       </div>
       
       <div className="flex justify-between items-center">

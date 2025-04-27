@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Colegio; // Importa el modelo Colegio
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Log;
 
 class ColegioController extends Controller
 {
@@ -24,14 +27,29 @@ class ColegioController extends Controller
      */
     public function store(Request $request)
     {
-        // Lógica para guardar un nuevo colegio (se implementará después si es necesario)
-        return response()->json(['message' => 'Store method not implemented yet'], 501);
+        try {
+            $validatedData = $request->validate([
+                'nombre' => 'required|string|max:150',
+                'departamento' => 'required|string|max:100',
+                'provincia' => 'required|string|max:100',
+            ]);
+
+            $colegio = Colegio::create($validatedData);
+            return response()->json($colegio, 201);
+
+        } catch (ValidationException $e) {
+            Log::warning('Error de validación al crear colegio: ', $e->errors());
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Error interno al crear colegio: ' . $e->getMessage());
+            return response()->json(['message' => 'Error interno al crear el colegio.'], 500);
+        }
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Colegio $colegio) // El tipo debe ser Colegio
+    public function show(Colegio $colegio) // Usa Route Model Binding
     {
         // Devuelve el colegio específico encontrado por Route Model Binding
         return response()->json($colegio);
@@ -40,18 +58,43 @@ class ColegioController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Colegio $colegio) // El tipo debe ser Colegio
+    public function update(Request $request, Colegio $colegio) // Usa Route Model Binding
     {
-        // Lógica para actualizar un colegio (se implementará después si es necesario)
-        return response()->json(['message' => 'Update method not implemented yet'], 501);
+        try {
+            $validatedData = $request->validate([
+                'nombre' => 'sometimes|required|string|max:150',
+                'departamento' => 'sometimes|required|string|max:100',
+                'provincia' => 'sometimes|required|string|max:100',
+            ]);
+
+            $colegio->update($validatedData);
+            return response()->json($colegio);
+
+        } catch (ValidationException $e) {
+            Log::warning('Error de validación al actualizar colegio: ', $e->errors());
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Error interno al actualizar colegio: ' . $e->getMessage());
+            return response()->json(['message' => 'Error interno al actualizar el colegio.'], 500);
+        }
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Colegio $colegio) // El tipo debe ser Colegio
+    public function destroy(Colegio $colegio) // Usa Route Model Binding
     {
-        // Lógica para eliminar un colegio (se implementará después si es necesario)
-        return response()->json(['message' => 'Destroy method not implemented yet'], 501);
+        try {
+            $colegio->delete();
+            // ON DELETE SET NULL en 'inscripción' debería poner colegio_id a NULL
+            return response()->json(null, 204);
+        } catch (\Exception $e) {
+            Log::error('Error deleting colegio: '.$e->getMessage());
+            if (str_contains($e->getMessage(), 'violates foreign key constraint')) {
+                 // Esto no debería pasar si está SET NULL, pero por si acaso
+                 return response()->json(['message' => 'No se puede eliminar el colegio porque tiene registros relacionados.'], 409);
+            }
+            return response()->json(['message' => 'Error al eliminar el colegio'], 500);
+        }
     }
 }

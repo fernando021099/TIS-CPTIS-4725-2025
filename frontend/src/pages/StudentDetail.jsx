@@ -2,18 +2,19 @@ import { useState, useEffect } from 'react';
 import { Check, X, FileText, ArrowLeft, Save, RotateCw } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { api } from '../api/apiClient'; // Importar apiClient
 
 const StudentDetail = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
-  const [student, setStudent] = useState(null);
+  const { id } = useParams(); // ID de la inscripción
+  const [inscription, setInscription] = useState(null); // Cambiado de student a inscription
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [tempStatus, setTempStatus] = useState('');
-  const [tempReason, setTempReason] = useState('');
+  const [tempReason, setTempReason] = useState(''); // Motivo de rechazo
   const [saving, setSaving] = useState(false);
 
-  // Mock data that matches StudentsApprovedList
+  // Datos Mock (para referencia futura)
   const mockStudents = [
     {
       id: 1,
@@ -70,108 +71,108 @@ const StudentDetail = () => {
   ];
 
   // ==============================================
-  // API CALL: Get single student
+  // LLAMADA API: Obtener inscripción específica
   // ==============================================
   useEffect(() => {
-    const fetchStudent = async () => {
+    const fetchInscription = async () => {
       try {
         setLoading(true);
         
-        // >>>>> REPLACE WITH REAL API CALL <<<<<
-        /*
-        const response = await fetch(`https://your-api-endpoint.com/students/${id}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        // >>>>> LLAMADA API REAL <<<<<
+        // Asume que la API carga relaciones automáticamente o mediante parámetros
+        const data = await api.get(`/inscripciones/${id}?_relations=estudiante,contacto,colegio,area1,area2,olimpiada`); 
         
+        // >>>>> CÓDIGO API ANTERIOR (COMENTADO) <<<<<
+        /*
+        const response = await fetch(`https://your-api-endpoint.com/students/${id}`, { ... });
+        if (!response.ok) throw new Error(...);
         const data = await response.json();
         setStudent(data);
         setTempStatus(data.status);
         setTempReason(data.rejectionReason || '');
         */
         
-        // Mock data (development only)
+        // >>>>> LÓGICA MOCK (COMENTADA) <<<<<
+        /*
         await new Promise(resolve => setTimeout(resolve, 500));
         const foundStudent = mockStudents.find(s => s.id === Number(id));
-        
         if (!foundStudent) {
           throw new Error("Estudiante no encontrado");
         }
-        
-        setStudent(foundStudent);
+        setStudent(foundStudent); // Usaba setStudent
         setTempStatus(foundStudent.status);
         setTempReason(foundStudent.rejectionReason || '');
-        
+        */
+
+        // Actualizar estado con datos de la API
+        setInscription(data);
+        setTempStatus(data.estado); // Usar 'estado' de la API
+        // Asumir que la API devuelve 'motivo_rechazo' si existe
+        setTempReason(data.motivo_rechazo || ''); 
+
       } catch (error) {
-        console.error("Failed to fetch student:", error);
-        // >>>>> ADD ERROR HANDLING UI HERE <<<<<
-        // setError('Failed to load student data. Redirecting...');
-        navigate('/student-applications', { replace: true });
+        console.error("Error al obtener inscripción:", error);
+        // >>>>> MANEJO DE ERRORES UI AQUÍ <<<<<
+        // setError('Error al cargar datos. Redirigiendo...');
+        alert(`Error al cargar datos: ${error.message}`);
+        navigate('/student-applications', { replace: true }); // O a la ruta correcta
       } finally {
         setLoading(false);
       }
     };
     
-    fetchStudent();
+    fetchInscription();
   }, [id, navigate]);
 
   // ==============================================
-  // API CALL: Update student status
+  // LLAMADA API: Actualizar estado de inscripción
   // ==============================================
   const saveChanges = async () => {
-    if (!student) return;
+    if (!inscription) return;
     
     try {
       setSaving(true);
       
-      // >>>>> REPLACE WITH REAL API CALL <<<<<
-      /*
-      const response = await fetch(`https://your-api-endpoint.com/students/${id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          status: tempStatus,
-          rejectionReason: tempStatus === 'rejected' ? tempReason : ''
-        })
-      });
+      // >>>>> LLAMADA API REAL <<<<<
+      const updateData = {
+        estado: tempStatus,
+        // Incluir motivo solo si está rechazado y hay motivo
+        motivo_rechazo: tempStatus === 'rechazado' ? tempReason.trim() : null 
+      };
+      const updatedInscription = await api.patch(`/inscripciones/${id}`, updateData);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
+      // >>>>> CÓDIGO API ANTERIOR (COMENTADO) <<<<<
+      /*
+      const response = await fetch(`https://your-api-endpoint.com/students/${id}/status`, { ... });
+      if (!response.ok) throw new Error(...);
       const updatedStudent = await response.json();
-      setStudent(updatedStudent);
+      setStudent(updatedStudent); // Usaba setStudent
       */
       
-      // Mock update (development only)
+      // >>>>> LÓGICA MOCK (COMENTADA) <<<<<
+      /*
       await new Promise(resolve => setTimeout(resolve, 500));
       const updatedStudent = {
-        ...student,
+        ...student, // Usaba student
         status: tempStatus,
         rejectionReason: tempStatus === 'rejected' ? tempReason : '',
         lastUpdated: new Date().toISOString()
       };
+      setStudent(updatedStudent); // Usaba setStudent
+      */
       
-      setStudent(updatedStudent);
+      // Actualizar estado local con la respuesta de la API
+      setInscription(updatedInscription); 
       setEditing(false);
       
-      // Show success notification
-      alert(`Estado actualizado a: ${tempStatus === 'approved' ? 'Aprobado' : 'Rechazado'}`);
+      // Notificación de éxito
+      alert(`Estado actualizado a: ${tempStatus}`);
       
     } catch (error) {
-      console.error("Failed to update student:", error);
-      // >>>>> ADD ERROR HANDLING UI HERE <<<<<
-      // setError('Failed to update student. Please try again.');
+      console.error("Error al actualizar inscripción:", error);
+      // >>>>> MANEJO DE ERRORES UI AQUÍ <<<<<
+      // setError('Error al actualizar. Intente nuevamente.');
+      alert(`Error al actualizar: ${error.message}`);
     } finally {
       setSaving(false);
     }
@@ -181,15 +182,16 @@ const StudentDetail = () => {
     return <div className="flex justify-center items-center h-64"><LoadingSpinner size="lg" /></div>;
   }
 
-  if (!student) {
-    return null;
+  // Cambiar 'student' por 'inscription'
+  if (!inscription) { 
+    return null; // O mostrar mensaje de no encontrado
   }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
         <button 
-          onClick={() => navigate('/student-applications')} 
+          onClick={() => navigate('/student-applications')} // Ajustar ruta si es necesario
           className="flex items-center text-gray-600 hover:text-gray-800"
         >
           <ArrowLeft className="h-5 w-5 mr-1" /> Volver
@@ -198,37 +200,54 @@ const StudentDetail = () => {
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-medium mb-4">{student.studentName}</h2>
+        {/* Usar datos de la inscripción y sus relaciones */}
+        <h2 className="text-lg font-medium mb-4">
+          {inscription.estudiante?.nombres || 'N/A'} {inscription.estudiante?.apellidos || 'N/A'}
+        </h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
             <h3 className="font-medium mb-2">Información Básica</h3>
-            <p><span className="text-sm text-gray-500">CI:</span> {student.ci}</p>
-            <p><span className="text-sm text-gray-500">Área:</span> {student.area}</p>
-            <p><span className="text-sm text-gray-500">Última actualización:</span> {new Date(student.lastUpdated).toLocaleString()}</p>
+            <p><span className="text-sm text-gray-500">CI:</span> {inscription.estudiante?.ci || 'N/A'}</p>
+            <p><span className="text-sm text-gray-500">Área 1:</span> {inscription.area1?.nombre || 'N/A'} ({inscription.area1?.categoria || 'N/A'})</p>
+            {inscription.area2 && (
+              <p><span className="text-sm text-gray-500">Área 2:</span> {inscription.area2.nombre} ({inscription.area2.categoria})</p>
+            )}
+            <p><span className="text-sm text-gray-500">Olimpiada:</span> {inscription.olimpiada?.nombre || 'N/A'} ({inscription.olimpiada_version})</p>
+            {/* Asumiendo que la API devuelve updated_at o similar */}
+            {/* <p><span className="text-sm text-gray-500">Última actualización:</span> {inscription.updated_at ? new Date(inscription.updated_at).toLocaleString() : 'N/A'}</p> */}
+            <p><span className="text-sm text-gray-500">Colegio:</span> {inscription.colegio?.nombre || 'N/A'} ({inscription.colegio?.departamento || 'N/A'})</p>
+            <p><span className="text-sm text-gray-500">Contacto Tutor:</span> {inscription.contacto?.nombre || 'N/A'} ({inscription.contacto?.celular || 'N/A'})</p>
           </div>
           
           <div>
             <h3 className="font-medium mb-2">Estado</h3>
             {!editing ? (
               <>
-                {student.status === 'approved' ? (
+                {/* Comparar con los estados de la API ('pendiente', 'aprobado', 'rechazado', etc.) */}
+                {inscription.estado === 'aprobado' ? ( 
                   <div className="flex items-center text-green-600">
                     <Check className="h-5 w-5 mr-1" />
-                    <span>Aprobado - Pago verificado</span>
+                    <span>Aprobado</span> 
                   </div>
-                ) : (
+                ) : inscription.estado === 'rechazado' ? (
                   <div>
                     <div className="flex items-center text-red-600">
                       <X className="h-5 w-5 mr-1" />
                       <span>Rechazado</span>
                     </div>
-                    {student.rejectionReason && (
+                    {/* Usar motivo_rechazo de la API */}
+                    {inscription.motivo_rechazo && ( 
                       <div className="mt-2 p-2 bg-red-50 rounded">
-                        <p className="text-sm text-red-800">{student.rejectionReason}</p>
+                        <p className="text-sm text-red-800">{inscription.motivo_rechazo}</p>
                       </div>
                     )}
                   </div>
+                ) : ( // Otros estados como 'pendiente'
+                   <div className="flex items-center text-yellow-600">
+                     {/* Podrías añadir un icono para pendiente */}
+                     <span>{inscription.estado || 'Pendiente'}</span> {/* Mostrar estado actual */}
+                   </div>
                 )}
                 <button 
                   onClick={() => setEditing(true)}
@@ -246,12 +265,16 @@ const StudentDetail = () => {
                     onChange={(e) => setTempStatus(e.target.value)}
                     className="border rounded p-2 w-full"
                   >
-                    <option value="approved">Aprobado</option>
-                    <option value="rejected">Rechazado</option>
+                    {/* Ajustar opciones según los estados posibles en la API */}
+                    <option value="pendiente">Pendiente</option> 
+                    <option value="aprobado">Aprobado</option>
+                    <option value="rechazado">Rechazado</option>
+                    {/* Añadir otros estados si existen */}
                   </select>
                 </div>
                 
-                {tempStatus === 'rejected' && (
+                {/* Usar tempStatus === 'rechazado' */}
+                {tempStatus === 'rechazado' && ( 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Motivo de rechazo</label>
                     <textarea
@@ -260,7 +283,7 @@ const StudentDetail = () => {
                       className="border rounded p-2 w-full"
                       rows="3"
                       placeholder="Especificar el motivo..."
-                      required
+                      // required se maneja en la validación del botón
                     />
                   </div>
                 )}
@@ -268,7 +291,8 @@ const StudentDetail = () => {
                 <div className="flex space-x-2">
                   <button
                     onClick={saveChanges}
-                    disabled={saving || (tempStatus === 'rejected' && !tempReason.trim())}
+                    // Validar motivo si es rechazado
+                    disabled={saving || (tempStatus === 'rechazado' && !tempReason.trim())} 
                     className="flex items-center px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300"
                   >
                     {saving ? (
@@ -286,8 +310,8 @@ const StudentDetail = () => {
                   <button
                     onClick={() => {
                       setEditing(false);
-                      setTempStatus(student.status);
-                      setTempReason(student.rejectionReason || '');
+                      setTempStatus(inscription.estado); // Usar estado actual
+                      setTempReason(inscription.motivo_rechazo || ''); // Usar motivo actual
                     }}
                     className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded"
                   >
@@ -302,28 +326,33 @@ const StudentDetail = () => {
         <div className="border-t pt-4">
           <h3 className="font-medium mb-3">Comprobante de Pago</h3>
           
+          {/* Mostrar datos del comprobante si existen en la inscripción */}
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <p className="text-sm text-gray-500">Monto</p>
-              <p>{student.paymentAmount}</p>
+              <p className="text-sm text-gray-500">Código Comprobante</p>
+              <p>{inscription.codigo_comprobante || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Fecha</p>
-              <p>{student.paymentDate}</p>
+              <p className="text-sm text-gray-500">Fecha Registro</p>
+              {/* Usar 'fecha' de la inscripción */}
+              <p>{inscription.fecha ? new Date(inscription.fecha).toLocaleDateString() : 'N/A'}</p> 
             </div>
-            <div>
-              <p className="text-sm text-gray-500">Confianza OCR</p>
-              <p>{student.ocrConfidence}</p>
-            </div>
+            {/* Otros campos si la API los devuelve (Monto, Confianza OCR, etc.) */}
+            {/* <div><p className="text-sm text-gray-500">Monto</p><p>{inscription.monto_pago || 'N/A'}</p></div> */}
           </div>
           
-          <button
-            onClick={() => window.open(student.proofUrl, '_blank')}
-            className="flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
-          >
-            <FileText className="h-5 w-5 mr-2" />
-            Ver comprobante completo (PDF)
-          </button>
+          {/* Asumir que hay una URL para el comprobante, si no, mostrar mensaje */}
+          {inscription.url_comprobante ? ( // Cambiar 'url_comprobante' si la API usa otro nombre
+            <button
+              onClick={() => window.open(inscription.url_comprobante, '_blank')}
+              className="flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+            >
+              <FileText className="h-5 w-5 mr-2" />
+              Ver comprobante
+            </button>
+          ) : (
+            <p className="text-sm text-gray-500">No hay comprobante adjunto.</p>
+          )}
         </div>
       </div>
     </div>

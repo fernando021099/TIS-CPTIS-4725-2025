@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../supabaseClient";
+// import { supabase } from "../supabaseClient"; // Comentado: No se usa Supabase
+import { api } from '../api/apiClient'; // Importar apiClient
 import { Info } from "lucide-react";
 
 export default function HomePage() {
-  const [gestiones, setGestiones] = useState([]);
-  const [selectedGestion, setSelectedGestion] = useState("");
+  const [gestiones, setGestiones] = useState([]); // Olimpiadas
+  const [selectedGestion, setSelectedGestion] = useState(""); // selectedOlimpiadaVersion
   const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState({
     gestiones: true,
@@ -12,29 +13,43 @@ export default function HomePage() {
   });
   const [error, setError] = useState(null);
 
-  // Obtener gestiones al cargar el componente
+  // Obtener olimpiadas (gestiones) al cargar el componente
   useEffect(() => {
     const fetchGestiones = async () => {
       try {
         setLoading(prev => ({ ...prev, gestiones: true }));
         setError(null);
         
+        // Llamada con apiClient
+        const data = await api.get('/olimpiadas'); // Endpoint de olimpiadas
+        
+        // Supabase original (comentado)
+        /*
         const { data, error: supabaseError } = await supabase
           .from('gestion')
           .select('id, nombre, fecha_inicio, fecha_fin')
           .order('fecha_inicio', { ascending: false });
         
         if (supabaseError) throw supabaseError;
+        */
+
+        // Mapear datos de la API (version, nombre, fecha, estado)
+        const formattedGestiones = data.map(olimpiada => ({
+          id: olimpiada.version, // Usar 'version' como 'id'
+          nombre: olimpiada.nombre,
+          fecha_inicio: olimpiada.fecha, // Usar 'fecha' como 'fecha_inicio'
+          // fecha_fin no existe en la API, se puede omitir o calcular si es necesario
+        })).sort((a, b) => b.id - a.id); // Ordenar por versión descendente (más reciente primero)
         
-        setGestiones(data);
+        setGestiones(formattedGestiones);
         
-        // Seleccionar automáticamente la última gestión
-        if (data.length > 0) {
-          setSelectedGestion(data[0].id);
+        // Seleccionar automáticamente la última gestión (mayor versión)
+        if (formattedGestiones.length > 0) {
+          setSelectedGestion(formattedGestiones[0].id); // Seleccionar por 'version'
         }
       } catch (err) {
-        console.error("Error al cargar gestiones:", err);
-        setError("No se pudieron cargar las gestiones. Intente nuevamente.");
+        console.error("Error al cargar olimpiadas (gestiones) desde API:", err);
+        setError(`No se pudieron cargar las gestiones: ${err.message}`);
       } finally {
         setLoading(prev => ({ ...prev, gestiones: false }));
       }
@@ -43,15 +58,21 @@ export default function HomePage() {
     fetchGestiones();
   }, []);
 
-  // Obtener áreas cuando cambia la gestión seleccionada
+  // Obtener áreas (por ahora, todas las activas, sin filtrar por gestión/olimpiada)
   useEffect(() => {
-    if (!selectedGestion) return;
+    // Originalmente dependía de selectedGestion, ahora no para áreas
+    // if (!selectedGestion) return; 
 
     const fetchAreas = async () => {
       try {
         setLoading(prev => ({ ...prev, areas: true }));
         setError(null);
+
+        // Llamada con apiClient para obtener todas las áreas
+        const allAreasData = await api.get('/areas');
         
+        // Supabase original (comentado)
+        /*
         const { data, error: supabaseError } = await supabase
           .from('area_gestion')
           .select(`
@@ -60,22 +81,45 @@ export default function HomePage() {
             gestion:gestion_id (id, nombre)
           `)
           .eq('gestion_id', selectedGestion)
-          .eq('area.estado', 'ACTIVO')
+          .eq('area.estado', 'ACTIVO') // Supabase usaba 'ACTIVO'
           .order('area.nombre');
         
         if (supabaseError) throw supabaseError;
         
-        setAreas(data);
+        setAreas(data); // Supabase devolvía la estructura anidada
+        */
+
+        // Filtrar localmente las áreas activas y mapear a la estructura esperada
+        const activeAreas = allAreasData
+          .filter(area => area.estado === 'activo') // API usa 'activo'
+          .map(area => ({
+            // El componente espera una estructura anidada como la de Supabase
+            id: area.id, // ID del registro (podría ser el mismo que area.id si no hay tabla intermedia)
+            area: {
+              id: area.id,
+              nombre: area.nombre,
+              descripcion: area.descripcion,
+              costo: area.costo,
+              nivel: area.categoria, // API usa 'categoria', componente espera 'nivel'
+              estado: area.estado
+            }
+            // gestion no se incluye ya que no filtramos por ella
+          }))
+          .sort((a, b) => a.area.nombre.localeCompare(b.area.nombre)); // Ordenar por nombre
+
+        setAreas(activeAreas);
+
       } catch (err) {
-        console.error("Error al cargar áreas:", err);
-        setError("No se pudieron cargar las áreas. Intente nuevamente.");
+        console.error("Error al cargar áreas desde API:", err);
+        setError(`No se pudieron cargar las áreas: ${err.message}`);
       } finally {
         setLoading(prev => ({ ...prev, areas: false }));
       }
     };
 
     fetchAreas();
-  }, [selectedGestion]);
+    // Quitar selectedGestion de las dependencias ya que no se usa para filtrar áreas
+  }, []); 
 
   const handleGestionChange = (e) => {
     setSelectedGestion(e.target.value);
@@ -90,10 +134,10 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* Selector de Gestión */}
+      {/* Selector de Gestión (Olimpiada) */}
       <div className="max-w-md mx-auto mb-8">
         <label className="block text-sm font-medium mb-2">
-          Gestión Académica
+          Olimpiada (Gestión) {/* Texto actualizado */}
         </label>
         {loading.gestiones ? (
           <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
@@ -103,10 +147,10 @@ export default function HomePage() {
             onChange={handleGestionChange}
             className="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="">Seleccione una gestión</option>
+            <option value="">Seleccione una olimpiada</option> {/* Texto actualizado */}
             {gestiones.map((gestion) => (
               <option key={gestion.id} value={gestion.id}>
-                {gestion.nombre} ({new Date(gestion.fecha_inicio).getFullYear()})
+                {gestion.nombre} ({gestion.id}) {/* Mostrar versión */}
               </option>
             ))}
           </select>
@@ -142,7 +186,7 @@ export default function HomePage() {
             <div key={id} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
               <div className="p-4">
                 <h3 className="text-xl font-bold">{area.nombre}</h3>
-                <p className="text-sm text-gray-500 mb-2">Nivel: {area.nivel}</p>
+                <p className="text-sm text-gray-500 mb-2">Categoría: {area.nivel}</p>
                 <p className="text-sm text-gray-600 mb-4">
                   {area.descripcion || "Descripción no disponible"}
                 </p>
@@ -163,7 +207,7 @@ export default function HomePage() {
         ) : (
           <div className="col-span-full text-center py-12">
             <p className="text-gray-500">
-              No hay áreas disponibles para esta gestión
+              No hay áreas activas disponibles
             </p>
           </div>
         )}
