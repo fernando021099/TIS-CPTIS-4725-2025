@@ -41,9 +41,6 @@ class InscripcionController extends Controller
 
     /**
      * Store a newly created resource in storage.
-     * Este método asume que los datos relacionados (estudiante, contacto, colegio)
-     * ya existen o se crean/buscan aquí. Es una implementación básica.
-     * La inscripción grupal necesitará lógica diferente, posiblemente en otro método/controlador.
      */
     public function store(Request $request)
     {
@@ -51,7 +48,12 @@ class InscripcionController extends Controller
         DB::beginTransaction();
         try {
             // 1. Validar datos principales de inscripción y datos anidados
-            $validatedData = $request->validate([
+            
+            // Verificar primero si es ROBÓTICA para ajustar las reglas de validación
+            $isRobotica = $request->input('area1_nombre') === 'ROBÓTICA';
+            
+            // Reglas base para todos los casos
+            $rules = [
                 'estudiante' => 'required|array',
                 'estudiante.ci' => 'required|string|max:20', // Validar CI
                 'estudiante.correo' => 'required|string|email|max:100',
@@ -64,27 +66,36 @@ class InscripcionController extends Controller
                 'contacto.celular' => 'required|string|max:20',
                 'contacto.nombre' => 'required|string|max:100',
                 'contacto.correo' => 'required|string|email|max:100',
-                // 'contacto.relacion' => 'nullable|string|max:50', // Si se añade al modelo Contacto
 
                 'colegio' => 'required|array',
                 'colegio.nombre' => 'required|string|max:150',
                 'colegio.departamento' => 'required|string|max:100',
                 'colegio.provincia' => 'required|string|max:100',
 
-                // IDs o Nombres/Categorías para buscar las áreas
-                'area1_id' => 'nullable|integer|exists:area,id', // Si se envía ID directamente
-                'area2_id' => 'nullable|integer|exists:area,id', // Si se envía ID directamente
-                'area1_nombre' => 'required_without:area1_id|nullable|string|max:100', // Si se envía nombre
-                'area1_categoria' => 'required_with:area1_nombre|nullable|string|max:50', // Si se envía nombre
-                'area2_nombre' => 'required_without:area2_id|nullable|string|max:100', // Si se envía nombre
-                'area2_categoria' => 'required_with:area2_nombre|nullable|string|max:50', // Si se envía nombre
-
+                'area1_id' => 'nullable|integer|exists:area,id',
+                'area1_nombre' => 'required_without:area1_id|nullable|string|max:100',
+                'area1_categoria' => 'required_with:area1_nombre|nullable|string|max:50',
+                
                 'olimpiada_version' => 'required|integer|exists:olimpiada,version',
-                'estado' => 'required|string|in:pendiente,aprobado,rechazado', // Ajustar estados
+                'estado' => 'required|string|in:pendiente,aprobado,rechazado',
                 'codigo_comprobante' => 'nullable|string|max:20',
                 'fecha' => 'required|date_format:Y-m-d',
-                'motivo_rechazo' => 'nullable|string|max:255', // Añadido para update
-            ]);
+                'motivo_rechazo' => 'nullable|string|max:255',
+            ];
+            
+            // Ajustar reglas para área2 dependiendo de si es ROBÓTICA
+            if ($isRobotica) {
+                $rules['area2_id'] = 'nullable|integer|exists:area,id';
+                $rules['area2_nombre'] = 'nullable|string|max:100';
+                $rules['area2_categoria'] = 'nullable|string|max:50';
+            } else {
+                $rules['area2_id'] = 'nullable|integer|exists:area,id';
+                $rules['area2_nombre'] = 'required_without:area2_id|nullable|string|max:100';
+                $rules['area2_categoria'] = 'required_with:area2_nombre|nullable|string|max:50';
+            }
+            
+            $validatedData = $request->validate($rules);
+            
 
             // 2. Buscar o crear Estudiante (usando CI como clave única)
             $estudiante = Estudiante::updateOrCreate(

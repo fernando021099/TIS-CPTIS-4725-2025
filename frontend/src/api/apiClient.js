@@ -8,19 +8,24 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL;
  * @throws {Error} - Lanza un error si la respuesta no es ok (status code no es 2xx).
  */
 async function apiClient(endpoint, options = {}) {
-  const url = `${BASE_URL}${endpoint}`;
-  const defaultHeaders = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    // Puedes añadir otros headers por defecto aquí si son necesarios
-  };
-
+  // Comprobar si endpoint ya es una URL completa
+  const isFullUrl = endpoint.startsWith('http://') || endpoint.startsWith('https://');
+  
+  // URL base para la API (asegúrate de que termine sin barra)
+  // Modificamos para usar explícitamente la URL completa - ajusta este valor según tu configuración
+  const API_BASE_URL = 'http://127.0.0.1:8000/api';
+  
+  // Construir la URL completa
+  const url = isFullUrl ? endpoint : `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
+  
+  // Configuración por defecto
   const config = {
-    ...options,
+    method: 'GET',
     headers: {
-      ...defaultHeaders,
-      ...options.headers,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
     },
+    ...options,
   };
 
   // Si hay un body y es un objeto, lo convertimos a JSON string

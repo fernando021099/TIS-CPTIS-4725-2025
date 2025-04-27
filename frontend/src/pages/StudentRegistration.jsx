@@ -349,12 +349,16 @@ const StudentRegistration = () => {
         },
         area1_nombre: formData.areas[0] || null,
         area1_categoria: formData.categories[formData.areas[0]] || null,
-        area2_nombre: formData.areas[1] || null, 
-        area2_categoria: formData.categories[formData.areas[1]] || null, 
         olimpiada_version: 2024, 
         fecha: new Date().toISOString().split('T')[0], 
         estado: 'pendiente', 
       };
+      
+      // Solo incluir area2 si NO es ROBÓTICA
+      if (formData.areas[0] !== "ROBÓTICA" && formData.areas[1]) {
+        payload.area2_nombre = formData.areas[1];
+        payload.area2_categoria = formData.categories[formData.areas[1]] || null;
+      }
 
       console.log("Enviando payload:", JSON.stringify(payload, null, 2));
 
