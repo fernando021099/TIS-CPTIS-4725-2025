@@ -78,6 +78,22 @@ const StudentGroupRegistration = () => {
 
   const handleTutorChange = (e) => {
     const { name, value } = e.target;
+    
+    // Validación adicional para el nombre (solo letras y espacios)
+    if (name === "name") {
+      const onlyLetters = /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/;
+      if (value && !onlyLetters.test(value)) {
+        return; // No actualiza el estado si no son solo letras
+      }
+    }
+
+    // Validación adicional para el teléfono (solo números y máximo 8 dígitos)
+  if (name === "phone") {
+    const onlyNumbers = /^[0-9]*$/;
+    if (value && (!onlyNumbers.test(value) || value.length > 8)) {
+      return; // No actualiza el estado si no son solo números o tiene más de 8 dígitos
+    }
+  }
     setTutorData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
   };
@@ -172,6 +188,17 @@ const StudentGroupRegistration = () => {
       
       if (tutorData.phone && !/^[0-9+]+$/.test(tutorData.phone)) {
         newErrors.tutorPhone = "Teléfono inválido";
+        if (!tutorData.name) newErrors.tutorName = "Nombre del tutor requerido";
+        else if (!/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(tutorData.name)) {
+          newErrors.tutorName = "El nombre solo debe contener letras";
+        }
+
+        if (!tutorData.phone) newErrors.tutorPhone = "Teléfono del tutor requerido";
+        else if (!/^[0-9]{8}$/.test(tutorData.phone)) {
+          newErrors.tutorPhone = "El teléfono debe tener exactamente 8 dígitos";
+        }  
+        
+        
       }
     }
     
