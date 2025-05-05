@@ -127,12 +127,80 @@ export default function HomePage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto mb-12">
+  <h2 className="text-2xl font-bold mb-4">Noticias</h2>
+  <p className="mb-4">
+    Formulario de pre-inscripción abierto: <a href="#" className="text-blue-600 underline">AQUÍ</a>
+  </p>
+
+  <h2 className="text-xl font-bold mb-4">OLIMPIADA CIENTÍFICA NACIONAL SAN SIMÓN 2025</h2>
+
+  <h3 className="text-lg font-semibold mt-4 mb-2">Presentación</h3>
+  <p className="mb-4">
+    El Comité de la Olimpiadas Científica Nacional San Simón O! SANSI, a través de la Facultad de Ciencias y Tecnología de la Universidad Mayor de San Simón, convoca a los estudiantes del Sistema de Educación Regular a participar en las Olimpiadas O! SANSI 2025.
+  </p>
+
+  <h3 className="text-lg font-semibold mb-2">Participantes</h3>
+  <p className="mb-2">Estudiantes del Subsistema de Educación Regular del Estado Plurinacional de Bolivia; en las áreas de:</p>
+  <ul className="list-disc list-inside mb-4">
+    <li>Astronomía y Astrofísica – De tercero de primaria a 6to de secundaria</li>
+    <li>Biología – De segundo de secundaria a sexto de secundaria</li>
+    <li>Física – De cuarto a sexto de secundaria</li>
+    <li>Informática – De quinto de primaria a sexto de secundaria</li>
+    <li>Matemática – De primero a sexto de secundaria</li>
+    <li>Química – De segundo a sexto de secundaria</li>
+  </ul>
+
+  <h3 className="text-lg font-semibold mb-2">Requisitos</h3>
+  <ul className="list-disc list-inside mb-4">
+    <li>Ser estudiante de nivel primaria o secundaria en el sistema de Educación Regular del Estado Plurinacional de Bolivia.</li>
+    <li>Registrar un tutor o profesor.</li>
+    <li>Registrarse en el formulario de inscripción para el(las) área(s) que se postula.</li>
+    <li>Cumplir los requisitos específicos de la categoría de competencia en la que se inscribe.</li>
+    <li>Tener su documento de identificación personal vigente (cédula de identidad).</li>
+    <li>Contar con correo electrónico personal o del tutor.</li>
+  </ul>
+
+  <h3 className="text-lg font-semibold mb-2">Inscripción</h3>
+  <p className="mb-2">
+    Las pre-inscripciones se realizarán del <strong>15 de abril al 4 de mayo</strong>.
+  </p>
+  <p className="mb-2">
+    El costo de la inscripción por estudiante es de <strong>16 bolivianos (bs)</strong> por área y curso/categoría.
+  </p>
+  <p className="mb-4">
+    El <strong>5 de mayo hasta el 12 de mayo</strong> se abrirá el proceso de pago en línea para finalizar la inscripción.
+  </p>
+
+  <h3 className="text-lg font-semibold mb-2">Fechas importantes</h3>
+  <ul className="list-disc list-inside mb-4">
+    <li><strong>Etapa Clasificatoria:</strong> 31 de Mayo – Presencial en el Campus de la UMSS.</li>
+    <li><strong>Etapa Final:</strong> 11 de Julio – Presencial en el Campus de la UMSS.</li>
+  </ul>
+
+  <h3 className="text-lg font-semibold mb-2">Premios</h3>
+  <p className="mb-2">
+    Los resultados se publicarán el <strong>11 de Julio</strong> en <a href="http://ohsansi.umss.edu.bo/" className="text-blue-600 underline" target="_blank">la página web de O!SanSi</a>.
+  </p>
+  <p className="mb-2">
+    La premiación se realizará el mismo día a horas 15:00.
+  </p>
+  <ul className="list-disc list-inside mb-4">
+    <li>Los 5 primeros puestos nacionales recibirán diplomas de honor.</li>
+    <li>Los 3 primeros puestos de cada nivel recibirán medallas de Oro, Plata y Bronce.</li>
+    <li>Los profesores tutores de ganadores recibirán certificados.</li>
+    <li>Los ganadores de medallas de 6to de secundaria tendrán ingreso libre a la Facultad de Ciencias y Tecnología.</li>
+  </ul>
+</div>
+
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold mb-2">Áreas de Competencia</h1>
         <p className="text-gray-600">
           Seleccione una gestión para ver las áreas disponibles
         </p>
       </div>
+      {/* Noticias y Presentación */}
+
 
       {/* Selector de Gestión (Olimpiada) */}
       <div className="max-w-md mx-auto mb-8">
@@ -167,7 +235,7 @@ export default function HomePage() {
           </div>
         </div>
       )}
-
+    
       {/* Listado de Áreas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading.areas ? (
