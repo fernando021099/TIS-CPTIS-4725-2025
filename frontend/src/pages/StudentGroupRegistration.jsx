@@ -100,6 +100,23 @@ const StudentGroupRegistration = () => {
 
   const handleStudentChange = (id, e) => {
     const { name, value } = e.target;
+  
+    // Validación para campos de solo letras (nombres y apellidos)
+    if (name === 'firstName' || name === 'lastName') {
+      const onlyLetters = /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/;
+      if (value && !onlyLetters.test(value)) {
+        return; // No actualiza el estado si no son solo letras
+      }
+    }
+  
+    // Validación para CI (solo números y máximo 7 dígitos)
+    if (name === 'ci') {
+      const onlyNumbers = /^[0-9]*$/;
+      if (value && (!onlyNumbers.test(value) || value.length > 7)) {
+        return; // No actualiza el estado si no son solo números o tiene más de 7 dígitos
+      }
+    }
+  
     setStudents(prev => prev.map(student => 
       student.id === id ? { ...student, [name]: value } : student
     ));
@@ -212,9 +229,25 @@ const StudentGroupRegistration = () => {
     students.forEach((student, index) => {
       const studentErrors = {};
       
-      if (!student.lastName) studentErrors.lastName = "Apellidos requeridos";
-      if (!student.firstName) studentErrors.firstName = "Nombres requeridos";
-      if (!student.ci) studentErrors.ci = "CI requerido";
+      if (!student.lastName) {
+        studentErrors.lastName = "Apellidos requeridos";
+      } else if (!/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(student.lastName)) {
+        studentErrors.lastName = "Solo se permiten letras en los apellidos";
+      }
+      
+      if (!student.firstName) {
+        studentErrors.firstName = "Nombres requeridos";
+      } else if (!/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(student.firstName)) {
+        studentErrors.firstName = "Solo se permiten letras en los nombres";
+      }
+      
+      if (!student.ci) {
+        studentErrors.ci = "CI requerido";
+      } else if (!/^[0-9]{7}$/.test(student.ci)) {
+        studentErrors.ci = "El CI debe tener exactamente 7 dígitos";
+      }
+      
+      // Resto de las validaciones...
       if (!student.school) studentErrors.school = "Colegio requerido";
       if (!student.grade) studentErrors.grade = "Curso requerido";
       if (!student.department) studentErrors.department = "Departamento requerido";
@@ -247,7 +280,6 @@ const StudentGroupRegistration = () => {
     
     return errorsList;
   };
-  
 
   const validateExcelData = (data) => {
     const errorsList = [];
