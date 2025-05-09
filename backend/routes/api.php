@@ -24,7 +24,7 @@ Route::apiResource('inscripciones', InscripcionController::class);
 
 // Ruta específica para inscripción grupal
 Route::post('/inscripciones/grupo', [InscripcionController::class, 'storeGroup']);
-
+Route::post('/ocr', [OCRController::class, 'procesarImagen']);
 
 // Puedes añadir rutas personalizadas aquí si necesitas lógica más específica
 // Ejemplo: Obtener áreas activas
