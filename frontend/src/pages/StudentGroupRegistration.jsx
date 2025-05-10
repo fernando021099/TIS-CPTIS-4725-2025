@@ -330,8 +330,26 @@ const StudentGroupRegistration = () => {
     }
       
       // Validación de fecha de nacimiento (formato aproximado)
-      if (row['Fecha de Nacimiento'] && !/^\d{2}\/\d{2}\/\d{4}$/.test(row['Fecha de Nacimiento'])) {
-        rowErrors.birthDate = "Formato de fecha debe ser DD/MM/AAAA";
+      const birthDateValue = row['Fecha de Nacimiento'];
+      console.log(`Fila ${index + 2} - Valor Fecha de Nacimiento: '${birthDateValue}'`); // Para depuración
+
+      if (birthDateValue) {
+        // Expresión regular más tolerante a espacios alrededor de las barras
+        if (!/^\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{4}$/.test(birthDateValue)) {
+          rowErrors.birthDate = "Formato de fecha debe ser DD/MM/AAAA";
+        } else {
+          // Opcional: Validar que la fecha sea lógica (ej. día <= 31, mes <= 12)
+          const parts = birthDateValue.split('/');
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10);
+          // const year = parseInt(parts[2], 10); // Año ya validado por \d{4}
+          if (day < 1 || day > 31 || month < 1 || month > 12) {
+            rowErrors.birthDate = "Fecha inválida (día o mes fuera de rango)";
+          }
+        }
+      } else {
+        // Si es requerido y no está presente (ya cubierto por la validación de campos requeridos)
+        // rowErrors.birthDate = "Fecha de nacimiento requerida"; 
       }
       
       // Validación de áreas y niveles (el resto se mantiene igual)
@@ -418,7 +436,22 @@ const StudentGroupRegistration = () => {
         row.eachCell((cell, colNumber) => {
           const header = headers[colNumber - 1];
           if (header && requiredColumns.includes(header)) {
-            rowData[header] = cell.value?.toString().trim() || "";
+            // --- INICIO DE MODIFICACIÓN ---
+            if (header === 'Fecha de Nacimiento' && cell.value instanceof Date) {
+              const date = cell.value;
+              // Ajustar la fecha por la zona horaria si es necesario.
+              // ExcelJS podría devolver la fecha en UTC. Si la fecha en Excel es 15/05/2008
+              // y obtienes 14/05/2008 20:00:00 GMT-0400, significa que la fecha es correcta
+              // pero la conversión a string local la muestra un día antes debido a la zona horaria.
+              // Para obtener DD/MM/AAAA de la fecha tal como está en Excel (sin corrimiento por zona horaria local):
+              const day = date.getDate();
+              const month = date.getMonth() + 1; // Meses son 0-indexados
+              const year = date.getFullYear();
+              rowData[header] = `${day}/${month}/${year}`;
+            } else {
+              rowData[header] = cell.value?.toString().trim() || "";
+            }
+            // --- FIN DE MODIFICACIÓN ---
           }
         });
         
@@ -1454,7 +1487,7 @@ studentsDataForApi = excelData.map(row => {
       "Apellidos": "Perez",
       "Nombres": "Juan",
       "Ci_Competidor": "1234567|Regular", // Formato: CI|TipoCompetidor
-      "Fecha de Nacimiento": "15/05/2005",
+      "Fecha de Nacimiento": "15/05/2008",
       "Colegio": "Colegio Ejemplo",
       "Curso": "4to de secundaria",
       "Departamento": "Cochabamba",
