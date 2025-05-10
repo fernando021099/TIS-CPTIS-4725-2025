@@ -266,10 +266,9 @@ class InscripcionController extends Controller
                 'inscripciones.*.estudiante.ci' => 'required|string|max:20',
                 'inscripciones.*.estudiante.nombres' => 'required|string|max:100',
                 'inscripciones.*.estudiante.apellidos' => 'required|string|max:100',
-                // Añadir más validaciones de estudiante si vienen del excel/form
-                'inscripciones.*.estudiante.fecha_nacimiento' => 'nullable|date_format:Y-m-d',
-                'inscripciones.*.estudiante.curso' => 'nullable|string|max:50',
-                'inscripciones.*.estudiante.correo' => 'nullable|string|email|max:100',
+                'inscripciones.*.estudiante.fecha_nacimiento' => 'required|date_format:Y-m-d', // CAMBIADO a required
+                'inscripciones.*.estudiante.curso' => 'required|string|max:50', // CAMBIADO a required
+                'inscripciones.*.estudiante.correo' => 'required|string|email|max:100', // CAMBIADO a required
 
 
                 'inscripciones.*.colegio' => 'required|array',
@@ -302,11 +301,10 @@ class InscripcionController extends Controller
                  // Buscar o crear Estudiante
                 $estudiante = Estudiante::updateOrCreate(
                     ['ci' => $inscripcionData['estudiante']['ci']],
-                    // Completar datos faltantes si es necesario
-                    array_merge(
-                        ['correo' => $inscripcionData['estudiante']['correo'] ?? $inscripcionData['estudiante']['ci'].'@sin-correo.com'], // Correo por defecto si falta
-                        Arr::except($inscripcionData['estudiante'], ['ci', 'correo'])
-                    )
+                    // Ya no es necesario el array_merge para el correo por defecto,
+                    // porque ahora es 'required' en la validación.
+                    // Si 'correo' no viene, la validación fallará antes de llegar aquí.
+                    Arr::except($inscripcionData['estudiante'], ['ci'])
                 );
 
                 // Buscar o crear Colegio
@@ -384,7 +382,7 @@ class InscripcionController extends Controller
             return response()->json(['message' => 'Error de validación.', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error interno al crear inscripción grupal: ' . $e->getMessage());
+            Log::error('Error interno al crear inscripción grupal: ' . $e->getMessage() . ' Trace: ' . $e->getTraceAsString()); // Añadir Trace
             return response()->json(['message' => 'Error interno al procesar la inscripción grupal.'], 500);
         }
     }

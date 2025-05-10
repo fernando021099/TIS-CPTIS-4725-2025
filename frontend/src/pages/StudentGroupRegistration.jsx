@@ -24,6 +24,7 @@ const StudentGroupRegistration = () => {
       lastName: "",
       firstName: "",
       ci: "",
+      email: "", // <--- AÑADIR CAMPO EMAIL
       birthDate: "",
       school: "",
       grade: "",
@@ -112,8 +113,8 @@ const StudentGroupRegistration = () => {
     // Validación para CI (solo números y máximo 7 dígitos)
     if (name === 'ci') {
       const onlyNumbers = /^[0-9]*$/;
-      if (value && (!onlyNumbers.test(value) || value.length > 7)) {
-        return; // No actualiza el estado si no son solo números o tiene más de 7 dígitos
+      if (value && (!onlyNumbers.test(value) || value.length > 8)) { // Ajustado a 8 para CI + Extension si aplica, o mantener en 7 si es solo CI. Revisar requerimiento.
+        return; 
       }
     }
   
@@ -175,6 +176,7 @@ const StudentGroupRegistration = () => {
         lastName: "",
         firstName: "",
         ci: "",
+        email: "", // <--- AÑADIR CAMPO EMAIL
         birthDate: "",
         school: "",
         grade: "",
@@ -243,11 +245,18 @@ const StudentGroupRegistration = () => {
       
       if (!student.ci) {
         studentErrors.ci = "CI requerido";
-      } else if (!/^[0-9]{7}$/.test(student.ci)) {
-        studentErrors.ci = "El CI debe tener exactamente 7 dígitos";
+      } else if (!/^[0-9]{7,8}$/.test(student.ci)) { // Ajustado para permitir 7 u 8 dígitos. Revisar requerimiento.
+        studentErrors.ci = "El CI debe tener entre 7 y 8 dígitos";
+      }
+
+      if (!student.email) { // <--- VALIDACIÓN DE EMAIL
+        studentErrors.email = "Correo del estudiante requerido";
+      } else if (!/^\S+@\S+\.\S+$/.test(student.email)) {
+        studentErrors.email = "Correo electrónico inválido";
       }
       
       // Resto de las validaciones...
+      if (!student.birthDate) studentErrors.birthDate = "Fecha de nacimiento requerida"; // Asegurar que se valide
       if (!student.school) studentErrors.school = "Colegio requerido";
       if (!student.grade) studentErrors.grade = "Curso requerido";
       if (!student.department) studentErrors.department = "Departamento requerido";
@@ -335,7 +344,7 @@ const StudentGroupRegistration = () => {
 
       if (birthDateValue) {
         // Expresión regular más tolerante a espacios alrededor de las barras
-        if (!/^\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{4}$/.test(birthDateValue)) {
+        if (!/^\d{1,2}\s*\/\s*\d{1,2}\s*\/\d{4}$/.test(birthDateValue)) {
           rowErrors.birthDate = "Formato de fecha debe ser DD/MM/AAAA";
         } else {
           // Opcional: Validar que la fecha sea lógica (ej. día <= 31, mes <= 12)
@@ -606,6 +615,7 @@ const StudentGroupRegistration = () => {
     
     setUiState(prev => ({ ...prev, isSubmitting: true }));
     setExcelErrors([]); // Limpiar errores previos
+    setErrors({}); // Limpiar errores de formulario también
     
     try {
       let validationErrors = [];
@@ -622,7 +632,9 @@ const StudentGroupRegistration = () => {
               nombres: student.firstName,
               apellidos: student.lastName,
               ci: student.ci,
-              fecha_nacimiento: student.birthDate,
+              correo: student.email, // <--- CORREGIDO: 'email' a 'correo'
+              fecha_nacimiento: student.birthDate, // Asegurar que esté en AAAA-MM-DD
+              curso: student.grade, // <--- AÑADIR CURSO (mapeado desde grade)
             },
             colegio: {
               nombre: student.school,
@@ -634,9 +646,9 @@ const StudentGroupRegistration = () => {
             // basado en student.areas y student.categories
             // Esto es complejo de hacer aquí, el backend debería manejarlo
             // Enviamos los nombres por ahora para que el backend los procese
-            area1_nombre: student.areas[0] || null,
+            area1_nombre: student.areas[0] ? student.areas[0].toUpperCase() : null,
             area1_categoria: student.categories[student.areas[0]] || null,
-            area2_nombre: student.areas[1] || null,
+            area2_nombre: student.areas[1] ? student.areas[1].toUpperCase() : null,
             area2_categoria: student.categories[student.areas[1]] || null,
             // Asumir que la olimpiada se define en el backend o se pasa de otra forma
             // olimpiada_version: ??? 
@@ -650,30 +662,46 @@ const StudentGroupRegistration = () => {
         validationErrors = validateExcelData(excelData); 
         if (validationErrors.length === 0) {
            // En la función handleSubmit, donde se procesan los datos del Excel:
-studentsDataForApi = excelData.map(row => {
-  const [ci, competitorType] = row.Ci_Competidor.split('|').map(item => item.trim());
-  
-  return {
-    estudiante: {
-      nombres: row.Nombres,
-      apellidos: row.Apellidos,
-      ci: ci,
-      email: row.Correo,
-      fecha_nacimiento: row['Fecha de Nacimiento'],
-      tipo_competidor: competitorType
-    },
-    colegio: {
-      nombre: row.Colegio,
-      departamento: row.Departamento,
-      provincia: row.Provincia
-    },
-    area1_nombre: row['Area 1'],
-    area1_categoria: row['Nivel 1'],
-    area2_nombre: row['Area 2'] || null,
-    area2_categoria: row['Nivel 2'] || null
-  };
-});
-}
+            studentsDataForApi = excelData.map(row => {
+              const [ci, competitorType] = row.Ci_Competidor.split('|').map(item => item.trim());
+              
+              // Función auxiliar para convertir DD/MM/AAAA o D/M/AAAA a AAAA-MM-DD
+              const formatDateToYMD = (dateString) => {
+                if (!dateString) return null;
+                const parts = dateString.split('/');
+                if (parts.length !== 3) return null; // Formato inválido
+                // Asegurar dos dígitos para día y mes
+                const day = parts[0].padStart(2, '0');
+                const month = parts[1].padStart(2, '0');
+                const year = parts[2];
+                return `${year}-${month}-${day}`;
+              };
+
+              return {
+                estudiante: {
+                  nombres: row.Nombres,
+                  apellidos: row.Apellidos,
+                  ci: ci,
+                  correo: row.Correo, // <--- CORREGIDO: 'email' (implícito) a 'correo'
+                  fecha_nacimiento: formatDateToYMD(row['Fecha de Nacimiento']), // <--- FECHA FORMATEADA
+                  // tipo_competidor: competitorType // Este campo no está en el backend para estudiante
+                  // Si necesitas enviar 'tipo_competidor', asegúrate que el backend lo espere
+                  // y que la tabla 'estudiante' tenga una columna para ello.
+                  // Por ahora, lo omitimos para que coincida con la estructura esperada.
+                  curso: row.Curso // Asegúrate que este campo se mapee si es necesario
+                },
+                colegio: {
+                  nombre: row.Colegio,
+                  departamento: row.Departamento,
+                  provincia: row.Provincia
+                },
+                area1_nombre: row['Area 1'] ? row['Area 1'].toUpperCase() : null,
+                area1_categoria: row['Nivel 1'],
+                area2_nombre: row['Area 2'] ? row['Area 2'].toUpperCase() : null,
+                area2_categoria: row['Nivel 2'] || null
+              };
+            });
+        }
       } else {
          throw new Error("Método de registro no seleccionado");
       }
@@ -693,13 +721,13 @@ studentsDataForApi = excelData.map(row => {
       const payload = {
         contacto_tutor: { // Datos del tutor
           nombre: tutorData.name,
-          email: tutorData.email,
+          correo: tutorData.email, // <--- CAMBIADO DE 'email' A 'correo'
           celular: tutorData.phone,
           // relacion: 'Tutor Grupal' // Podrías añadir un campo para identificar
         },
-        inscripciones: studentsDataForApi // Array de datos de estudiantes
-        // Podrías necesitar enviar la versión de la olimpiada aquí también
-        // olimpiada_version: ??? 
+        inscripciones: studentsDataForApi, // Array de datos de estudiantes
+        olimpiada_version: 2024 // <--- AÑADIR VERSIÓN DE OLIMPIADA AQUÍ (ej. 2024)
+        // Si necesitas que sea dinámico, obtén este valor de un estado o API.
       };
 
       // 4. Enviar a la API (Endpoint hipotético: /inscripciones/grupo)
@@ -732,12 +760,64 @@ studentsDataForApi = excelData.map(row => {
       
     } catch (error) {
       console.error("Error al enviar postulación grupal:", error);
-      // Mostrar error genérico o específico de la API
-      setErrors(prev => ({ ...prev, form: `Error al enviar: ${error.message}` }));
-      setUiState(prev => ({ ...prev, isSubmitting: false }));
-      // Podrías mostrar el modal de errores también para errores de API
-      // setExcelErrors([{ message: `Error de API: ${error.message}` }]);
-      // setUiState(prev => ({ ...prev, showErrorsModal: true }));
+      let userDisplayMessage = "Error al enviar la postulación.";
+      const backendErrorsToShow = [];
+
+      if (error.status === 422 && error.data && error.data.errors) {
+        userDisplayMessage = error.data.message || "Error de validación. Revise los datos.";
+        const laravelErrors = error.data.errors;
+        
+        for (const key in laravelErrors) {
+          const messages = laravelErrors[key].join(', ');
+          const inscripcionMatch = key.match(/^inscripciones\.(\d+)\.(.+)$/); // inscripciones.INDEX.campo.subcampo
+          const tutorMatch = key.match(/^contacto_tutor\.(.+)$/); // contacto_tutor.campo
+
+          if (inscripcionMatch) {
+            const studentIndex = parseInt(inscripcionMatch[1], 10);
+            const fieldPath = inscripcionMatch[2]; // ej: "estudiante.ci" o "colegio.nombre"
+            
+            // Intentar encontrar el nombre del estudiante para dar más contexto
+            let studentNameHint = "";
+            if (registrationMethod === "form" && students[studentIndex]) {
+              studentNameHint = ` (${students[studentIndex].firstName} ${students[studentIndex].lastName})`;
+            } else if (registrationMethod === "excel" && excelData[studentIndex]) {
+              studentNameHint = ` (${excelData[studentIndex].Nombres} ${excelData[studentIndex].Apellidos})`;
+            }
+
+            backendErrorsToShow.push({
+              // Usamos 'message' para un formato más genérico en el modal si no es de excel
+              message: `Estudiante #${studentIndex + 1}${studentNameHint} - Campo '${fieldPath.replace(/\./g, ' -> ')}': ${messages}`
+            });
+          } else if (tutorMatch) {
+            const fieldPath = tutorMatch[1];
+            backendErrorsToShow.push({
+              message: `Tutor - Campo '${fieldPath}': ${messages}`
+            });
+          } else {
+            // Errores más generales o que no siguen el patrón esperado
+            backendErrorsToShow.push({ message: `${key.replace(/\./g, ' -> ')}: ${messages}` });
+          }
+        }
+        
+        if (backendErrorsToShow.length === 0) { // Si no se pudieron parsear errores específicos
+          backendErrorsToShow.push({ message: userDisplayMessage });
+        }
+
+      } else if (error.message) {
+        userDisplayMessage = error.message;
+        backendErrorsToShow.push({ message: userDisplayMessage });
+      } else {
+        backendErrorsToShow.push({ message: "Ocurrió un error desconocido." });
+      }
+      
+      console.log("Errores detallados para el modal:", backendErrorsToShow); // <--- AÑADIR ESTE CONSOLE.LOG
+      setExcelErrors(backendErrorsToShow); // Usamos excelErrors para el modal, aunque no sea de Excel
+      setUiState(prev => ({ 
+        ...prev, 
+        isSubmitting: false,
+        showErrorsModal: true 
+      }));
+      setErrors(prev => ({ ...prev, form: userDisplayMessage })); // Error general para el formulario
     }
   };
 
@@ -1076,6 +1156,23 @@ studentsDataForApi = excelData.map(row => {
                     errors[`student${index}_ci`] ? "border-red-500" : "border-gray-300"
                   }`}
                   placeholder="Número de CI"
+                />
+              </div>
+
+              {/* NUEVO CAMPO PARA EMAIL DEL ESTUDIANTE */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Correo Electrónico Estudiante <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={student.email}
+                  onChange={(e) => handleStudentChange(student.id, e)}
+                  className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    errors[`student${index}_email`] ? "border-red-500" : "border-gray-300"
+                  }`}
+                  placeholder="correo@estudiante.com"
                 />
               </div>
               
@@ -1593,17 +1690,29 @@ studentsDataForApi = excelData.map(row => {
             
             {excelErrors.map((error, i) => (
               <div key={i} className="mb-4 p-3 bg-red-50 rounded-md">
-                {registrationMethod === "excel" ? (
-                  <p className="font-medium">Fila {error.rowNumber}:</p>
+                {/* Si el error tiene una propiedad 'message', es un error formateado del backend o un error general */}
+                {error.message ? (
+                  <p className="font-medium">{error.message}</p>
                 ) : (
-                  <p className="font-medium">Estudiante #{error.studentIndex}:</p>
+                  // Si no, es un error de validación del frontend (formato original)
+                  <>
+                    {registrationMethod === "excel" && error.rowNumber ? (
+                      <p className="font-medium">Fila {error.rowNumber}:</p>
+                    ) : error.studentIndex ? (
+                      <p className="font-medium">Estudiante #{error.studentIndex}:</p>
+                    ) : (
+                      <p className="font-medium">Error:</p> 
+                    )}
+                    
+                    {error.errors && typeof error.errors === 'object' && (
+                      <ul className="list-disc pl-5 mt-1">
+                        {Object.entries(error.errors).map(([field, message]) => (
+                          <li key={field}>{message}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
                 )}
-                
-                <ul className="list-disc pl-5 mt-1">
-                  {Object.entries(error.errors).map(([field, message]) => (
-                    <li key={field}>{message}</li>
-                  ))}
-                </ul>
               </div>
             ))}
           </div>
