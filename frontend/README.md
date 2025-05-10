@@ -10,3 +10,27 @@ Currently, two official plugins are available:
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript and enable type-aware lint rules. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Configuración del Backend API
+
+1.  Asegúrate de que el backend de Laravel esté corriendo (normalmente en `http://127.0.0.1:8000`).
+2.  Crea un archivo `.env` en la raíz del proyecto `frontend` con la siguiente variable, apuntando a la URL base de tu API Laravel:
+    ```plaintext
+    VITE_API_BASE_URL=http://127.0.0.1:8000/api
+    ```
+3.  Asegúrate de que el archivo `.env` esté en tu `.gitignore`.
+4.  Usa la utilidad `api` exportada desde `src/api/apiClient.js` para interactuar con el backend.
+
+```javascript
+import { api } from './api/apiClient';
+
+// Ejemplo de uso:
+// async function fetchAreas() {
+//   try {
+//     const data = await api.get('/areas');
+//     console.log(data);
+//   } catch (error) {
+//     console.error("Error fetching areas:", error);
+//   }
+// }
+```
