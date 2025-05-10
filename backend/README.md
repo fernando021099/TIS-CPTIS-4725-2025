@@ -88,7 +88,7 @@ Backend API para la aplicación Olimpiadas UMSS, desarrollado con Laravel. Prove
 
 ### Probar la conexión
 
-Después de iniciar el servidor, visita http://localhost:8000/db-test para verificar la conexión a la base de datos.
+Después de iniciar el servidor, visita http://localhost:8000/ para verificar la conexión a la base de datos.
 
 ### Endpoints disponibles
 

@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [
     react(),
     nodePolyfills({
-      // Polyfills específicos para xlsx
+      // Polyfills específicos
       globals: {
         Buffer: true,
         process: true,
@@ -24,7 +24,7 @@ export default defineConfig({
     'process.env.NODE_DEBUG': JSON.stringify(''),
   },
   optimizeDeps: {
-    include: ['xlsx', 'xlsx-style'], // Agregado xlsx-style por si es necesario
+    include: ['exceljs'], // Actualizado para incluir solo exceljs o lo que realmente uses
     esbuildOptions: {
       define: {
         global: 'globalThis'
@@ -45,18 +45,16 @@ export default defineConfig({
   build: {
     commonjsOptions: {
       transformMixedEsModules: true,
-      // Añadido para mejor compatibilidad
-      exclude: ['xlsx-style'], // Excluir si causa problemas
+      // Eliminada la exclusión de xlsx-style
     },
     rollupOptions: {
       // Opcional: para manejar dependencias pesadas
-      external: ['fs'], // xlsx a veces intenta usar fs
+      external: ['fs'], 
     }
   },
   resolve: {
     alias: {
-      // Añadido para mejor compatibilidad
-      './cptable': 'xlsx/dist/cpexcel.js',
+      // Eliminado el alias para './cptable'
     }
   }
 })

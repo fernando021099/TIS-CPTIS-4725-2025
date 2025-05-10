@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\DB; // Import DB facade
 //     return view('welcome');
 // });
 
-// Puedes mantener esta ruta para pruebas o eliminarla si ya no es necesaria.
-Route::get('/db-test', function () {
+// La funcionalidad de prueba de base de datos ahora está en la ruta raíz.
+Route::get('/', function () {
     try {
         DB::connection()->getPdo();
         return 'Database connection successful! DB Name: ' . DB::connection()->getDatabaseName();
