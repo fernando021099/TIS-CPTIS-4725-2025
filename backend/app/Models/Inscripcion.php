@@ -9,7 +9,7 @@ class Inscripcion extends Model
 {
     use HasFactory;
 
-    protected $table = 'inscripción'; // Especifica el nombre de la tabla con acento
+    protected $table = 'inscripción'; // CONFIRMADO: debe ser 'inscripción' (singular, con tilde)
     public $timestamps = false; // Asume que no hay columnas created_at/updated_at (solo 'fecha')
 
     /**
@@ -43,6 +43,8 @@ class Inscripcion extends Model
      */
     public function estudiante()
     {
+        // La foreignKey es 'estudiante_id' en esta tabla ('inscripcion')
+        // La ownerKey es 'ci' en la tabla 'estudiante'
         return $this->belongsTo(Estudiante::class, 'estudiante_id', 'ci');
     }
 

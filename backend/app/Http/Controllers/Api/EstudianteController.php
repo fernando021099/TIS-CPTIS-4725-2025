@@ -29,7 +29,7 @@ class EstudianteController extends Controller
     {
         try {
             $validatedData = $request->validate([
-                'ci' => 'required|string|max:20|unique:estudiante,ci', // Clave primaria, única
+                'ci' => 'required|string|max:20|unique:estudiante,ci', // CI es la PK y debe ser única
                 'correo' => 'required|string|email|max:100',
                 'apellidos' => 'required|string|max:100',
                 'nombres' => 'required|string|max:100',
@@ -73,7 +73,7 @@ class EstudianteController extends Controller
             $estudiante = Estudiante::findOrFail($ci);
 
             $validatedData = $request->validate([
-                // 'ci' no se actualiza
+                // 'ci' (PK) no se actualiza generalmente. Si se permite, debe manejarse con cuidado.
                 'correo' => 'sometimes|required|string|email|max:100',
                 'apellidos' => 'sometimes|required|string|max:100',
                 'nombres' => 'sometimes|required|string|max:100',
@@ -108,7 +108,7 @@ class EstudianteController extends Controller
         } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Estudiante no encontrado'], 404);
         } catch (\Exception $e) {
-            Log::error('Error deleting estudiante: '.$e->getMessage());
+            Log::error('Error deleting estudiante: '.$e->getMessage() . ' Trace: ' . $e->getTraceAsString()); // Añadir Trace
             if (str_contains($e->getMessage(), 'violates foreign key constraint')) {
                  return response()->json(['message' => 'No se puede eliminar el estudiante porque tiene inscripciones asociadas.'], 409);
             }

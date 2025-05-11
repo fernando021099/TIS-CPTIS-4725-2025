@@ -53,12 +53,13 @@ CREATE TABLE inscripción (
     fecha DATE
 );
 
+
 ALTER TABLE olimpiada
 ALTER COLUMN fecha TYPE DATE
-USING fecha::date;
+USING TO_DATE(fecha, 'YYYY/MM/DD');
 
 INSERT INTO olimpiada (version, nombre, fecha,  estado) VALUES
-(2024, 'Oh! SanSi', '2025/06/09', 'habilitado');
+(2024, 'Oh! SanSi', '2025-06-09', 'habilitado');
 
 
 
@@ -116,7 +117,7 @@ http://127.0.0.1:8000/api/areas
 http://127.0.0.1:8000/api/estudiantes
 http://127.0.0.1:8000/api/contactos
 http://127.0.0.1:8000/api/colegios
-http://127.0.0.1:8000/api/inscripciones
+http://127.0.0.1:8000/api/inscripción
 
 --Limpia la caché por si acaso: 
 php artisan config:clear

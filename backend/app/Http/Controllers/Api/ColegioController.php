@@ -89,10 +89,10 @@ class ColegioController extends Controller
             // ON DELETE SET NULL en 'inscripción' debería poner colegio_id a NULL
             return response()->json(null, 204);
         } catch (\Exception $e) {
-            Log::error('Error deleting colegio: '.$e->getMessage());
+            Log::error('Error deleting colegio: '.$e->getMessage() . ' Trace: ' . $e->getTraceAsString()); // Añadir Trace
             if (str_contains($e->getMessage(), 'violates foreign key constraint')) {
                  // Esto no debería pasar si está SET NULL, pero por si acaso
-                 return response()->json(['message' => 'No se puede eliminar el colegio porque tiene registros relacionados.'], 409);
+                 return response()->json(['message' => 'No se puede eliminar el colegio porque tiene registros relacionados que no permiten SET NULL.'], 409);
             }
             return response()->json(['message' => 'Error al eliminar el colegio'], 500);
         }

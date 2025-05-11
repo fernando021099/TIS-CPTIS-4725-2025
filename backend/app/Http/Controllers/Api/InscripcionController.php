@@ -23,6 +23,8 @@ class InscripcionController extends Controller
      */
     public function index(Request $request) // Añadir Request para query params
     {
+        Log::info('Accediendo al método index de InscripcionController. Prueba de escritura en log.'); // LOG DE PRUEBA
+
         // Cargar relaciones si se solicitan vía query parameter ?_relations=...
         $query = Inscripcion::query();
         if ($request->has('_relations')) {
@@ -46,6 +48,7 @@ class InscripcionController extends Controller
     {
         // Iniciar transacción para asegurar atomicidad
         DB::beginTransaction();
+        Log::info('Inicio del método store en InscripcionController.'); // Log de prueba adicional
         try {
             // 1. Validar datos principales de inscripción y datos anidados
             
@@ -76,7 +79,7 @@ class InscripcionController extends Controller
                 'area1_nombre' => 'required_without:area1_id|nullable|string|max:100',
                 'area1_categoria' => 'required_with:area1_nombre|nullable|string|max:50',
                 
-                'olimpiada_version' => 'required|integer|exists:olimpiada,version',
+                'olimpiada_version' => 'required|integer|exists:olimpiada,version', // 'olimpiada' es correcto si esa tabla se llama así
                 'estado' => 'required|string|in:pendiente,aprobado,rechazado',
                 'codigo_comprobante' => 'nullable|string|max:20',
                 'fecha' => 'required|date_format:Y-m-d',
@@ -85,11 +88,11 @@ class InscripcionController extends Controller
             
             // Ajustar reglas para área2 dependiendo de si es ROBÓTICA
             if ($isRobotica) {
-                $rules['area2_id'] = 'nullable|integer|exists:area,id';
+                $rules['area2_id'] = 'nullable|integer|exists:area,id'; // 'area' es correcto si esa tabla se llama así
                 $rules['area2_nombre'] = 'nullable|string|max:100';
                 $rules['area2_categoria'] = 'nullable|string|max:50';
             } else {
-                $rules['area2_id'] = 'nullable|integer|exists:area,id';
+                $rules['area2_id'] = 'nullable|integer|exists:area,id'; // 'area' es correcto si esa tabla se llama así
                 $rules['area2_nombre'] = 'required_without:area2_id|nullable|string|max:100';
                 $rules['area2_categoria'] = 'required_with:area2_nombre|nullable|string|max:50';
             }
@@ -99,7 +102,7 @@ class InscripcionController extends Controller
 
             // 2. Buscar o crear Estudiante (usando CI como clave única)
             $estudiante = Estudiante::updateOrCreate(
-                ['ci' => $validatedData['estudiante']['ci']],
+                ['ci' => $validatedData['estudiante']['ci']], // Clave para buscar/crear es 'ci'
                 Arr::except($validatedData['estudiante'], ['ci']) // Datos a actualizar/crear
             );
 
@@ -141,7 +144,7 @@ class InscripcionController extends Controller
 
             // 6. Crear la Inscripción
             $inscripcion = Inscripcion::create([
-                'estudiante_id' => $estudiante->ci,
+                'estudiante_id' => $estudiante->ci, // Usar el CI del estudiante
                 'contacto_id' => $contacto->id,
                 'colegio_id' => $colegio->id,
                 'area1_id' => $area1_id,
@@ -154,6 +157,8 @@ class InscripcionController extends Controller
 
             // Confirmar transacción
             DB::commit();
+
+            Log::info('Inscripción creada con éxito en store.', ['inscripcion_id' => $inscripcion->id]); // Log de prueba adicional
 
             // Cargar relaciones para la respuesta
             $inscripcion->load(['estudiante', 'contacto', 'colegio', 'area1', 'area2', 'olimpiada']);
@@ -247,7 +252,7 @@ class InscripcionController extends Controller
 
      /**
      * Store multiple inscriptions (Group Registration).
-     * Endpoint: POST /inscripciones/grupo (necesita definir ruta en api.php)
+     * Endpoint: POST /inscripción/grupo (necesita definir ruta en api.php como 'inscripción/grupo')
      */
     public function storeGroup(Request $request)
     {
@@ -282,7 +287,7 @@ class InscripcionController extends Controller
                 'inscripciones.*.area2_categoria' => 'nullable|string|max:50',
 
                 // Asumir que la versión de olimpiada es la misma para todo el grupo
-                'olimpiada_version' => 'required|integer|exists:olimpiada,version',
+                'olimpiada_version' => 'required|integer|exists:olimpiada,version', // 'olimpiada' es correcto
             ]);
 
             // 2. Buscar o crear Contacto Tutor
@@ -295,15 +300,18 @@ class InscripcionController extends Controller
             $inscripcionesCreadas = [];
             $montoTotal = 0;
             $fechaHoy = now()->toDateString(); // Fecha actual
+            $olimpiadaVersion = $validatedData['olimpiada_version'];
+
+            // Generar un único código de pago para todo el grupo
+            $registroGrupalId = 'GRP-' . $contactoTutor->id . '-' . time();
+            $codigoPagoGrupo = 'PAGO-' . strtoupper(substr(md5($registroGrupalId . $olimpiadaVersion), 0, 8));
+
 
             // 3. Iterar y crear cada inscripción
             foreach ($validatedData['inscripciones'] as $inscripcionData) {
                  // Buscar o crear Estudiante
                 $estudiante = Estudiante::updateOrCreate(
-                    ['ci' => $inscripcionData['estudiante']['ci']],
-                    // Ya no es necesario el array_merge para el correo por defecto,
-                    // porque ahora es 'required' en la validación.
-                    // Si 'correo' no viene, la validación fallará antes de llegar aquí.
+                    ['ci' => $inscripcionData['estudiante']['ci']], // Clave para buscar/crear es 'ci'
                     Arr::except($inscripcionData['estudiante'], ['ci'])
                 );
 
@@ -337,15 +345,15 @@ class InscripcionController extends Controller
 
                 // Crear Inscripción
                 $inscripcion = Inscripcion::create([
-                    'estudiante_id' => $estudiante->ci,
+                    'estudiante_id' => $estudiante->ci, // Usar el CI del estudiante
                     'contacto_id' => $contactoTutor->id, // Usar ID del tutor grupal
                     'colegio_id' => $colegio->id,
                     'area1_id' => $area1_id,
                     'area2_id' => $area2_id,
-                    'olimpiada_version' => $validatedData['olimpiada_version'],
+                    'olimpiada_version' => $olimpiadaVersion, // Usar la versión validada
                     'estado' => 'pendiente', // Estado inicial
                     'fecha' => $fechaHoy,
-                    // 'codigo_comprobante' => null, // Se genera después?
+                    'codigo_pago' => $codigoPagoGrupo, // Asignar el código de pago del grupo
                 ]);
 
                 $inscripcionesCreadas[] = $inscripcion->id;
@@ -357,8 +365,8 @@ class InscripcionController extends Controller
             }
 
             // 4. Generar datos para la respuesta (similares al modal de pago)
-            $registroGrupalId = 'GRP-' . $contactoTutor->id . '-' . time(); // ID temporal
-            $codigoPago = 'PAGO-' . strtoupper(substr(md5($registroGrupalId), 0, 6));
+            // $registroGrupalId ya está definido arriba
+            // $codigoPagoGrupo ya está definido arriba
             $fechaLimitePago = now()->addDays(3)->toDateString();
 
             // Confirmar transacción
@@ -366,10 +374,10 @@ class InscripcionController extends Controller
 
             return response()->json([
                 'message' => 'Inscripciones grupales registradas correctamente.',
-                'registro_grupal_id' => $registroGrupalId,
+                'registro_grupal_id' => $registroGrupalId, // Puede ser el mismo código de pago o uno específico de grupo
                 'cantidad_estudiantes' => count($inscripcionesCreadas),
                 'monto_total' => $montoTotal,
-                'codigo_pago' => $codigoPago,
+                'codigo_pago' => $codigoPagoGrupo, // Devolver el código de pago generado
                 'fecha_limite_pago' => $fechaLimitePago,
                 'ids_inscripciones' => $inscripcionesCreadas, // Opcional: devolver IDs creados
             ], 201);
@@ -384,6 +392,133 @@ class InscripcionController extends Controller
             DB::rollBack();
             Log::error('Error interno al crear inscripción grupal: ' . $e->getMessage() . ' Trace: ' . $e->getTraceAsString()); // Añadir Trace
             return response()->json(['message' => 'Error interno al procesar la inscripción grupal.'], 500);
+        }
+    }
+
+    /**
+     * Busca inscripciones por el código de pago/recibo.
+     * GET /inscripción/buscar-por-codigo-recibo?codigo=CODIGO_PAGO (necesita definir ruta en api.php como 'inscripción/buscar-por-codigo-recibo')
+     */
+    public function buscarPorCodigoRecibo(Request $request)
+    {
+        $request->validate([
+            'codigo' => 'required|string|max:50',
+        ]);
+
+        $codigoReciboInput = $request->input('codigo');
+        $codigoReciboLimpio = trim($codigoReciboInput); // Limpiar espacios del input
+
+        Log::info('Buscando inscripciones por codigo_comprobante:', [
+            'input_original' => $codigoReciboInput,
+            'codigo_buscado_limpio' => $codigoReciboLimpio
+        ]);
+
+        // Habilitar log de queries para esta sección
+        DB::enableQueryLog();
+
+        // Búsqueda insensible a mayúsculas/minúsculas y espacios en la columna, con nombre de tabla explícito.
+        // El modelo Inscripcion define $table = 'inscripción'.
+        // Usamos "inscripción" con comillas dobles en el SQL crudo.
+        $inscripciones = Inscripcion::whereRaw('LOWER(TRIM("inscripción".codigo_comprobante)) = ?', [strtolower($codigoReciboLimpio)])
+            ->with(['estudiante:ci,nombres,apellidos', 'area1:id,nombre,categoria', 'area2:id,nombre,categoria'])
+            ->get();
+        
+        $queries = DB::getQueryLog();
+        Log::info('SQL Queries ejecutadas:', $queries);
+        DB::disableQueryLog(); // Opcional: deshabilitar después si no se necesita globalmente
+
+        // Log detallado de las inscripciones recuperadas por Eloquent
+        Log::info('Inscripciones recuperadas por Eloquent (antes de formatear):', $inscripciones->toArray());
+
+
+        Log::info('Resultado de la búsqueda de inscripciones:', [
+            'codigo_buscado' => $codigoReciboLimpio,
+            'cantidad_encontrada' => $inscripciones->count(),
+        ]);
+
+        if ($inscripciones->isEmpty()) {
+            return response()->json([], 200); 
+        }
+
+        $formattedInscripciones = $inscripciones->map(function ($inscripcion) {
+            return [
+                'id_inscripcion' => $inscripcion->id,
+                // PASO 3 (continuación): El objeto 'estudiante' relacionado se incluye aquí.
+                'estudiante' => $inscripcion->estudiante, // Incluye nombre, apellidos, ci
+                'area1' => $inscripcion->area1,         // Incluye nombre del área
+                'area2' => $inscripcion->area2,         // Incluye nombre del área
+            ];
+        });
+
+
+        return response()->json($formattedInscripciones);
+    }
+
+    /**
+     * Aprueba inscripciones basadas en el código de recibo.
+     * POST /pagos/aprobar-por-codigo
+     */
+    public function aprobarPorCodigoRecibo(Request $request)
+    {
+        // La validación 'exists' seguirá siendo sensible a mayúsculas/minúsculas por defecto.
+        // Para una validación 'exists' insensible, se requeriría una regla personalizada.
+        // Sin embargo, la búsqueda posterior sí será insensible.
+        $validatedData = $request->validate([
+            'codigo_recibo' => 'required|string', 
+        ]);
+
+        $codigoReciboLimpio = trim($validatedData['codigo_recibo']); // Limpiar espacios del input
+        Log::info('Inicio de aprobarPorCodigoRecibo.', ['codigo_recibo_input' => $validatedData['codigo_recibo'], 'codigo_recibo_limpio' => $codigoReciboLimpio]);
+
+        DB::beginTransaction();
+        try {
+            // Búsqueda insensible a mayúsculas/minúsculas y espacios en la columna, con nombre de tabla explícito.
+            $inscripciones = Inscripcion::whereRaw('LOWER(TRIM("inscripción".codigo_comprobante)) = ?', [strtolower($codigoReciboLimpio)])->get();
+
+            if ($inscripciones->isEmpty()) {
+                DB::rollBack();
+                // Si la validación 'exists' pasó pero esta búsqueda no encuentra nada (debido a diferencias de mayúsculas/minúsculas o espacios),
+                // se tratará como si no se encontraran inscripciones.
+                Log::warning('No se encontraron inscripciones para aprobar con el código (búsqueda insensible):', ['codigo_recibo' => $codigoReciboLimpio]);
+                return response()->json(['message' => 'No se encontraron inscripciones con el código de recibo proporcionado para aprobar.'], 404);
+            }
+
+            $actualizadas = 0;
+            foreach ($inscripciones as $inscripcion) {
+                // Solo actualizar si está pendiente para evitar re-aprobaciones innecesarias
+                // o conflictos si ya fue rechazada, etc.
+                if ($inscripcion->estado === 'pendiente') {
+                    $inscripcion->estado = 'aprobado';
+                    // $inscripcion->fecha_aprobacion = now(); // Opcional: guardar fecha de aprobación
+                    // $inscripcion->url_comprobante = null; // Ya no se guarda el comprobante
+                    $inscripcion->save();
+                    $actualizadas++;
+                }
+            }
+
+            DB::commit();
+
+            // Log para verificar el estado después del commit
+            Log::info('Verificación post-aprobación para código de recibo:', ['codigo_recibo' => $codigoReciboLimpio]);
+            $inscripcionesPostAprobacion = Inscripcion::whereRaw('LOWER(TRIM("inscripción".codigo_comprobante)) = ?', [strtolower($codigoReciboLimpio)])
+                                                    ->with(['estudiante:ci,nombres,apellidos']) // Cargar solo lo necesario para el log
+                                                    ->get(['id', 'estudiante_id', 'estado', 'codigo_comprobante']);
+            Log::info('Inscripciones encontradas post-aprobación:', $inscripcionesPostAprobacion->toArray());
+
+
+            if ($actualizadas > 0) {
+                Log::info('Inscripciones aprobadas correctamente.', ['codigo_recibo' => $codigoReciboLimpio, 'cantidad' => $actualizadas]); // Log de prueba
+                return response()->json(['message' => 'Inscripciones aprobadas correctamente.', 'cantidad_aprobadas' => $actualizadas]);
+            } else {
+                Log::info('No hubo inscripciones pendientes para aprobar.', ['codigo_recibo' => $codigoReciboLimpio]); // Log de prueba
+                // Esto podría ocurrir si todas las inscripciones encontradas ya estaban aprobadas o en otro estado.
+                return response()->json(['message' => 'No hubo inscripciones pendientes para aprobar con este código.', 'cantidad_aprobadas' => 0], 200);
+            }
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al aprobar inscripciones por código de recibo: ' . $e->getMessage() . ' Trace: ' . $e->getTraceAsString()); // Añadir Trace para mejor depuración
+            return response()->json(['message' => 'Error interno al procesar la aprobación.'], 500);
         }
     }
 }

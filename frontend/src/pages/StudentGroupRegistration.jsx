@@ -732,7 +732,7 @@ const StudentGroupRegistration = () => {
 
       // 4. Enviar a la API (Endpoint hipotético: /inscripciones/grupo)
       // >>>>> LLAMADA API REAL <<<<<
-      const responseData = await api.post('/inscripciones/grupo', payload);
+      const responseData = await api.post('/inscripción/grupo', payload); // CAMBIADO DE '/inscripciones/grupo' A '/inscripción/grupo'
 
       // >>>>> LÓGICA MOCK (COMENTADA) <<<<<
       /*

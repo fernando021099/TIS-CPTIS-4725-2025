@@ -1,7 +1,7 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Definir la URL base de tu API aquí
-const API_BASE_URL = 'http://127.0.0.1:8000/api'; // Ajusta si tu backend está en otro puerto o URL
+// const API_BASE_URL = 'http://127.0.0.1:8000/api'; // Ajusta si tu backend está en otro puerto o URL
 
 /**
  * Realiza una solicitud fetch a la API.

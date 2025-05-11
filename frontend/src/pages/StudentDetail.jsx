@@ -80,7 +80,7 @@ const StudentDetail = () => {
         
         // >>>>> LLAMADA API REAL <<<<<
         // Asume que la API carga relaciones automáticamente o mediante parámetros
-        const data = await api.get(`/inscripciones/${id}?_relations=estudiante,contacto,colegio,area1,area2,olimpiada`); 
+        const data = await api.get(`/inscripción/${id}?_relations=estudiante,contacto,colegio,area1,area2,olimpiada`); // CAMBIADO
         
         // >>>>> CÓDIGO API ANTERIOR (COMENTADO) <<<<<
         /*
@@ -139,7 +139,7 @@ const StudentDetail = () => {
         // Incluir motivo solo si está rechazado y hay motivo
         motivo_rechazo: tempStatus === 'rechazado' ? tempReason.trim() : null 
       };
-      const updatedInscription = await api.patch(`/inscripciones/${id}`, updateData);
+      const updatedInscription = await api.patch(`/inscripción/${id}`, updateData); // CAMBIADO
 
       // >>>>> CÓDIGO API ANTERIOR (COMENTADO) <<<<<
       /*

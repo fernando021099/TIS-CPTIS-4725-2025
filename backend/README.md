@@ -97,7 +97,7 @@ Después de iniciar el servidor, visita http://localhost:8000/ para verificar la
 - http://localhost:8000/api/estudiantes
 - http://localhost:8000/api/contactos
 - http://localhost:8000/api/colegios
-- http://localhost:8000/api/inscripciones
+- http://localhost:8000/api/inscripción <!-- CAMBIADO DE inscripciones A inscripción -->
 
 ### Solución de problemas comunes
 

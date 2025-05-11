@@ -363,7 +363,7 @@ const StudentRegistration = () => {
       console.log("Enviando payload:", JSON.stringify(payload, null, 2));
 
       // 2. Enviar a la API. apiClient devuelve datos JSON parseados o null (para 204), o lanza error.
-      const responseData = await api.post('/inscripciones', payload); 
+      const responseData = await api.post('/inscripción', payload); // CAMBIADO DE '/inscripciones' A '/inscripción'
 
       console.log("Datos recibidos de api.post:", responseData);
 

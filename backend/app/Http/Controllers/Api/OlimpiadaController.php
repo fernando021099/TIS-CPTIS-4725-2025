@@ -30,7 +30,7 @@ class OlimpiadaController extends Controller
             'version' => 'required|integer|unique:olimpiada,version', // Clave primaria, debe ser única
             'nombre' => 'required|string|max:50',
             'fecha' => 'required|date_format:Y-m-d', // Validar formato fecha AAAA-MM-DD
-            'estado' => 'required|string|max:50', // Puedes usar Rule::in(['habilitado', 'cerrado', ...]) si tienes estados fijos
+            'estado' => ['required', 'string', 'max:50', Rule::in(['habilitado', 'cerrado', 'proximamente'])], // Sugerencia: Usar Rule::in para estados definidos
         ]);
 
         try {
@@ -69,7 +69,7 @@ class OlimpiadaController extends Controller
                 // No validamos 'version' aquí porque no debería cambiar
                 'nombre' => 'sometimes|required|string|max:50', // 'sometimes' significa que solo valida si está presente
                 'fecha' => 'sometimes|required|date_format:Y-m-d',
-                'estado' => 'sometimes|required|string|max:50', // Puedes usar Rule::in(...)
+                'estado' => ['sometimes', 'required', 'string', 'max:50', Rule::in(['habilitado', 'cerrado', 'proximamente'])], // Sugerencia: Usar Rule::in
             ]);
 
             $olimpiada->update($validatedData);
@@ -100,10 +100,10 @@ class OlimpiadaController extends Controller
             return response()->json(['message' => 'Olimpiada no encontrada'], 404);
         } catch (\Exception $e) {
             // Podría fallar si ON DELETE CASCADE no está configurado o falla
-            Log::error('Error deleting olimpiada: '.$e->getMessage());
+            Log::error('Error deleting olimpiada: '.$e->getMessage() . ' Trace: ' . $e->getTraceAsString()); // Añadir Trace
             // Verificar si el error es por restricción de FK (si CASCADE no está activo)
             if (str_contains($e->getMessage(), 'violates foreign key constraint')) {
-                 return response()->json(['message' => 'No se puede eliminar la olimpiada porque tiene registros relacionados.'], 409); // 409 Conflict
+                 return response()->json(['message' => 'No se puede eliminar la olimpiada porque tiene registros relacionados. Verifique las restricciones de clave externa.'], 409); // 409 Conflict
             }
             return response()->json(['message' => 'Error al eliminar la olimpiada'], 500);
         }
