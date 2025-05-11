@@ -206,12 +206,12 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
     }
 
 
-    // Intentar extraer Código de Recibo (ej. Cod. XXXXXXXXXX o GRP-X-YYYYYYYYYY)
-    // Se modifica la regex para incluir guiones en el código.
-    const codigoRegex = /Cod\.\s*([A-Za-z0-9\-]+)/i; // MODIFICADO: Añadido '\-' al grupo de captura
+    // Intentar extraer Código de Recibo (ej. IND-XXXXXXXXXX)
+    // Se actualiza la regex para buscar directamente "IND-" seguido de dígitos.
+    const codigoRegex = /(IND-\d+)/i; 
     const codigoMatch = text.match(codigoRegex);
     if (codigoMatch && codigoMatch[1]) {
-      codigoRecibo = codigoMatch[1];
+      codigoRecibo = codigoMatch[1]; // codigoMatch[1] contendrá "IND-XXXXXXXXXX"
     }
     addDebugEntry("parseOcrText: Código de Recibo Extraído.", { codigoRecibo });
     console.log("Código Recibo Extraído en parseOcrText:", `"${codigoRecibo}"`); // Modificado para ver comillas
@@ -602,7 +602,7 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
           <pre className="text-xs whitespace-pre-wrap break-all">
             {JSON.stringify(debugLog, null, 2)}
           </pre>
-          {debugLog.length === 0 && <p className="text-xs text-gray-500">No hay entradas de log todavía.</p>}
+          {debugLog.length === 0 && <p className="text-xs text-gray-500">No hay entradas de log todavía.</p>
         </div>
       </details>
       */}

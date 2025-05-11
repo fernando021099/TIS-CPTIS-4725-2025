@@ -69,6 +69,8 @@ class InscripcionController extends Controller
                 'contacto.celular' => 'required|string|max:20',
                 'contacto.nombre' => 'required|string|max:100',
                 'contacto.correo' => 'required|string|email|max:100',
+                'contacto.relacion' => 'required|string|max:50',
+
 
                 'colegio' => 'required|array',
                 'colegio.nombre' => 'required|string|max:150',
@@ -81,20 +83,20 @@ class InscripcionController extends Controller
                 
                 'olimpiada_version' => 'required|integer|exists:olimpiada,version', // 'olimpiada' es correcto si esa tabla se llama así
                 'estado' => 'required|string|in:pendiente,aprobado,rechazado',
-                'codigo_comprobante' => 'nullable|string|max:20',
+                // 'codigo_comprobante' => 'nullable|string|max:20', // Se generará internamente
                 'fecha' => 'required|date_format:Y-m-d',
                 'motivo_rechazo' => 'nullable|string|max:255',
             ];
             
             // Ajustar reglas para área2 dependiendo de si es ROBÓTICA
             if ($isRobotica) {
-                $rules['area2_id'] = 'nullable|integer|exists:area,id'; // 'area' es correcto si esa tabla se llama así
+                $rules['area2_id'] = 'nullable|integer|exists:area,id';
                 $rules['area2_nombre'] = 'nullable|string|max:100';
                 $rules['area2_categoria'] = 'nullable|string|max:50';
             } else {
-                $rules['area2_id'] = 'nullable|integer|exists:area,id'; // 'area' es correcto si esa tabla se llama así
-                $rules['area2_nombre'] = 'required_without:area2_id|nullable|string|max:100';
-                $rules['area2_categoria'] = 'required_with:area2_nombre|nullable|string|max:50';
+                $rules['area2_id'] = 'nullable|integer|exists:area,id';
+                $rules['area2_nombre'] = 'nullable|string|max:100'; // No requerido si area2_id no se envía
+                $rules['area2_categoria'] = 'nullable|string|max:50'; // No requerido si area2_id no se envía
             }
             
             $validatedData = $request->validate($rules);
@@ -102,68 +104,127 @@ class InscripcionController extends Controller
 
             // 2. Buscar o crear Estudiante (usando CI como clave única)
             $estudiante = Estudiante::updateOrCreate(
-                ['ci' => $validatedData['estudiante']['ci']], // Clave para buscar/crear es 'ci'
-                Arr::except($validatedData['estudiante'], ['ci']) // Datos a actualizar/crear
+                ['ci' => $validatedData['estudiante']['ci']], 
+                Arr::except($validatedData['estudiante'], ['ci']) 
             );
 
-            // 3. Buscar o crear Contacto (podríamos usar email o celular como clave única si tiene sentido)
-            // Aquí asumimos creación simple, ajustar si se necesita lógica de búsqueda
-            $contacto = Contacto::create($validatedData['contacto']);
+            // 3. Buscar o crear Contacto
+            $contacto = Contacto::firstOrCreate(
+                ['correo' => $validatedData['contacto']['correo']],
+                $validatedData['contacto']
+            );
 
-            // 4. Buscar o crear Colegio (usando nombre y departamento/provincia como clave compuesta?)
-            // Aquí asumimos creación simple, ajustar si se necesita lógica de búsqueda
+
+            // 4. Buscar o crear Colegio
             $colegio = Colegio::firstOrCreate(
                  [
                     'nombre' => $validatedData['colegio']['nombre'],
                     'departamento' => $validatedData['colegio']['departamento'],
                     'provincia' => $validatedData['colegio']['provincia']
                  ]
-                 // No necesita segundo argumento si solo buscamos/creamos con esos campos
             );
 
 
             // 5. Buscar IDs de Áreas si se enviaron nombres/categorías
             $area1_id = $validatedData['area1_id'] ?? null;
+            $area1 = null;
             if (!$area1_id && isset($validatedData['area1_nombre'])) {
                 $area1 = Area::where('nombre', $validatedData['area1_nombre'])
-                             ->where('categoria', $validatedData['area1_categoria'])
+                             ->when(isset($validatedData['area1_categoria']), function ($q) use ($validatedData) {
+                                 return $q->where('categoria', $validatedData['area1_categoria']);
+                             })
                              ->first();
                 if ($area1) $area1_id = $area1->id;
-                // Considerar qué hacer si el área no se encuentra
+            } elseif ($area1_id) {
+                $area1 = Area::find($area1_id);
             }
 
             $area2_id = $validatedData['area2_id'] ?? null;
-             if (!$area2_id && isset($validatedData['area2_nombre'])) {
+            $area2 = null;
+            if (!$area2_id && isset($validatedData['area2_nombre']) && !empty($validatedData['area2_nombre'])) {
                 $area2 = Area::where('nombre', $validatedData['area2_nombre'])
-                             ->where('categoria', $validatedData['area2_categoria'])
+                             ->when(isset($validatedData['area2_categoria']), function ($q) use ($validatedData) {
+                                 return $q->where('categoria', $validatedData['area2_categoria']);
+                             })
                              ->first();
                 if ($area2) $area2_id = $area2->id;
-                 // Considerar qué hacer si el área no se encuentra
+            } elseif ($area2_id) {
+                $area2 = Area::find($area2_id);
             }
 
+            // Generar ID único para la inscripción individual (ACORTADO PARA OCR)
+            $idUnicoIndividual = 'IND-' . $estudiante->ci;
 
             // 6. Crear la Inscripción
             $inscripcion = Inscripcion::create([
-                'estudiante_id' => $estudiante->ci, // Usar el CI del estudiante
+                'estudiante_id' => $estudiante->ci, 
                 'contacto_id' => $contacto->id,
                 'colegio_id' => $colegio->id,
                 'area1_id' => $area1_id,
                 'area2_id' => $area2_id,
                 'olimpiada_version' => $validatedData['olimpiada_version'],
                 'estado' => $validatedData['estado'],
-                'codigo_comprobante' => $validatedData['codigo_comprobante'] ?? null,
+                'codigo_comprobante' => $idUnicoIndividual, // Usar el ID único individual
                 'fecha' => $validatedData['fecha'],
             ]);
+
+            // Calcular monto total de forma simplificada y más robusta
+            $montoTotal = 0;
+            $costoPorDefecto = 15; // Costo por defecto si un área existe pero su costo es 0, nulo o no numérico en BD
+
+            Log::info('Calculando monto total:', [
+                'area1_obj_exists' => !is_null($area1),
+                'area1_id' => $area1_id,
+                'area2_obj_exists' => !is_null($area2),
+                'area2_id' => $area2_id,
+            ]);
+
+            if ($area1) { // Si el objeto Area1 se encontró/existe
+                // Usar el costo del área si es numérico y mayor a 0, sino el costo por defecto.
+                $costoArea1 = (is_numeric($area1->costo) && $area1->costo > 0) ? $area1->costo : $costoPorDefecto;
+                $montoTotal += $costoArea1;
+                Log::info('Costo Area 1 aplicado:', ['area_id' => $area1->id, 'nombre' => $area1->nombre, 'costo_bd' => $area1->costo, 'costo_aplicado' => $costoArea1]);
+            } else {
+                Log::info('Area 1 no encontrada o no seleccionada, no se aplica costo para Area 1.');
+            }
+
+            if ($area2) { // Si el objeto Area2 se encontró/existe
+                // Solo sumar si area2 es diferente de area1 (si area1 también existe y tiene ID)
+                // O si area1 no existe (en cuyo caso area2 es la única área con costo potencial)
+                if (!$area1 || ($area1 && $area1->id != $area2->id)) {
+                    $costoArea2 = (is_numeric($area2->costo) && $area2->costo > 0) ? $area2->costo : $costoPorDefecto;
+                    $montoTotal += $costoArea2;
+                    Log::info('Costo Area 2 aplicado:', ['area_id' => $area2->id, 'nombre' => $area2->nombre, 'costo_bd' => $area2->costo, 'costo_aplicado' => $costoArea2]);
+                } else if ($area1 && $area1->id == $area2->id) {
+                    Log::info('Area 2 es la misma que Area 1, no se aplica costo adicional para Area 2.');
+                }
+            } else {
+                Log::info('Area 2 no encontrada o no seleccionada, no se aplica costo para Area 2.');
+            }
+            
+            Log::info('Monto total final calculado:', ['monto' => $montoTotal]);
+
+
+            $fechaLimitePago = now()->addDays(3)->toDateString();
 
             // Confirmar transacción
             DB::commit();
 
-            Log::info('Inscripción creada con éxito en store.', ['inscripcion_id' => $inscripcion->id]); // Log de prueba adicional
+            Log::info('Inscripción creada con éxito en store.', ['inscripcion_id' => $inscripcion->id, 'codigo_comprobante' => $idUnicoIndividual]);
 
-            // Cargar relaciones para la respuesta
-            $inscripcion->load(['estudiante', 'contacto', 'colegio', 'area1', 'area2', 'olimpiada']);
-
-            return response()->json($inscripcion, 201);
+            // Devolver una respuesta JSON estructurada
+            return response()->json([
+                'message' => 'Inscripción registrada correctamente.',
+                'id' => $inscripcion->id, // ID numérico de la inscripción
+                'registro_id_display' => $idUnicoIndividual, // ID para mostrar en PDF
+                'codigo_pago' => $idUnicoIndividual, // Código para el banco
+                'monto_total' => $montoTotal,
+                'fecha_limite_pago' => $fechaLimitePago,
+                'estudiante' => $estudiante->only(['nombres', 'apellidos', 'ci']),
+                'contacto' => $contacto->only(['nombre', 'correo', 'celular']),
+                'area1' => $area1 ? $area1->only(['nombre', 'categoria']) : null,
+                'area2' => $area2 ? $area2->only(['nombre', 'categoria']) : null,
+            ], 201);
 
         } catch (ValidationException $e) {
             DB::rollBack(); // Revertir transacción en caso de error de validación
@@ -302,7 +363,7 @@ class InscripcionController extends Controller
             // - ID de Registro en el PDF
             // - Código de Pago en el PDF (para el banco)
             // - codigo_comprobante en la tabla 'inscripciones' (para búsqueda OCR)
-            $idUnicoGrupo = 'GRP-' . $contactoTutor->id . '-' . time();
+            $idUnicoGrupo = 'GRP-' . $contactoTutor->id . '-' . time(); // MANTIENE EL TIMESTAMP
 
             foreach ($validatedData['inscripciones'] as $inscripcionData) {
                 $estudiante = Estudiante::updateOrCreate(
@@ -385,27 +446,52 @@ class InscripcionController extends Controller
      */
     public function buscarPorCodigoRecibo(Request $request)
     {
-        Log::info('MÉTODO buscarPorCodigoRecibo INICIADO.'); // Log inicial muy visible
+        Log::info('MÉTODO buscarPorCodigoRecibo INICIADO.'); 
 
         $request->validate([
-            'codigo' => 'required|string|max:50',
+            'codigo' => 'required|string|max:100', // Aumentar max para acomodar texto OCR más largo
         ]);
 
         $codigoReciboInput = $request->input('codigo');
-        $codigoReciboLimpio = trim($codigoReciboInput); // Limpiar espacios del input
+        Log::info('Código OCR Input CRUDO recibido en buscarPorCodigoRecibo:', ['raw_input' => $codigoReciboInput]); // Log para ver el input exacto
+        
+        $codigoReciboLimpio = null;
+
+        // Regex más tolerante: busca IND, opcionalmente espacios, guion, opcionalmente espacios, y luego los dígitos.
+        // Captura "IND", el guion "-", y los "dígitos" en grupos separados para reconstruir.
+        if (preg_match('/(IND)\s*(-)\s*(\d+)/', $codigoReciboInput, $matches)) {
+            // Reconstruir el código para asegurar el formato "IND-DIGITOS" sin espacios extra
+            $codigoReciboLimpio = $matches[1] . $matches[2] . $matches[3]; // Concatena ej: "IND" + "-" + "87654321"
+            Log::info('Código IND- extraído y normalizado con regex:', ['input' => $codigoReciboInput, 'extraido_normalizado' => $codigoReciboLimpio]);
+        } else {
+            Log::info('Patrón IND- no encontrado con regex. Input no procesado como código IND.', ['input' => $codigoReciboInput]);
+            // Si la regex específica para IND- no encuentra nada, no se considera un código IND- válido.
+            // Si se esperara que el input pudiera ser un código ya perfectamente limpio (sin texto OCR alrededor),
+            // se podría añadir una comprobación aquí:
+            // if (preg_match('/^IND-\d+$/', trim($codigoReciboInput))) {
+            //    $codigoReciboLimpio = trim($codigoReciboInput);
+            // }
+        }
+
+        if (!$codigoReciboLimpio) {
+            Log::warning('No se pudo extraer un código IND- válido del input.', ['input' => $codigoReciboInput]);
+            return response()->json([], 200); // O un error 400 si se considera inválido
+        }
+        
+        $tableName = (new Inscripcion)->getTable(); 
 
         Log::info('Buscando inscripciones por codigo_comprobante:', [
             'input_original' => $codigoReciboInput,
-            'codigo_buscado_limpio' => $codigoReciboLimpio
+            'codigo_buscado_limpio' => $codigoReciboLimpio,
+            'table_name_from_model' => $tableName // Log del nombre de la tabla obtenido del modelo
         ]);
 
         // Habilitar log de queries para esta sección
         DB::enableQueryLog();
 
-        // Búsqueda insensible a mayúsculas/minúsculas y espacios en la columna, con nombre de tabla explícito.
-        // El modelo Inscripcion define $table = 'inscripción'.
-        // Usamos "inscripción" con comillas dobles en el SQL crudo.
-        $inscripciones = Inscripcion::whereRaw('LOWER(TRIM("inscripción".codigo_comprobante)) = ?', [strtolower($codigoReciboLimpio)])
+        // Usar $tableName en la consulta. Las comillas dobles alrededor del nombre de la tabla
+        // son importantes para PostgreSQL si el nombre contiene caracteres no estándar o mayúsculas/minúsculas específicas.
+        $inscripciones = Inscripcion::whereRaw('LOWER(TRIM("'.$tableName.'".codigo_comprobante)) = ?', [strtolower($codigoReciboLimpio)])
             ->with(['estudiante:ci,nombres,apellidos', 'area1:id,nombre,categoria', 'area2:id,nombre,categoria'])
             ->get();
         
@@ -446,20 +532,40 @@ class InscripcionController extends Controller
      */
     public function aprobarPorCodigoRecibo(Request $request)
     {
-        // La validación 'exists' seguirá siendo sensible a mayúsculas/minúsculas por defecto.
-        // Para una validación 'exists' insensible, se requeriría una regla personalizada.
-        // Sin embargo, la búsqueda posterior sí será insensible.
         $validatedData = $request->validate([
-            'codigo_recibo' => 'required|string', 
+            'codigo_recibo' => 'required|string|max:100', // Aumentar max para acomodar texto OCR
         ]);
 
-        $codigoReciboLimpio = trim($validatedData['codigo_recibo']); // Limpiar espacios del input
-        Log::info('Inicio de aprobarPorCodigoRecibo.', ['codigo_recibo_input' => $validatedData['codigo_recibo'], 'codigo_recibo_limpio' => $codigoReciboLimpio]);
+        $codigoReciboInput = $validatedData['codigo_recibo'];
+        Log::info('Código OCR Input CRUDO recibido en aprobarPorCodigoRecibo:', ['raw_input' => $codigoReciboInput]); // Log para ver el input exacto
+
+        $codigoReciboLimpio = null;
+        $tableName = (new Inscripcion)->getTable(); 
+
+        // Regex más tolerante y reconstrucción, igual que en buscarPorCodigoRecibo
+        if (preg_match('/(IND)\s*(-)\s*(\d+)/', $codigoReciboInput, $matches)) {
+            $codigoReciboLimpio = $matches[1] . $matches[2] . $matches[3];
+            Log::info('Código IND- extraído y normalizado con regex en aprobarPorCodigoRecibo:', ['input' => $codigoReciboInput, 'extraido_normalizado' => $codigoReciboLimpio]);
+        } else {
+            Log::info('Patrón IND- no encontrado con regex en aprobarPorCodigoRecibo. Input no procesado como código IND.', ['input' => $codigoReciboInput]);
+            // Considerar el mismo fallback opcional que en buscarPorCodigoRecibo si es necesario.
+        }
+
+        if (!$codigoReciboLimpio) {
+            Log::warning('No se pudo extraer un código IND- válido del input para aprobación.', ['input' => $codigoReciboInput]);
+            return response()->json(['message' => 'El código de recibo proporcionado no tiene un formato reconocible.'], 400);
+        }
+
+        Log::info('Inicio de aprobarPorCodigoRecibo.', [
+            'codigo_recibo_input_original' => $validatedData['codigo_recibo'], 
+            'codigo_recibo_limpio' => $codigoReciboLimpio,
+            'table_name_from_model' => $tableName // Log del nombre de la tabla obtenido del modelo
+        ]);
 
         DB::beginTransaction();
         try {
-            // Búsqueda insensible a mayúsculas/minúsculas y espacios en la columna, con nombre de tabla explícito.
-            $inscripciones = Inscripcion::whereRaw('LOWER(TRIM("inscripción".codigo_comprobante)) = ?', [strtolower($codigoReciboLimpio)])->get();
+            // Usar $tableName en la consulta
+            $inscripciones = Inscripcion::whereRaw('LOWER(TRIM("'.$tableName.'".codigo_comprobante)) = ?', [strtolower($codigoReciboLimpio)])->get();
 
             if ($inscripciones->isEmpty()) {
                 DB::rollBack();
@@ -485,8 +591,9 @@ class InscripcionController extends Controller
             DB::commit();
 
             // Log para verificar el estado después del commit
-            Log::info('Verificación post-aprobación para código de recibo:', ['codigo_recibo' => $codigoReciboLimpio]);
-            $inscripcionesPostAprobacion = Inscripcion::whereRaw('LOWER(TRIM("inscripción".codigo_comprobante)) = ?', [strtolower($codigoReciboLimpio)])
+            Log::info('Verificación post-aprobación para código de recibo:', ['codigo_recibo' => $codigoReciboLimpio, 'table_name_from_model' => $tableName]);
+            // Usar $tableName también en esta consulta de verificación
+            $inscripcionesPostAprobacion = Inscripcion::whereRaw('LOWER(TRIM("'.$tableName.'".codigo_comprobante)) = ?', [strtolower($codigoReciboLimpio)])
                                                     ->with(['estudiante:ci,nombres,apellidos']) // Cargar solo lo necesario para el log
                                                     ->get(['id', 'estudiante_id', 'estado', 'codigo_comprobante']);
             Log::info('Inscripciones encontradas post-aprobación:', $inscripcionesPostAprobacion->toArray());

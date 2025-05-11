@@ -348,22 +348,25 @@ const StudentRegistration = () => {
           provincia: formData.province,
         },
         area1_nombre: formData.areas[0] || null,
-        area1_categoria: formData.categories[formData.areas[0]] || null,
+        area1_categoria: formData.areas[0] && formData.categories[formData.areas[0]] ? formData.categories[formData.areas[0]] : null,
         olimpiada_version: 2024, 
         fecha: new Date().toISOString().split('T')[0], 
         estado: 'pendiente', 
       };
       
-      // Solo incluir area2 si NO es ROBÓTICA
-      if (formData.areas[0] !== "ROBÓTICA" && formData.areas[1]) {
+      // Solo incluir area2 si NO es ROBÓTICA y existe una segunda área
+      if (formData.areas[0] !== "ROBÓTICA" && formData.areas.length > 1 && formData.areas[1]) {
         payload.area2_nombre = formData.areas[1];
-        payload.area2_categoria = formData.categories[formData.areas[1]] || null;
+        payload.area2_categoria = formData.categories[formData.areas[1]] ? formData.categories[formData.areas[1]] : null;
+      } else {
+        payload.area2_nombre = null;
+        payload.area2_categoria = null;
       }
 
       console.log("Enviando payload:", JSON.stringify(payload, null, 2));
 
       // 2. Enviar a la API. apiClient devuelve datos JSON parseados o null (para 204), o lanza error.
-      const responseData = await api.post('/inscripción', payload); // CAMBIADO DE '/inscripciones' A '/inscripción'
+      const responseData = await api.post('/inscripción', payload); 
 
       console.log("Datos recibidos de api.post:", responseData);
 
@@ -373,21 +376,21 @@ const StudentRegistration = () => {
         console.warn("Inscripción creada (204), pero sin datos devueltos.");
         throw new Error("La inscripción fue creada (204), pero el servidor no devolvió detalles. No se puede generar la orden de pago.");
 
-      } else if (responseData && responseData.id) {
-        // Caso 200/201 con datos JSON y ID
-        console.log("Inscripción creada con ID:", responseData.id);
+      } else if (responseData && responseData.registro_id_display) { // Usar registro_id_display
+        // Caso 200/201 con datos JSON y ID de display
+        console.log("Inscripción creada con ID de Display:", responseData.registro_id_display);
         
         const paymentInfo = {
-          registrationId: responseData.id,
-          amount: responseData.monto_total || (responseData.area1_id ? 15 : 0) + (responseData.area2_id ? 15 : 0), 
+          registrationId: responseData.registro_id_display, // Usar el ID de display para el PDF
+          amount: responseData.monto_total, 
           studentName: `${responseData.estudiante?.nombres || formData.firstName} ${responseData.estudiante?.apellidos || formData.lastName}`, 
           tutorName: responseData.contacto?.nombre || formData.tutorName, 
           areas: [responseData.area1?.nombre, responseData.area2?.nombre].filter(Boolean).map((areaName, index) => {
               const areaData = index === 0 ? responseData.area1 : responseData.area2;
               return `${areaName} (${areaData?.categoria || 'N/A'})`;
           }).join(", ") || formData.areas.map(area => `${area} (${formData.categories[area] || 'N/A'})`).join(", "), 
-          paymentDeadline: responseData.fecha_limite_pago ? new Date(responseData.fecha_limite_pago) : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), 
-          paymentCode: responseData.codigo_pago || `PAGO-${responseData.id}-${Date.now().toString().slice(-4)}` 
+          paymentDeadline: responseData.fecha_limite_pago ? new Date(responseData.fecha_limite_pago + 'T00:00:00') : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // Asegurar que la fecha se interprete correctamente
+          paymentCode: responseData.codigo_pago // Usar el código de pago del backend
         };
         
         setUiState(prev => ({ 
@@ -398,9 +401,9 @@ const StudentRegistration = () => {
         }));
 
       } else {
-        // Caso inesperado: respuesta exitosa pero sin ID o datos inválidos
-        console.error(`Respuesta exitosa pero sin datos válidos o ID:`, responseData);
-        throw new Error(`El servidor respondió con éxito, pero no devolvió la información necesaria (ID).`);
+        // Caso inesperado: respuesta exitosa pero sin ID de display o datos inválidos
+        console.error(`Respuesta exitosa pero sin datos válidos o ID de display:`, responseData);
+        throw new Error(`El servidor respondió con éxito, pero no devolvió la información necesaria (ID de display).`);
       }
       
     } catch (error) {
