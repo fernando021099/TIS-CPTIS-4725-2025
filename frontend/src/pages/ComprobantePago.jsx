@@ -591,10 +591,11 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
       
       {uiState.showSuccess && renderSuccessModal()}
 
-      {/* Sección de Logs de Depuración del Frontend */}
+      {/* Sección de Logs de Depuración del Frontend Comentada */}
+      {/*
       <details className="mt-6">
         <summary className="text-sm font-medium text-gray-600 cursor-pointer hover:text-gray-800">
-          Ver Logs de Depuración del Proceso (Frontend) {/* Se mantiene activo por si se necesita */}
+          Ver Logs de Depuración del Proceso (Frontend)
         </summary>
         <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-md max-h-96 overflow-auto">
           <pre className="text-xs whitespace-pre-wrap break-all">
@@ -603,6 +604,7 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
           {debugLog.length === 0 && <p className="text-xs text-gray-500">No hay entradas de log todavía.</p>}
         </div>
       </details>
+      */}
     </div>
   );
 };
