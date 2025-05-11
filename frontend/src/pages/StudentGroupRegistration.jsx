@@ -78,45 +78,12 @@ const StudentGroupRegistration = () => {
 
   const handleTutorChange = (e) => {
     const { name, value } = e.target;
-    
-    // Validación adicional para el nombre (solo letras y espacios)
-    if (name === "name") {
-      const onlyLetters = /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/;
-      if (value && !onlyLetters.test(value)) {
-        return; // No actualiza el estado si no son solo letras
-      }
-    }
-
-    // Validación adicional para el teléfono (solo números y máximo 8 dígitos)
-  if (name === "phone") {
-    const onlyNumbers = /^[0-9]*$/;
-    if (value && (!onlyNumbers.test(value) || value.length > 8)) {
-      return; // No actualiza el estado si no son solo números o tiene más de 8 dígitos
-    }
-  }
     setTutorData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
   };
 
   const handleStudentChange = (id, e) => {
     const { name, value } = e.target;
-  
-    // Validación para campos de solo letras (nombres y apellidos)
-    if (name === 'firstName' || name === 'lastName') {
-      const onlyLetters = /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/;
-      if (value && !onlyLetters.test(value)) {
-        return; // No actualiza el estado si no son solo letras
-      }
-    }
-  
-    // Validación para CI (solo números y máximo 7 dígitos)
-    if (name === 'ci') {
-      const onlyNumbers = /^[0-9]*$/;
-      if (value && (!onlyNumbers.test(value) || value.length > 7)) {
-        return; // No actualiza el estado si no son solo números o tiene más de 7 dígitos
-      }
-    }
-  
     setStudents(prev => prev.map(student => 
       student.id === id ? { ...student, [name]: value } : student
     ));
@@ -205,17 +172,6 @@ const StudentGroupRegistration = () => {
       
       if (tutorData.phone && !/^[0-9+]+$/.test(tutorData.phone)) {
         newErrors.tutorPhone = "Teléfono inválido";
-        if (!tutorData.name) newErrors.tutorName = "Nombre del tutor requerido";
-        else if (!/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(tutorData.name)) {
-          newErrors.tutorName = "El nombre solo debe contener letras";
-        }
-
-        if (!tutorData.phone) newErrors.tutorPhone = "Teléfono del tutor requerido";
-        else if (!/^[0-9]{8}$/.test(tutorData.phone)) {
-          newErrors.tutorPhone = "El teléfono debe tener exactamente 8 dígitos";
-        }  
-        
-        
       }
     }
     
@@ -229,25 +185,9 @@ const StudentGroupRegistration = () => {
     students.forEach((student, index) => {
       const studentErrors = {};
       
-      if (!student.lastName) {
-        studentErrors.lastName = "Apellidos requeridos";
-      } else if (!/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(student.lastName)) {
-        studentErrors.lastName = "Solo se permiten letras en los apellidos";
-      }
-      
-      if (!student.firstName) {
-        studentErrors.firstName = "Nombres requeridos";
-      } else if (!/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(student.firstName)) {
-        studentErrors.firstName = "Solo se permiten letras en los nombres";
-      }
-      
-      if (!student.ci) {
-        studentErrors.ci = "CI requerido";
-      } else if (!/^[0-9]{7}$/.test(student.ci)) {
-        studentErrors.ci = "El CI debe tener exactamente 7 dígitos";
-      }
-      
-      // Resto de las validaciones...
+      if (!student.lastName) studentErrors.lastName = "Apellidos requeridos";
+      if (!student.firstName) studentErrors.firstName = "Nombres requeridos";
+      if (!student.ci) studentErrors.ci = "CI requerido";
       if (!student.school) studentErrors.school = "Colegio requerido";
       if (!student.grade) studentErrors.grade = "Curso requerido";
       if (!student.department) studentErrors.department = "Departamento requerido";
@@ -287,55 +227,39 @@ const StudentGroupRegistration = () => {
     data.forEach((row, index) => {
       const rowErrors = {};
       
-      // Validación de campos requeridos
-      if (!row.Correo) rowErrors.email = "Correo requerido";
       if (!row.Apellidos) rowErrors.lastName = "Apellidos requeridos";
       if (!row.Nombres) rowErrors.firstName = "Nombres requeridos";
-      if (!row.Ci_Competidor) rowErrors.ciCompetitor = "CI/Competidor requerido";
-      if (!row['Fecha de Nacimiento']) rowErrors.birthDate = "Fecha de nacimiento requerida";
+      if (!row.CI) rowErrors.ci = "CI requerido";
       if (!row.Colegio) rowErrors.school = "Colegio requerido";
       if (!row.Curso) rowErrors.grade = "Curso requerido";
       if (!row.Departamento) rowErrors.department = "Departamento requerido";
       if (!row.Provincia) rowErrors.province = "Provincia requerida";
-      if (!row['Area 1']) rowErrors.area1 = "Área 1 requerida";
-      if (row['Area 1'] && !row['Nivel 1']) rowErrors.level1 = "Nivel 1 requerido para Área 1";
-
-      // Validación de formato de correo
-      if (row.Correo && !/^\S+@\S+\.\S+$/.test(row.Correo)) {
-        rowErrors.email = "Correo electrónico inválido";
-      }
-       // Validación de CI (solo números) 
-    if (row.Ci_Competidor) {
-      // Separar el CI del tipo de competidor si está en formato "1234567|Tipo"
-      const [ciPart] = row.Ci_Competidor.split('|').map(item => item.trim());
+      if (!row.Áreas) rowErrors.areas = "Áreas requeridas";
       
-      if (!/^[0-9]+$/.test(ciPart)) {
-        rowErrors.ciCompetitor = "La parte del CI debe contener solo números";
-      }
-    }
-      
-      // Validación de competidor (valores esperados)
-      if (row.Competidor && !['Individual', 'Grupal', 'Regular'].includes(row.Competidor)) {
-        rowErrors.competitorType = "Tipo de competidor inválido (Individual/Grupal/Regular)";
-      }
-
-      // Validación de Nombres (solo letras, espacios y acentos)
-    if (row.Nombres && !/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(row.Nombres)) {
-      rowErrors.firstName = "Nombres solo debe contener letras y espacios";
-    }
-    
-    // Validación de Apellidos (solo letras, espacios y acentos)
-    if (row.Apellidos && !/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(row.Apellidos)) {
-      rowErrors.lastName = "Apellidos solo debe contener letras y espacios";
-    }
-      
-      // Validación de fecha de nacimiento (formato aproximado)
-      if (row['Fecha de Nacimiento'] && !/^\d{2}\/\d{2}\/\d{4}$/.test(row['Fecha de Nacimiento'])) {
-        rowErrors.birthDate = "Formato de fecha debe ser DD/MM/AAAA";
+      if (row.CI && !/^[0-9]+$/.test(row.CI)) {
+        rowErrors.ci = "CI debe contener solo números";
       }
       
-      // Validación de áreas y niveles (el resto se mantiene igual)
-      // ... (código existente de validación de áreas)
+      if (row.Áreas) {
+        const areas = row.Áreas.split(',').map(a => a.trim());
+        
+        if (areas.length === 0) {
+          rowErrors.areas = "Debe especificar al menos un área";
+        } else if (areas.length > 2) {
+          rowErrors.areas = "Máximo 2 áreas por estudiante";
+        }
+        
+        areas.forEach(area => {
+          if (!areaOptions.includes(area)) {
+            rowErrors.areas = `Área no válida: ${area}`;
+          }
+        });
+        
+        const hasRobotics = areas.includes("ROBÓTICA");
+        if (hasRobotics && areas.length > 1) {
+          rowErrors.areas = "Si postula a ROBÓTICA, no puede postular a otra área";
+        }
+      }
       
       if (Object.keys(rowErrors).length > 0) {
         errorsList.push({
@@ -347,9 +271,6 @@ const StudentGroupRegistration = () => {
     
     return errorsList;
   };
-  
-    
-   
 
   const goToNextSection = () => {
     if (validateSection(currentSection)) {
@@ -401,8 +322,8 @@ const StudentGroupRegistration = () => {
       });
       
       const requiredColumns = [
-    'Correo', 'Apellidos', 'Nombres', 'Ci_Competidor', 'Fecha de Nacimiento', 'Colegio', 
-        'Curso', 'Departamento', 'Provincia', 'Area 1', 'Nivel 1', 'Area 2', 'Nivel 2'
+        'Apellidos', 'Nombres', 'CI', 'Colegio', 
+        'Curso', 'Departamento', 'Provincia', 'Áreas'
       ];
       
       const missingColumns = requiredColumns.filter(col => !headers.includes(col));
@@ -616,31 +537,25 @@ const StudentGroupRegistration = () => {
         // La validación ya se hizo al cargar, pero podemos re-validar si es necesario
         validationErrors = validateExcelData(excelData); 
         if (validationErrors.length === 0) {
-           // En la función handleSubmit, donde se procesan los datos del Excel:
-studentsDataForApi = excelData.map(row => {
-  const [ci, competitorType] = row.Ci_Competidor.split('|').map(item => item.trim());
-  
-  return {
-    estudiante: {
-      nombres: row.Nombres,
-      apellidos: row.Apellidos,
-      ci: ci,
-      email: row.Correo,
-      fecha_nacimiento: row['Fecha de Nacimiento'],
-      tipo_competidor: competitorType
-    },
-    colegio: {
-      nombre: row.Colegio,
-      departamento: row.Departamento,
-      provincia: row.Provincia
-    },
-    area1_nombre: row['Area 1'],
-    area1_categoria: row['Nivel 1'],
-    area2_nombre: row['Area 2'] || null,
-    area2_categoria: row['Nivel 2'] || null
-  };
-});
-}
+           studentsDataForApi = excelData.map(row => ({
+            estudiante: {
+              nombres: row.Nombres,
+              apellidos: row.Apellidos,
+              ci: row.CI,
+              fecha_nacimiento: null, // Excel no tiene fecha de nacimiento
+            },
+            colegio: {
+              nombre: row.Colegio,
+              departamento: row.Departamento,
+              provincia: row.Provincia,
+            },
+            // Similar al caso del formulario, enviar nombres para procesamiento backend
+            area1_nombre: row.Áreas.split(',').map(a => a.trim())[0] || null,
+            area1_categoria: null, // Excel no tiene categorías
+            area2_nombre: row.Áreas.split(',').map(a => a.trim())[1] || null,
+            area2_categoria: null,
+           }));
+        }
       } else {
          throw new Error("Método de registro no seleccionado");
       }
@@ -1342,63 +1257,57 @@ studentsDataForApi = excelData.map(row => {
         </div>
       )}
       
-
       {excelData && (
-  <div className="border border-gray-200 rounded-lg overflow-hidden">
-    <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-      <h4 className="text-sm font-medium text-gray-700">
-        Vista previa de datos ({excelData.length} estudiantes)
-      </h4>
-    </div>
-    <div className="overflow-x-auto max-h-96">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Correo</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Apellidos</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nombres</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ci_Competidor</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fecha Nac.</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Colegio</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Curso</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Departamento</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Provincia</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Area 1</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nivel 1</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Area 2</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nivel 2</th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {excelData.slice(0, 5).map((row, i) => (
-            <tr key={i}>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate">{row.Correo}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Apellidos}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Nombres}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Ci_Competidor}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Fecha de Nacimiento']}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Colegio}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Curso}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Departamento}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Provincia}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Area 1']}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Nivel 1']}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Area 2'] || '-'}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Nivel 2'] || '-'}</td>
-            </tr>
-          ))}
-          {excelData.length > 5 && (
-            <tr>
-              <td colSpan={13} className="px-3 py-2 text-center text-xs text-gray-500">
-                + {excelData.length - 5} estudiantes más...
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  </div>
-)}
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+            <h4 className="text-sm font-medium text-gray-700">
+              Vista previa de datos ({excelData.length} estudiantes)
+            </h4>
+          </div>
+          <div className="overflow-x-auto max-h-96">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  {Object.keys(excelData[0]).map((key, i) => (
+                    <th 
+                      key={i}
+                      scope="col"
+                      className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50"
+                    >
+                      {key}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {excelData.slice(0, 5).map((row, i) => (
+                  <tr key={i}>
+                    {Object.values(row).map((value, j) => (
+                      <td 
+                        key={j}
+                        className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate"
+                        title={value}
+                      >
+                        {value}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+                {excelData.length > 5 && (
+                  <tr>
+                    <td 
+                      colSpan={Object.keys(excelData[0]).length}
+                      className="px-3 py-2 text-center text-xs text-gray-500"
+                    >
+                      + {excelData.length - 5} estudiantes más...
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
       
       <div className="mt-6 flex justify-between">
         <button
@@ -1431,39 +1340,27 @@ studentsDataForApi = excelData.map(row => {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet("Plantilla");
       
-       worksheet.columns = [
-      { header: "Correo", key: "Correo", width: 25 },
-      { header: "Apellidos", key: "Apellidos", width: 25 },
-      { header: "Nombres", key: "Nombres", width: 25 },
-      { header: "Ci_Competidor", key: "Ci_Competidor", width: 25 },
-      { header: "Fecha de Nacimiento", key: "Fecha de Nacimiento", width: 15 },
-      { header: "Colegio", key: "Colegio", width: 30 },
-      { header: "Curso", key: "Curso", width: 15 },
-      { header: "Departamento", key: "Departamento", width: 15 },
-      { header: "Provincia", key: "Provincia", width: 15 },
-      { header: "Area 1", key: "Area 1", width: 20 },
-      { header: "Nivel 1", key: "Nivel 1", width: 15 },
-      { header: "Area 2", key: "Area 2", width: 20 },
-      { header: "Nivel 2", key: "Nivel 2", width: 15, 
-        note: "Opcional - dejar vacío si no aplica" }
-    ];
+      worksheet.columns = [
+        { header: "Apellidos", key: "Apellidos", width: 25 },
+        { header: "Nombres", key: "Nombres", width: 25 },
+        { header: "CI", key: "CI", width: 15 },
+        { header: "Colegio", key: "Colegio", width: 30 },
+        { header: "Curso", key: "Curso", width: 15 },
+        { header: "Departamento", key: "Departamento", width: 15 },
+        { header: "Provincia", key: "Provincia", width: 15 },
+        { header: "Áreas", key: "Áreas", width: 30 }
+      ];
       
-      // Ejemplo de fila
-    worksheet.addRow({
-      "Correo": "ejemplo@email.com",
-      "Apellidos": "Perez",
-      "Nombres": "Juan",
-      "Ci_Competidor": "1234567|Regular", // Formato: CI|TipoCompetidor
-      "Fecha de Nacimiento": "15/05/2005",
-      "Colegio": "Colegio Ejemplo",
-      "Curso": "4to de secundaria",
-      "Departamento": "Cochabamba",
-      "Provincia": "Cercado",
-      "Area 1": "MATEMÁTICAS",
-      "Nivel 1": "Primer Nivel",
-      "Area 2": "", // Opcional
-      "Nivel 2": ""  // Opcional
-    });
+      worksheet.addRow({
+        "Apellidos": "Perez",
+        "Nombres": "Juan",
+        "CI": "1234567",
+        "Colegio": "Colegio Ejemplo",
+        "Curso": "4to de secundaria",
+        "Departamento": "Cochabamba",
+        "Provincia": "Cercado",
+        "Áreas": "MATEMÁTICAS, BIOLOGÍA"
+      });
       
       const headerRow = worksheet.getRow(1);
       headerRow.eachCell(cell => {

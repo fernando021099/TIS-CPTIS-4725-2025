@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect, useRef } from "react"
 import { ChevronDown, Menu, X } from "lucide-react"
 import { Link } from "react-router-dom"
@@ -20,12 +22,12 @@ export default function Navbar() {
       setActiveDropdown(null)
     }
 
-    document.addEventListener("mousedown", handleClickOutside)
-    window.addEventListener("scroll", handleScroll)
-
+    document.addEventListener('mousedown', handleClickOutside)
+    window.addEventListener('scroll', handleScroll)
+    
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-      window.removeEventListener("scroll", handleScroll)
+      document.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('scroll', handleScroll)
     }
   }, [])
 
@@ -45,21 +47,20 @@ export default function Navbar() {
       ],
     },
     {
-      name: "Gestión de Áreas",
+      name: "Gestión de Áreas",  // Nuevo menú desplegable
       hasDropdown: true,
       dropdownItems: [
         { name: "Registrar nueva área", link: "/register" },
-        { name: "Ver listado de áreas", link: "/areas" },
-        { name: "Editar área de prueba", link: "/editar-area/1" }, // Ruta dinámica
+        { name: "Ver listado de áreas", link: "/areas" }
       ],
     },
     {
-      name: "Pagos", // Nombre cambiado a "Subir Comprobante"
+      name: "Pagos",
       hasDropdown: true,
       dropdownItems: [
         { name: "Verificar Pago", link: "#" },
         { name: "Historial", link: "#" },
-        { name: "Subir comprobante", link: "/comprobante-pago" }, // Ruta a la página ComprobantePago
+        { name: "Métodos", link: "#" },
       ],
     },
     {
@@ -78,11 +79,7 @@ export default function Navbar() {
   return (
     <div ref={navRef}>
       {/* Navbar Desktop */}
-      <nav
-        className={`hidden md:block bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-40 transition-all ${
-          isScrolled ? "shadow-sm dark:shadow-gray-900" : ""
-        }`}
-      >
+      <nav className={`hidden md:block bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-40 transition-all ${isScrolled ? 'shadow-sm dark:shadow-gray-900' : ''}`}>
         <div className="container mx-auto px-4">
           <div className="flex justify-center">
             {menuItems.map((item, index) => (
@@ -92,17 +89,13 @@ export default function Navbar() {
                     <button
                       onClick={() => toggleDropdown(index)}
                       className={`px-5 py-4 flex items-center font-medium hover:text-red-600 dark:hover:text-red-500 transition-colors ${
-                        activeDropdown === index
-                          ? "text-red-600 dark:text-red-500"
-                          : "text-gray-800 dark:text-gray-200"
+                        activeDropdown === index ? 'text-red-600 dark:text-red-500' : 'text-gray-800 dark:text-gray-200'
                       }`}
                     >
                       {item.name}
-                      <ChevronDown
-                        className={`ml-1 h-4 w-4 transition-transform ${
-                          activeDropdown === index ? "rotate-180" : ""
-                        }`}
-                      />
+                      <ChevronDown className={`ml-1 h-4 w-4 transition-transform ${
+                        activeDropdown === index ? 'rotate-180' : ''
+                      }`} />
                     </button>
 
                     {activeDropdown === index && (
@@ -157,15 +150,13 @@ export default function Navbar() {
                     <button
                       onClick={() => toggleDropdown(index)}
                       className={`w-full px-4 py-3 flex justify-between items-center ${
-                        activeDropdown === index
-                          ? "text-red-600 dark:text-red-500"
-                          : "text-gray-800 dark:text-gray-200"
+                        activeDropdown === index ? 'text-red-600 dark:text-red-500' : 'text-gray-800 dark:text-gray-200'
                       }`}
                     >
                       <span>{item.name}</span>
                       <ChevronDown
                         className={`h-4 w-4 transition-transform ${
-                          activeDropdown === index ? "rotate-180" : ""
+                          activeDropdown === index ? 'rotate-180' : ''
                         }`}
                       />
                     </button>
