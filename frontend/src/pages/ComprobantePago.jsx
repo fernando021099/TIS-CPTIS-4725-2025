@@ -206,8 +206,9 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
     }
 
 
-    // Intentar extraer Código de Recibo (ej. Cod. XXXXXXXXXX)
-    const codigoRegex = /Cod\.\s*([A-Za-z0-9]+)/i;
+    // Intentar extraer Código de Recibo (ej. Cod. XXXXXXXXXX o GRP-X-YYYYYYYYYY)
+    // Se modifica la regex para incluir guiones en el código.
+    const codigoRegex = /Cod\.\s*([A-Za-z0-9\-]+)/i; // MODIFICADO: Añadido '\-' al grupo de captura
     const codigoMatch = text.match(codigoRegex);
     if (codigoMatch && codigoMatch[1]) {
       codigoRecibo = codigoMatch[1];

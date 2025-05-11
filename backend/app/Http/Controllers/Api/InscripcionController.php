@@ -266,15 +266,14 @@ class InscripcionController extends Controller
                 'contacto_tutor.nombre' => 'required|string|max:100',
                 'contacto_tutor.correo' => 'required|string|email|max:100',
 
-                'inscripciones' => 'required|array|min:1', // Debe haber al menos una inscripción
+                'inscripciones' => 'required|array|min:1',
                 'inscripciones.*.estudiante' => 'required|array',
                 'inscripciones.*.estudiante.ci' => 'required|string|max:20',
                 'inscripciones.*.estudiante.nombres' => 'required|string|max:100',
                 'inscripciones.*.estudiante.apellidos' => 'required|string|max:100',
-                'inscripciones.*.estudiante.fecha_nacimiento' => 'required|date_format:Y-m-d', // CAMBIADO a required
-                'inscripciones.*.estudiante.curso' => 'required|string|max:50', // CAMBIADO a required
-                'inscripciones.*.estudiante.correo' => 'required|string|email|max:100', // CAMBIADO a required
-
+                'inscripciones.*.estudiante.fecha_nacimiento' => 'required|date_format:Y-m-d',
+                'inscripciones.*.estudiante.curso' => 'required|string|max:50',
+                'inscripciones.*.estudiante.correo' => 'required|string|email|max:100',
 
                 'inscripciones.*.colegio' => 'required|array',
                 'inscripciones.*.colegio.nombre' => 'required|string|max:150',
@@ -282,16 +281,13 @@ class InscripcionController extends Controller
                 'inscripciones.*.colegio.provincia' => 'required|string|max:100',
 
                 'inscripciones.*.area1_nombre' => 'required|string|max:100',
-                'inscripciones.*.area1_categoria' => 'nullable|string|max:50', // Puede ser null si viene de Excel
+                'inscripciones.*.area1_categoria' => 'nullable|string|max:50',
                 'inscripciones.*.area2_nombre' => 'nullable|string|max:100',
                 'inscripciones.*.area2_categoria' => 'nullable|string|max:50',
 
-                // Asumir que la versión de olimpiada es la misma para todo el grupo
-                'olimpiada_version' => 'required|integer|exists:olimpiada,version', // 'olimpiada' es correcto
+                'olimpiada_version' => 'required|integer|exists:olimpiada,version',
             ]);
 
-            // 2. Buscar o crear Contacto Tutor
-            // Podríamos buscar por email o celular para evitar duplicados
             $contactoTutor = Contacto::firstOrCreate(
                 ['correo' => $validatedData['contacto_tutor']['correo']],
                 $validatedData['contacto_tutor']
@@ -299,23 +295,21 @@ class InscripcionController extends Controller
 
             $inscripcionesCreadas = [];
             $montoTotal = 0;
-            $fechaHoy = now()->toDateString(); // Fecha actual
+            $fechaHoy = now()->toDateString();
             $olimpiadaVersion = $validatedData['olimpiada_version'];
 
-            // Generar un único código de pago para todo el grupo
-            $registroGrupalId = 'GRP-' . $contactoTutor->id . '-' . time();
-            $codigoPagoGrupo = 'PAGO-' . strtoupper(substr(md5($registroGrupalId . $olimpiadaVersion), 0, 8));
+            // Generar un único ID para el grupo, que se usará como:
+            // - ID de Registro en el PDF
+            // - Código de Pago en el PDF (para el banco)
+            // - codigo_comprobante en la tabla 'inscripciones' (para búsqueda OCR)
+            $idUnicoGrupo = 'GRP-' . $contactoTutor->id . '-' . time();
 
-
-            // 3. Iterar y crear cada inscripción
             foreach ($validatedData['inscripciones'] as $inscripcionData) {
-                 // Buscar o crear Estudiante
                 $estudiante = Estudiante::updateOrCreate(
-                    ['ci' => $inscripcionData['estudiante']['ci']], // Clave para buscar/crear es 'ci'
+                    ['ci' => $inscripcionData['estudiante']['ci']],
                     Arr::except($inscripcionData['estudiante'], ['ci'])
                 );
 
-                // Buscar o crear Colegio
                 $colegio = Colegio::firstOrCreate(
                     [
                         'nombre' => $inscripcionData['colegio']['nombre'],
@@ -324,7 +318,6 @@ class InscripcionController extends Controller
                     ]
                 );
 
-                // Buscar IDs de Áreas
                 $area1_id = null;
                 $area1 = Area::where('nombre', $inscripcionData['area1_nombre'])
                              ->when(isset($inscripcionData['area1_categoria']), function ($q) use ($inscripcionData) {
@@ -343,45 +336,36 @@ class InscripcionController extends Controller
                     if ($area2) $area2_id = $area2->id;
                 }
 
-                // Crear Inscripción
                 $inscripcion = Inscripcion::create([
-                    'estudiante_id' => $estudiante->ci, // Usar el CI del estudiante
-                    'contacto_id' => $contactoTutor->id, // Usar ID del tutor grupal
+                    'estudiante_id' => $estudiante->ci,
+                    'contacto_id' => $contactoTutor->id,
                     'colegio_id' => $colegio->id,
                     'area1_id' => $area1_id,
                     'area2_id' => $area2_id,
-                    'olimpiada_version' => $olimpiadaVersion, // Usar la versión validada
-                    'estado' => 'pendiente', // Estado inicial
+                    'olimpiada_version' => $olimpiadaVersion,
+                    'estado' => 'pendiente',
                     'fecha' => $fechaHoy,
-                    'codigo_pago' => $codigoPagoGrupo, // Asignar el código de pago del grupo
+                    'codigo_comprobante' => $idUnicoGrupo, // Usar el ID único del grupo
                 ]);
 
                 $inscripcionesCreadas[] = $inscripcion->id;
-                // Calcular costo (asumiendo costo fijo por área o inscripción)
-                 $costoInscripcion = ($area1 ? $area1->costo : 0) + ($area2 ? $area2->costo : 0);
-                 // O un costo fijo por inscripción si es más simple
-                 // $costoInscripcion = 15; // Ejemplo
-                 $montoTotal += $costoInscripcion > 0 ? $costoInscripcion : ($area1_id || $area2_id ? 15 : 0); // Costo mínimo si hay área
+                $costoInscripcion = ($area1 ? $area1->costo : 0) + ($area2 ? $area2->costo : 0);
+                $montoTotal += $costoInscripcion > 0 ? $costoInscripcion : ($area1_id || $area2_id ? 15 : 0);
             }
 
-            // 4. Generar datos para la respuesta (similares al modal de pago)
-            // $registroGrupalId ya está definido arriba
-            // $codigoPagoGrupo ya está definido arriba
             $fechaLimitePago = now()->addDays(3)->toDateString();
 
-            // Confirmar transacción
             DB::commit();
 
             return response()->json([
                 'message' => 'Inscripciones grupales registradas correctamente.',
-                'registro_grupal_id' => $registroGrupalId, // Puede ser el mismo código de pago o uno específico de grupo
+                'registro_grupal_id' => $idUnicoGrupo, // Este es el ID de Registro del PDF
                 'cantidad_estudiantes' => count($inscripcionesCreadas),
                 'monto_total' => $montoTotal,
-                'codigo_pago' => $codigoPagoGrupo, // Devolver el código de pago generado
+                'codigo_pago' => $idUnicoGrupo, // Este es el Código de Pago para el banco (mismo que ID de Registro)
                 'fecha_limite_pago' => $fechaLimitePago,
-                'ids_inscripciones' => $inscripcionesCreadas, // Opcional: devolver IDs creados
+                'ids_inscripciones' => $inscripcionesCreadas,
             ], 201);
-
 
         } catch (ValidationException $e) {
             DB::rollBack();
