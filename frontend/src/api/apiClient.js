@@ -1,104 +1,90 @@
+// Esta línea es crucial. Debe coincidir con el nombre de la variable en tu archivo .env (VITE_API_BASE_URL)
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// Definir la URL base de tu API aquí
-// const API_BASE_URL = 'http://127.0.0.1:8000/api'; // Ajusta si tu backend está en otro puerto o URL
+// Verificar si la URL base se cargó correctamente; de lo contrario, mostrar un error claro.
+if (!API_BASE_URL) {
+  console.error(
+    "Error: VITE_API_BASE_URL no está definida. " +
+    "Asegúrate de que tu archivo .env en la raíz del frontend exista y contenga VITE_API_BASE_URL=" +
+    "y que hayas reiniciado el servidor de desarrollo de Vite."
+  );
+  // Podrías incluso lanzar un error para detener la carga si la URL base es esencial.
+  // throw new Error("VITE_API_BASE_URL is not defined. Please check your .env file and restart the Vite server.");
+}
 
 /**
  * Realiza una solicitud fetch a la API.
- * @param {string} endpoint - El endpoint de la API (ej. '/areas', '/olimpiadas/2024').
- * @param {object} [options={}] - Opciones adicionales para fetch (method, headers, body, etc.).
- * @returns {Promise<any>} - Promesa que resuelve con los datos JSON de la respuesta.
- * @throws {Error} - Lanza un error si la respuesta no es ok (status code no es 2xx).
+ * @param {string} endpoint El endpoint de la API al que llamar (ej. '/users').
+ * @param {object} options Opciones para la solicitud fetch (método, headers, body, etc.).
+ * @returns {Promise<any>} Una promesa que resuelve con los datos JSON de la respuesta.
+ * @throws {Error} Si la respuesta de la red no es ok.
  */
-const apiClient = async (endpoint, method = 'GET', body = null, customHeaders = {}) => {
+async function fetchApi(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
-  const token = localStorage.getItem('authToken');
 
-  const headers = {
+  // Configuración por defecto de los headers
+  const defaultHeaders = {
+    'Content-Type': 'application/json',
     'Accept': 'application/json',
-    ...customHeaders, // Permite sobrescribir o añadir cabeceras
+    // Puedes añadir otros headers por defecto aquí, como tokens de autenticación
   };
-
-  // Solo añadir Content-Type si hay cuerpo y no es FormData
-  if (body && !(body instanceof FormData)) {
-    headers['Content-Type'] = 'application/json';
-  }
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
 
   const config = {
-    method,
-    headers,
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...options.headers,
+    },
   };
 
-  if (body) {
-    config.body = (body instanceof FormData) ? body : JSON.stringify(body);
+  // Si el cuerpo es un objeto, convertirlo a JSON
+  if (config.body && typeof config.body === 'object') {
+    config.body = JSON.stringify(config.body);
   }
 
   try {
     const response = await fetch(url, config);
 
     if (!response.ok) {
+      // Intentar parsear el error del cuerpo si está en JSON
       let errorData;
       try {
-        // Intentar parsear el cuerpo del error como JSON
         errorData = await response.json();
       } catch (e) {
-        // Si el cuerpo no es JSON o está vacío
-        errorData = { message: response.statusText || `Error HTTP ${response.status}` };
+        // Si el cuerpo del error no es JSON, usar el texto de estado
+        errorData = { message: response.statusText };
       }
-      
-      // Crear un objeto de error que incluya status y data
-      const error = new Error(errorData.message || `Error ${response.status}`);
-      error.status = response.status;
-      error.data = errorData; // Aquí errorData contiene { message: "...", errors: { ... } } de Laravel
-      
-      console.error('API call failed:', error.message, 'Status:', error.status, 'Data:', error.data);
-      throw error; // Lanzar el error enriquecido
+      // Construir un mensaje de error más informativo
+      const error = new Error(
+        `Error en la API: ${response.status} ${response.statusText}. ` +
+        (errorData.message ? `Mensaje: ${errorData.message}` : '')
+      );
+      error.response = response; // Adjuntar la respuesta completa al error
+      error.data = errorData;     // Adjuntar los datos del error parseados
+      throw error;
     }
 
-    // Si la respuesta es 204 No Content, no hay cuerpo para parsear
+    // Si la respuesta no tiene contenido (ej. 204 No Content), devolver null o un objeto vacío.
     if (response.status === 204) {
       return null; 
     }
 
-    // Para otras respuestas exitosas, parsear JSON
-    return await response.json();
-
+    return response.json(); // Parsear la respuesta como JSON
   } catch (error) {
-    // Si el error ya fue enriquecido arriba (error HTTP), relanzarlo
-    if (error.status) {
-      throw error;
+    console.error('Error en fetchApi:', error.message, 'Endpoint:', endpoint, 'URL completa:', url);
+    // Si el error ya tiene 'data' (porque lo lanzamos arriba), no lo sobrescribas.
+    if (!error.data) {
+        error.data = { message: error.message };
     }
-    // Para errores de red u otros errores no HTTP
-    console.error('Network or other error:', error.message);
-    // Crear un error genérico para problemas de red
-    const networkError = new Error(error.message || 'Error de red o CORS. No se pudo conectar con el servidor.');
-    // Podríamos añadir un status customizado para errores de red si es útil, ej: networkError.status = 0;
-    throw networkError;
+    throw error; // Re-lanzar el error para que pueda ser manejado por quien llama
   }
-};
+}
 
-// Helper functions
-// Estas funciones llaman a la función apiClient principal con el método HTTP correcto.
-export const get = (endpoint, customHeaders = {}) => apiClient(endpoint, 'GET', null, customHeaders);
-// La siguiente línea es la que se menciona como "post @ apiClient.js:87" en el error
-export const post = (endpoint, body, customHeaders = {}) => apiClient(endpoint, 'POST', body, customHeaders);
-export const put = (endpoint, body, customHeaders = {}) => apiClient(endpoint, 'PUT', body, customHeaders);
-export const patch = (endpoint, body, customHeaders = {}) => apiClient(endpoint, 'PATCH', body, customHeaders);
-export const del = (endpoint, customHeaders = {}) => apiClient(endpoint, 'DELETE', null, customHeaders);
-
-// Exportar un objeto 'api' para importación fácil
-// ASEGÚRATE DE QUE ESTA SECCIÓN SEA CORRECTA:
+// Exportar métodos de conveniencia
 export const api = {
-  get,          // Esto debe ser la función helper 'get'
-  post,         // Esto DEBE ser la función helper 'post', NO la función apiClient principal
-  put,          // Esto debe ser la función helper 'put'
-  patch,        // Esto debe ser la función helper 'patch'
-  delete: del,  // Esto debe ser la función helper 'del' (renombrada a delete)
+  get: (endpoint, options = {}) => fetchApi(endpoint, { ...options, method: 'GET' }),
+  post: (endpoint, body, options = {}) => fetchApi(endpoint, { ...options, method: 'POST', body }),
+  put: (endpoint, body, options = {}) => fetchApi(endpoint, { ...options, method: 'PUT', body }),
+  delete: (endpoint, options = {}) => fetchApi(endpoint, { ...options, method: 'DELETE' }),
+  patch: (endpoint, body, options = {}) => fetchApi(endpoint, { ...options, method: 'PATCH', body }),
 };
-
-// Default export (opcional, pero si se usa, la importación sería diferente)
-// export default apiClient; // Si tienes esto, asegúrate de que no cause confusión.

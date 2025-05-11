@@ -20,11 +20,16 @@ Route::apiResource('areas', AreaController::class);
 Route::apiResource('estudiantes', EstudianteController::class)->parameters(['estudiantes' => 'ci']); // Indicar que el parámetro es 'ci'
 Route::apiResource('contactos', ContactoController::class);
 Route::apiResource('colegios', ColegioController::class);
-Route::apiResource('inscripción', InscripcionController::class); // Cambiado a 'inscripción' (singular con tilde)
-Route::post('inscripción/grupo', [InscripcionController::class, 'storeGroup']);
-Route::get('inscripción/buscar-por-codigo-recibo', [InscripcionController::class, 'buscarPorCodigoRecibo']); // Nueva ruta
-Route::post('pagos/aprobar-por-codigo', [InscripcionController::class, 'aprobarPorCodigoRecibo']); // Nueva ruta
 
+// Rutas específicas para Inscripcion DEBEN IR ANTES de apiResource para 'inscripción'
+Route::get('inscripción/buscar-por-codigo-recibo', [InscripcionController::class, 'buscarPorCodigoRecibo']);
+Route::post('inscripción/grupo', [InscripcionController::class, 'storeGroup']);
+Route::post('pagos/aprobar-por-codigo', [InscripcionController::class, 'aprobarPorCodigoRecibo']);
+
+// Ahora la ruta de recurso para inscripción
+Route::apiResource('inscripción', InscripcionController::class);
+
+// Comenta o elimina esta línea si OCRController no existe aún
 Route::post('/ocr', [OCRController::class, 'procesarImagen']);
 
 // Puedes añadir rutas personalizadas aquí si necesitas lógica más específica

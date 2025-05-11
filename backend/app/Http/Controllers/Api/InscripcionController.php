@@ -401,6 +401,8 @@ class InscripcionController extends Controller
      */
     public function buscarPorCodigoRecibo(Request $request)
     {
+        Log::info('MÉTODO buscarPorCodigoRecibo INICIADO.'); // Log inicial muy visible
+
         $request->validate([
             'codigo' => 'required|string|max:50',
         ]);

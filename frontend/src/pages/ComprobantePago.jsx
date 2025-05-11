@@ -36,8 +36,8 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
 
   // Función para añadir entradas al log de depuración del frontend
   const addDebugEntry = (message, data = null) => {
-    const timestamp = new Date().toISOString();
-    setDebugLog(prevLog => [...prevLog, { timestamp, message, data }]);
+    // const timestamp = new Date().toISOString();
+    // setDebugLog(prevLog => [...prevLog, { timestamp, message, data }]);
   };
 
   useEffect(() => {
@@ -385,7 +385,7 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
 
   return (
     <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md border border-gray-200">
-      <h2 className="text-lg font-medium text-gray-900 mb-4">
+      <h2 className="text-lg font-medium text-gray-900 mb-4 text-center"> {/* Centrado */}
         Verificar Pago con Comprobante y OCR
       </h2>
       {/* Mostrar datos de la orden de pago original si existen */}
@@ -473,10 +473,10 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
         {/* Sección de Resultados OCR y Búsqueda de Inscripciones */}
         {showOcrSection && (
           <div className="mt-4 p-4 border border-gray-200 rounded-md bg-gray-50">
-            <h3 className="text-md font-semibold text-gray-800 mb-2">Análisis del Comprobante</h3>
+            <h3 className="text-md font-semibold text-gray-800 mb-2 text-center">Análisis del Comprobante</h3> {/* Centrado */}
             
             {isOcrProcessing && (
-              <div className="flex items-center text-blue-600">
+              <div className="flex items-center justify-center text-blue-600"> {/* Centrado */}
                 <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
                 <span>Procesando imagen con OCR...</span>
               </div>
@@ -521,9 +521,11 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
             {/* Resultados de la búsqueda por código de recibo */}
             {extractedOcrData?.codigoRecibo && (
               <div className="mt-4 pt-3 border-t">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Inscripciones Encontradas por Código de Recibo: '{extractedOcrData.codigoRecibo}'</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2 text-center"> {/* Centrado */}
+                  Inscripciones Encontradas por Código de Recibo: '{extractedOcrData.codigoRecibo}'
+                </h4>
                 {isSearchingByCode && (
-                  <div className="flex items-center text-blue-600">
+                  <div className="flex items-center justify-center text-blue-600"> {/* Centrado */}
                     <Search className="h-4 w-4 mr-2 animate-pulse" />
                     <span>Buscando inscripciones...</span>
                   </div>
@@ -541,7 +543,21 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
                       <li key={insc.id_inscripcion}> 
                         <strong>{insc.estudiante?.nombres} {insc.estudiante?.apellidos}</strong> (CI: {insc.estudiante?.ci})
                         <br />
-                        Áreas: {insc.area1?.nombre}{insc.area2?.nombre ? `, ${insc.area2.nombre}` : ''}
+                        {insc.area1 && (
+                          <>
+                            Área 1: {insc.area1.nombre} {insc.area1.categoria ? `(${insc.area1.categoria})` : ''}
+                            <br />
+                          </>
+                        )}
+                        {insc.area2 && (
+                          <>
+                            Área 2: {insc.area2.nombre} {insc.area2.categoria ? `(${insc.area2.categoria})` : ''}
+                          </>
+                        )}
+                        {/* Si no hay ni area1 ni area2, mostrar un mensaje o nada */}
+                        {!insc.area1 && !insc.area2 && (
+                            <span>Sin áreas asignadas</span>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -554,7 +570,7 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
           </div>
         )}
         
-        <div className="flex justify-end">
+        <div className="flex justify-center"> {/* Contenedor del botón centrado */}
           <button
             type="submit"
             disabled={!extractedOcrData?.codigoRecibo || uiState.isSubmitting || isOcrProcessing || isSearchingByCode || (foundInscriptionsByCode.length === 0 && !searchByCodeError && !isSearchingByCode && extractedOcrData?.codigoRecibo) } // Deshabilitar si no hay código o no hay inscripciones encontradas
@@ -578,7 +594,7 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
       {/* Sección de Logs de Depuración del Frontend */}
       <details className="mt-6">
         <summary className="text-sm font-medium text-gray-600 cursor-pointer hover:text-gray-800">
-          Ver Logs de Depuración del Proceso (Frontend)
+          Ver Logs de Depuración del Proceso (Frontend) {/* Se mantiene activo por si se necesita */}
         </summary>
         <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-md max-h-96 overflow-auto">
           <pre className="text-xs whitespace-pre-wrap break-all">

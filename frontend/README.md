@@ -34,3 +34,14 @@ import { api } from './api/apiClient';
 //   }
 // }
 ```
+
+## Solución de Problemas
+
+### Las llamadas a la API fallan con `/undefined/...` en la URL
+
+Si ves que las solicitudes de red van a una URL como `http://localhost:5173/undefined/ruta-api` (donde `localhost:5173` es tu servidor de desarrollo Vite), significa que la variable de entorno `VITE_API_BASE_URL` no se está cargando correctamente.
+
+Asegúrate de lo siguiente:
+1.  El archivo `.env` existe en la raíz de tu proyecto frontend (`c:\Users\DAN\temporal\TIS-CPTIS-4725-2025\frontend\.env`).
+2.  El archivo `.env` contiene la línea: `VITE_API_BASE_URL=http://127.0.0.1:8000/api` (ajusta el puerto si tu backend corre en uno diferente).
+3.  **Importante:** Después de crear o modificar el archivo `.env`, debes **detener y reiniciar tu servidor de desarrollo Vite**. Vite solo lee las variables de entorno al arrancar.
