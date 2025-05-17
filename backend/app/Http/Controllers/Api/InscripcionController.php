@@ -449,33 +449,31 @@ class InscripcionController extends Controller
         Log::info('MÉTODO buscarPorCodigoRecibo INICIADO.'); 
 
         $request->validate([
-            'codigo' => 'required|string|max:100', // Aumentar max para acomodar texto OCR más largo
+            'codigo' => 'required|string|max:100', 
         ]);
 
         $codigoReciboInput = $request->input('codigo');
-        Log::info('Código OCR Input CRUDO recibido en buscarPorCodigoRecibo:', ['raw_input' => $codigoReciboInput]); // Log para ver el input exacto
+        Log::info('Código OCR Input CRUDO recibido en buscarPorCodigoRecibo:', ['raw_input' => $codigoReciboInput]);
         
         $codigoReciboLimpio = null;
 
-        // Regex más tolerante: busca IND, opcionalmente espacios, guion, opcionalmente espacios, y luego los dígitos.
-        // Captura "IND", el guion "-", y los "dígitos" en grupos separados para reconstruir.
-        if (preg_match('/(IND)\s*(-)\s*(\d+)/', $codigoReciboInput, $matches)) {
-            // Reconstruir el código para asegurar el formato "IND-DIGITOS" sin espacios extra
-            $codigoReciboLimpio = $matches[1] . $matches[2] . $matches[3]; // Concatena ej: "IND" + "-" + "87654321"
+        // Intentar extraer código IND-
+        if (preg_match('/(IND)\s*(-)\s*(\d+)/i', $codigoReciboInput, $matchesInd)) {
+            $codigoReciboLimpio = strtoupper($matchesInd[1]) . $matchesInd[2] . $matchesInd[3]; // IND-1234567
             Log::info('Código IND- extraído y normalizado con regex:', ['input' => $codigoReciboInput, 'extraido_normalizado' => $codigoReciboLimpio]);
+        } 
+        // Si no es IND-, intentar extraer código GRP-
+        elseif (preg_match('/(GRP)\s*(-)\s*(\d+-\d+)/i', $codigoReciboInput, $matchesGrp)) { 
+            // GRP-IDTUTOR-TIMESTAMP (ej: GRP-32-1747444856)
+            $codigoReciboLimpio = strtoupper($matchesGrp[1]) . $matchesGrp[2] . $matchesGrp[3]; 
+            Log::info('Código GRP- extraído y normalizado con regex:', ['input' => $codigoReciboInput, 'extraido_normalizado' => $codigoReciboLimpio]);
         } else {
-            Log::info('Patrón IND- no encontrado con regex. Input no procesado como código IND.', ['input' => $codigoReciboInput]);
-            // Si la regex específica para IND- no encuentra nada, no se considera un código IND- válido.
-            // Si se esperara que el input pudiera ser un código ya perfectamente limpio (sin texto OCR alrededor),
-            // se podría añadir una comprobación aquí:
-            // if (preg_match('/^IND-\d+$/', trim($codigoReciboInput))) {
-            //    $codigoReciboLimpio = trim($codigoReciboInput);
-            // }
+            Log::info('Patrón IND- o GRP- no encontrado con regex. Input no procesado.', ['input' => $codigoReciboInput]);
         }
 
         if (!$codigoReciboLimpio) {
-            Log::warning('No se pudo extraer un código IND- válido del input.', ['input' => $codigoReciboInput]);
-            return response()->json([], 200); // O un error 400 si se considera inválido
+            Log::warning('No se pudo extraer un código IND- o GRP- válido del input.', ['input' => $codigoReciboInput]);
+            return response()->json([], 200); 
         }
         
         $tableName = (new Inscripcion)->getTable(); 
@@ -483,14 +481,13 @@ class InscripcionController extends Controller
         Log::info('Buscando inscripciones por codigo_comprobante:', [
             'input_original' => $codigoReciboInput,
             'codigo_buscado_limpio' => $codigoReciboLimpio,
-            'table_name_from_model' => $tableName // Log del nombre de la tabla obtenido del modelo
+            'table_name_from_model' => $tableName 
         ]);
 
-        // Habilitar log de queries para esta sección
         DB::enableQueryLog();
 
-        // Usar $tableName en la consulta. Las comillas dobles alrededor del nombre de la tabla
-        // son importantes para PostgreSQL si el nombre contiene caracteres no estándar o mayúsculas/minúsculas específicas.
+        // Usar $tableName en la consulta.
+        // La comparación se hace en minúsculas para ser consistente, aunque normalizamos a mayúsculas.
         $inscripciones = Inscripcion::whereRaw('LOWER(TRIM("'.$tableName.'".codigo_comprobante)) = ?', [strtolower($codigoReciboLimpio)])
             ->with(['estudiante:ci,nombres,apellidos', 'area1:id,nombre,categoria', 'area2:id,nombre,categoria'])
             ->get();
@@ -533,44 +530,47 @@ class InscripcionController extends Controller
     public function aprobarPorCodigoRecibo(Request $request)
     {
         $validatedData = $request->validate([
-            'codigo_recibo' => 'required|string|max:100', // Aumentar max para acomodar texto OCR
+            'codigo_recibo' => 'required|string|max:100', 
         ]);
 
         $codigoReciboInput = $validatedData['codigo_recibo'];
-        Log::info('Código OCR Input CRUDO recibido en aprobarPorCodigoRecibo:', ['raw_input' => $codigoReciboInput]); // Log para ver el input exacto
+        Log::info('Código OCR Input CRUDO recibido en aprobarPorCodigoRecibo:', ['raw_input' => $codigoReciboInput]);
 
         $codigoReciboLimpio = null;
         $tableName = (new Inscripcion)->getTable(); 
 
-        // Regex más tolerante y reconstrucción, igual que en buscarPorCodigoRecibo
-        if (preg_match('/(IND)\s*(-)\s*(\d+)/', $codigoReciboInput, $matches)) {
-            $codigoReciboLimpio = $matches[1] . $matches[2] . $matches[3];
+        // Intentar extraer código IND-
+        if (preg_match('/(IND)\s*(-)\s*(\d+)/i', $codigoReciboInput, $matchesInd)) {
+            $codigoReciboLimpio = strtoupper($matchesInd[1]) . $matchesInd[2] . $matchesInd[3];
             Log::info('Código IND- extraído y normalizado con regex en aprobarPorCodigoRecibo:', ['input' => $codigoReciboInput, 'extraido_normalizado' => $codigoReciboLimpio]);
+        } 
+        // Si no es IND-, intentar extraer código GRP-
+        elseif (preg_match('/(GRP)\s*(-)\s*(\d+-\d+)/i', $codigoReciboInput, $matchesGrp)) {
+            $codigoReciboLimpio = strtoupper($matchesGrp[1]) . $matchesGrp[2] . $matchesGrp[3];
+            Log::info('Código GRP- extraído y normalizado con regex en aprobarPorCodigoRecibo:', ['input' => $codigoReciboInput, 'extraido_normalizado' => $codigoReciboLimpio]);
         } else {
-            Log::info('Patrón IND- no encontrado con regex en aprobarPorCodigoRecibo. Input no procesado como código IND.', ['input' => $codigoReciboInput]);
-            // Considerar el mismo fallback opcional que en buscarPorCodigoRecibo si es necesario.
+            Log::info('Patrón IND- o GRP- no encontrado con regex en aprobarPorCodigoRecibo. Input no procesado.', ['input' => $codigoReciboInput]);
         }
 
         if (!$codigoReciboLimpio) {
-            Log::warning('No se pudo extraer un código IND- válido del input para aprobación.', ['input' => $codigoReciboInput]);
+            Log::warning('No se pudo extraer un código IND- o GRP- válido del input para aprobación.', ['input' => $codigoReciboInput]);
             return response()->json(['message' => 'El código de recibo proporcionado no tiene un formato reconocible.'], 400);
         }
 
         Log::info('Inicio de aprobarPorCodigoRecibo.', [
             'codigo_recibo_input_original' => $validatedData['codigo_recibo'], 
             'codigo_recibo_limpio' => $codigoReciboLimpio,
-            'table_name_from_model' => $tableName // Log del nombre de la tabla obtenido del modelo
+            'table_name_from_model' => $tableName 
         ]);
 
         DB::beginTransaction();
         try {
             // Usar $tableName en la consulta
+            // La comparación se hace en minúsculas para ser consistente.
             $inscripciones = Inscripcion::whereRaw('LOWER(TRIM("'.$tableName.'".codigo_comprobante)) = ?', [strtolower($codigoReciboLimpio)])->get();
 
             if ($inscripciones->isEmpty()) {
                 DB::rollBack();
-                // Si la validación 'exists' pasó pero esta búsqueda no encuentra nada (debido a diferencias de mayúsculas/minúsculas o espacios),
-                // se tratará como si no se encontraran inscripciones.
                 Log::warning('No se encontraron inscripciones para aprobar con el código (búsqueda insensible):', ['codigo_recibo' => $codigoReciboLimpio]);
                 return response()->json(['message' => 'No se encontraron inscripciones con el código de recibo proporcionado para aprobar.'], 404);
             }

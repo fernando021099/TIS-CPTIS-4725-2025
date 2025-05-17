@@ -206,12 +206,12 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
     }
 
 
-    // Intentar extraer Código de Recibo (ej. IND-XXXXXXXXXX)
-    // Se actualiza la regex para buscar directamente "IND-" seguido de dígitos.
-    const codigoRegex = /(IND-\d+)/i; 
+    // Intentar extraer Código de Recibo (ej. IND-XXXXXXXXXX o GRP-XX-XXXXXXXXXX)
+    // Se actualiza la regex para buscar "IND-" seguido de dígitos O "GRP-" seguido de dígitos-dígitos.
+    const codigoRegex = /(IND-\d+|GRP-\d+-\d+)/i; 
     const codigoMatch = text.match(codigoRegex);
-    if (codigoMatch && codigoMatch[1]) {
-      codigoRecibo = codigoMatch[1]; // codigoMatch[1] contendrá "IND-XXXXXXXXXX"
+    if (codigoMatch && codigoMatch[0]) { // Usar codigoMatch[0] ya que la regex ahora tiene un OR y captura el grupo completo
+      codigoRecibo = codigoMatch[0]; 
     }
     addDebugEntry("parseOcrText: Código de Recibo Extraído.", { codigoRecibo });
     console.log("Código Recibo Extraído en parseOcrText:", `"${codigoRecibo}"`); // Modificado para ver comillas
@@ -265,17 +265,16 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
     const montoOCR = ocrData.monto;
     const montoEsperado = inscriptionApiData.montoEsperado;
 
-    if (Math.abs(montoOCR - montoEsperado) < 0.01) { // Comparación de flotantes con tolerancia
+    if (Math.abs(montoOCR - montoEsperado) < 0.01) // Comparación de flotantes con tolerancia
       setComparisonResult({
         status: "success",
         message: `El monto del comprobante (${montoOCR} Bs.) coincide con el monto esperado (${montoEsperado} Bs.).`
       });
-    } else {
+    else
       setComparisonResult({
         status: "mismatch",
         message: `El monto del comprobante (${montoOCR} Bs.) NO coincide con el monto esperado (${montoEsperado} Bs.). Se requiere verificación manual.`
       });
-    }
   };
 
 
