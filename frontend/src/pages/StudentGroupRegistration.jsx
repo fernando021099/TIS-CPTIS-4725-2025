@@ -12,11 +12,14 @@ const StudentGroupRegistration = () => {
   const [completedSections, setCompletedSections] = useState([]);
   const [registrationMethod, setRegistrationMethod] = useState(null);
   
-  const [tutorData, setTutorData] = useState({
-    name: "",
-    email: "",
-    phone: ""
-  });
+  const [tutors, setTutors] = useState([
+    {
+      id: Date.now(),
+      name: "",
+      email: "",
+      phone: ""
+    }
+  ]);
 
   const [students, setStudents] = useState([
     {
@@ -24,7 +27,7 @@ const StudentGroupRegistration = () => {
       lastName: "",
       firstName: "",
       ci: "",
-      email: "", // <--- AÑADIR CAMPO EMAIL
+      email: "",
       birthDate: "",
       school: "",
       grade: "",
@@ -57,7 +60,7 @@ const StudentGroupRegistration = () => {
     "Santa Cruz": ["Andrés Ibáñez", "Warnes", "Velasco", "Ichilo", "Chiquitos", "Sara", "Cordillera", "Vallegrande", "Florida", "Obispo Santistevan", "Ñuflo de Chávez", "Ángel Sandoval"],
   };
 
-  const areaOptions = [ // Mantener como referencia o fallback
+  const areaOptions = [
     "ASTRONOMÍA - ASTROFÍSICA",
     "BIOLOGÍA",
     "FÍSICA",
@@ -67,7 +70,7 @@ const StudentGroupRegistration = () => {
     "ROBÓTICA"
   ];
 
-  const areaToCategories = { // Mantener como referencia o fallback
+  const areaToCategories = {
     "ASTRONOMÍA - ASTROFÍSICA": ["3P", "4P", "5P", "6P", "1S", "2S", "3S", "4S", "5S", "6S"],
     "BIOLOGÍA": ["2S", "3S", "4S", "5S", "6S"],
     "FÍSICA": ["4S", "5S", "6S"],
@@ -77,44 +80,67 @@ const StudentGroupRegistration = () => {
     "ROBÓTICA": ["Builders P", "Builders S", "Lego P", "Lego S"]
   };
 
-  const handleTutorChange = (e) => {
+  const handleTutorChange = (id, e) => {
     const { name, value } = e.target;
     
-    // Validación adicional para el nombre (solo letras y espacios)
     if (name === "name") {
       const onlyLetters = /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/;
       if (value && !onlyLetters.test(value)) {
-        return; // No actualiza el estado si no son solo letras
+        return;
       }
     }
 
-    // Validación adicional para el teléfono (solo números y máximo 8 dígitos)
-  if (name === "phone") {
-    const onlyNumbers = /^[0-9]*$/;
-    if (value && (!onlyNumbers.test(value) || value.length > 8)) {
-      return; // No actualiza el estado si no son solo números o tiene más de 8 dígitos
+    if (name === "phone") {
+      const onlyNumbers = /^[0-9]*$/;
+      if (value && (!onlyNumbers.test(value) || value.length > 8)) {
+        return;
+      }
     }
-  }
-    setTutorData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
+    
+    setTutors(prev => prev.map(tutor => 
+      tutor.id === id ? { ...tutor, [name]: value } : tutor
+    ));
+    
+    if (errors[`tutor${id}_${name}`]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[`tutor${id}_${name}`];
+        return newErrors;
+      });
+    }
+  };
+
+  const addTutor = () => {
+    setTutors(prev => [
+      ...prev,
+      {
+        id: Date.now(),
+        name: "",
+        email: "",
+        phone: ""
+      }
+    ]);
+  };
+
+  const removeTutor = (id) => {
+    if (tutors.length <= 1) return;
+    setTutors(prev => prev.filter(tutor => tutor.id !== id));
   };
 
   const handleStudentChange = (id, e) => {
     const { name, value } = e.target;
   
-    // Validación para campos de solo letras (nombres y apellidos)
     if (name === 'firstName' || name === 'lastName') {
       const onlyLetters = /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/;
       if (value && !onlyLetters.test(value)) {
-        return; // No actualiza el estado si no son solo letras
+        return;
       }
     }
   
-    // Validación para CI (solo números y máximo 7 dígitos)
     if (name === 'ci') {
       const onlyNumbers = /^[0-9]*$/;
-      if (value && (!onlyNumbers.test(value) || value.length > 8)) { // Ajustado a 8 para CI + Extension si aplica, o mantener en 7 si es solo CI. Revisar requerimiento.
-        return; 
+      if (value && (!onlyNumbers.test(value) || value.length > 8)) {
+        return;
       }
     }
   
@@ -176,7 +202,7 @@ const StudentGroupRegistration = () => {
         lastName: "",
         firstName: "",
         ci: "",
-        email: "", // <--- AÑADIR CAMPO EMAIL
+        email: "",
         birthDate: "",
         school: "",
         grade: "",
@@ -197,28 +223,19 @@ const StudentGroupRegistration = () => {
     const newErrors = {};
     
     if (section === 1) {
-      if (!tutorData.name) newErrors.tutorName = "Nombre del tutor requerido";
-      if (!tutorData.email) newErrors.tutorEmail = "Correo del tutor requerido";
-      if (!tutorData.phone) newErrors.tutorPhone = "Teléfono del tutor requerido";
-      
-      if (tutorData.email && !/^\S+@\S+\.\S+$/.test(tutorData.email)) {
-        newErrors.tutorEmail = "Correo electrónico inválido";
-      }
-      
-      if (tutorData.phone && !/^[0-9+]+$/.test(tutorData.phone)) {
-        newErrors.tutorPhone = "Teléfono inválido";
-        if (!tutorData.name) newErrors.tutorName = "Nombre del tutor requerido";
-        else if (!/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(tutorData.name)) {
-          newErrors.tutorName = "El nombre solo debe contener letras";
+      tutors.forEach((tutor, index) => {
+        if (!tutor.name) newErrors[`tutor${tutor.id}_name`] = "Nombre del tutor requerido";
+        if (!tutor.email) newErrors[`tutor${tutor.id}_email`] = "Correo del tutor requerido";
+        if (!tutor.phone) newErrors[`tutor${tutor.id}_phone`] = "Teléfono del tutor requerido";
+        
+        if (tutor.email && !/^\S+@\S+\.\S+$/.test(tutor.email)) {
+          newErrors[`tutor${tutor.id}_email`] = "Correo electrónico inválido";
         }
-
-        if (!tutorData.phone) newErrors.tutorPhone = "Teléfono del tutor requerido";
-        else if (!/^[0-9]{8}$/.test(tutorData.phone)) {
-          newErrors.tutorPhone = "El teléfono debe tener exactamente 8 dígitos";
-        }  
         
-        
-      }
+        if (tutor.phone && !/^[0-9]{8}$/.test(tutor.phone)) {
+          newErrors[`tutor${tutor.id}_phone`] = "El teléfono debe tener exactamente 8 dígitos";
+        }
+      });
     }
     
     setErrors(newErrors);
@@ -245,18 +262,17 @@ const StudentGroupRegistration = () => {
       
       if (!student.ci) {
         studentErrors.ci = "CI requerido";
-      } else if (!/^[0-9]{7,8}$/.test(student.ci)) { // Ajustado para permitir 7 u 8 dígitos. Revisar requerimiento.
+      } else if (!/^[0-9]{7,8}$/.test(student.ci)) {
         studentErrors.ci = "El CI debe tener entre 7 y 8 dígitos";
       }
 
-      if (!student.email) { // <--- VALIDACIÓN DE EMAIL
+      if (!student.email) {
         studentErrors.email = "Correo del estudiante requerido";
       } else if (!/^\S+@\S+\.\S+$/.test(student.email)) {
         studentErrors.email = "Correo electrónico inválido";
       }
       
-      // Resto de las validaciones...
-      if (!student.birthDate) studentErrors.birthDate = "Fecha de nacimiento requerida"; // Asegurar que se valide
+      if (!student.birthDate) studentErrors.birthDate = "Fecha de nacimiento requerida";
       if (!student.school) studentErrors.school = "Colegio requerido";
       if (!student.grade) studentErrors.grade = "Curso requerido";
       if (!student.department) studentErrors.department = "Departamento requerido";
@@ -296,7 +312,6 @@ const StudentGroupRegistration = () => {
     data.forEach((row, index) => {
       const rowErrors = {};
       
-      // Validación de campos requeridos
       if (!row.Correo) rowErrors.email = "Correo requerido";
       if (!row.Apellidos) rowErrors.lastName = "Apellidos requeridos";
       if (!row.Nombres) rowErrors.firstName = "Nombres requeridos";
@@ -309,60 +324,45 @@ const StudentGroupRegistration = () => {
       if (!row['Area 1']) rowErrors.area1 = "Área 1 requerida";
       if (row['Area 1'] && !row['Nivel 1']) rowErrors.level1 = "Nivel 1 requerido para Área 1";
 
-      // Validación de formato de correo
       if (row.Correo && !/^\S+@\S+\.\S+$/.test(row.Correo)) {
         rowErrors.email = "Correo electrónico inválido";
       }
-       // Validación de CI (solo números) 
-    if (row.Ci_Competidor) {
-      // Separar el CI del tipo de competidor si está en formato "1234567|Tipo"
-      const [ciPart] = row.Ci_Competidor.split('|').map(item => item.trim());
       
-      if (!/^[0-9]+$/.test(ciPart)) {
-        rowErrors.ciCompetitor = "La parte del CI debe contener solo números";
+      if (row.Ci_Competidor) {
+        const [ciPart] = row.Ci_Competidor.split('|').map(item => item.trim());
+        
+        if (!/^[0-9]+$/.test(ciPart)) {
+          rowErrors.ciCompetitor = "La parte del CI debe contener solo números";
+        }
       }
-    }
       
-      // Validación de competidor (valores esperados)
       if (row.Competidor && !['Individual', 'Grupal', 'Regular'].includes(row.Competidor)) {
         rowErrors.competitorType = "Tipo de competidor inválido (Individual/Grupal/Regular)";
       }
 
-      // Validación de Nombres (solo letras, espacios y acentos)
-    if (row.Nombres && !/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(row.Nombres)) {
-      rowErrors.firstName = "Nombres solo debe contener letras y espacios";
-    }
-    
-    // Validación de Apellidos (solo letras, espacios y acentos)
-    if (row.Apellidos && !/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(row.Apellidos)) {
-      rowErrors.lastName = "Apellidos solo debe contener letras y espacios";
-    }
+      if (row.Nombres && !/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(row.Nombres)) {
+        rowErrors.firstName = "Nombres solo debe contener letras y espacios";
+      }
       
-      // Validación de fecha de nacimiento (formato aproximado)
+      if (row.Apellidos && !/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(row.Apellidos)) {
+        rowErrors.lastName = "Apellidos solo debe contener letras y espacios";
+      }
+      
       const birthDateValue = row['Fecha de Nacimiento'];
-      console.log(`Fila ${index + 2} - Valor Fecha de Nacimiento: '${birthDateValue}'`); // Para depuración
+      console.log(`Fila ${index + 2} - Valor Fecha de Nacimiento: '${birthDateValue}'`);
 
       if (birthDateValue) {
-        // Expresión regular más tolerante a espacios alrededor de las barras
         if (!/^\d{1,2}\s*\/\s*\d{1,2}\s*\/\d{4}$/.test(birthDateValue)) {
           rowErrors.birthDate = "Formato de fecha debe ser DD/MM/AAAA";
         } else {
-          // Opcional: Validar que la fecha sea lógica (ej. día <= 31, mes <= 12)
           const parts = birthDateValue.split('/');
           const day = parseInt(parts[0], 10);
           const month = parseInt(parts[1], 10);
-          // const year = parseInt(parts[2], 10); // Año ya validado por \d{4}
           if (day < 1 || day > 31 || month < 1 || month > 12) {
             rowErrors.birthDate = "Fecha inválida (día o mes fuera de rango)";
           }
         }
-      } else {
-        // Si es requerido y no está presente (ya cubierto por la validación de campos requeridos)
-        // rowErrors.birthDate = "Fecha de nacimiento requerida"; 
       }
-      
-      // Validación de áreas y niveles (el resto se mantiene igual)
-      // ... (código existente de validación de áreas)
       
       if (Object.keys(rowErrors).length > 0) {
         errorsList.push({
@@ -375,9 +375,6 @@ const StudentGroupRegistration = () => {
     return errorsList;
   };
   
-    
-   
-
   const goToNextSection = () => {
     if (validateSection(currentSection)) {
       setCompletedSections(prev => [...prev, currentSection]);
@@ -428,7 +425,7 @@ const StudentGroupRegistration = () => {
       });
       
       const requiredColumns = [
-    'Correo', 'Apellidos', 'Nombres', 'Ci_Competidor', 'Fecha de Nacimiento', 'Colegio', 
+        'Correo', 'Apellidos', 'Nombres', 'Ci_Competidor', 'Fecha de Nacimiento', 'Colegio', 
         'Curso', 'Departamento', 'Provincia', 'Area 1', 'Nivel 1', 'Area 2', 'Nivel 2'
       ];
       
@@ -445,22 +442,15 @@ const StudentGroupRegistration = () => {
         row.eachCell((cell, colNumber) => {
           const header = headers[colNumber - 1];
           if (header && requiredColumns.includes(header)) {
-            // --- INICIO DE MODIFICACIÓN ---
             if (header === 'Fecha de Nacimiento' && cell.value instanceof Date) {
               const date = cell.value;
-              // Ajustar la fecha por la zona horaria si es necesario.
-              // ExcelJS podría devolver la fecha en UTC. Si la fecha en Excel es 15/05/2008
-              // y obtienes 14/05/2008 20:00:00 GMT-0400, significa que la fecha es correcta
-              // pero la conversión a string local la muestra un día antes debido a la zona horaria.
-              // Para obtener DD/MM/AAAA de la fecha tal como está en Excel (sin corrimiento por zona horaria local):
               const day = date.getDate();
-              const month = date.getMonth() + 1; // Meses son 0-indexados
+              const month = date.getMonth() + 1;
               const year = date.getFullYear();
               rowData[header] = `${day}/${month}/${year}`;
             } else {
               rowData[header] = cell.value?.toString().trim() || "";
             }
-            // --- FIN DE MODIFICACIÓN ---
           }
         });
         
@@ -495,7 +485,7 @@ const StudentGroupRegistration = () => {
     try {
       const workbook = new ExcelJS.Workbook();
       workbook.creator = "Sistema de Inscripciones";
-      workbook.lastModifiedBy = tutorData.name;
+      workbook.lastModifiedBy = tutors[0].name;
       workbook.created = new Date();
       workbook.modified = new Date();
       
@@ -585,8 +575,8 @@ const StudentGroupRegistration = () => {
         }
       });
       
-      workbook.properties.company = tutorData.name;
-      workbook.properties.manager = tutorData.email;
+      workbook.properties.company = tutors[0].name;
+      workbook.properties.manager = tutors[0].email;
       
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { 
@@ -595,7 +585,7 @@ const StudentGroupRegistration = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `Inscripcion_Grupal_${tutorData.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.xlsx`;
+      link.download = `Inscripcion_Grupal_${tutors[0].name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -610,151 +600,118 @@ const StudentGroupRegistration = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Asegurarse que la sección 1 (tutor) esté validada si se avanza desde ahí
     if (!completedSections.includes(1) && !validateSection(1)) return; 
     
     setUiState(prev => ({ ...prev, isSubmitting: true }));
-    setExcelErrors([]); // Limpiar errores previos
-    setErrors({}); // Limpiar errores de formulario también
+    setExcelErrors([]);
+    setErrors({});
     
     try {
       let validationErrors = [];
       let studentsDataForApi = [];
       
-      // 1. Validar datos de estudiantes según el método
       if (registrationMethod === "form") {
         validationErrors = validateAllStudents();
         if (validationErrors.length === 0) {
           studentsDataForApi = students.map(student => ({
-            // Mapear a la estructura esperada por la API de inscripción individual
-            // (Asumiendo que el endpoint grupal acepta un array de estas estructuras)
             estudiante: {
               nombres: student.firstName,
               apellidos: student.lastName,
               ci: student.ci,
-              correo: student.email, // <--- CORREGIDO: 'email' a 'correo'
-              fecha_nacimiento: student.birthDate, // Asegurar que esté en AAAA-MM-DD
-              curso: student.grade, // <--- AÑADIR CURSO (mapeado desde grade)
+              correo: student.email,
+              fecha_nacimiento: student.birthDate,
+              curso: student.grade,
             },
             colegio: {
               nombre: student.school,
               departamento: student.department,
               provincia: student.province,
-              // Podrías necesitar buscar o crear el colegio en el backend
             },
-            // area1_id y area2_id necesitarían buscarse en el backend
-            // basado en student.areas y student.categories
-            // Esto es complejo de hacer aquí, el backend debería manejarlo
-            // Enviamos los nombres por ahora para que el backend los procese
             area1_nombre: student.areas[0] ? student.areas[0].toUpperCase() : null,
             area1_categoria: student.categories[student.areas[0]] || null,
             area2_nombre: student.areas[1] ? student.areas[1].toUpperCase() : null,
             area2_categoria: student.categories[student.areas[1]] || null,
-            // Asumir que la olimpiada se define en el backend o se pasa de otra forma
-            // olimpiada_version: ??? 
           }));
         }
       } else if (registrationMethod === "excel") {
         if (!excelData) {
           throw new Error("No se ha cargado o validado ningún archivo Excel");
         }
-        // La validación ya se hizo al cargar, pero podemos re-validar si es necesario
         validationErrors = validateExcelData(excelData); 
         if (validationErrors.length === 0) {
-           // En la función handleSubmit, donde se procesan los datos del Excel:
-            studentsDataForApi = excelData.map(row => {
-              const [ci, competitorType] = row.Ci_Competidor.split('|').map(item => item.trim());
-              
-              // Función auxiliar para convertir DD/MM/AAAA o D/M/AAAA a AAAA-MM-DD
-              const formatDateToYMD = (dateString) => {
-                if (!dateString) return null;
-                const parts = dateString.split('/');
-                if (parts.length !== 3) return null; // Formato inválido
-                // Asegurar dos dígitos para día y mes
-                const day = parts[0].padStart(2, '0');
-                const month = parts[1].padStart(2, '0');
-                const year = parts[2];
-                return `${year}-${month}-${day}`;
-              };
+          studentsDataForApi = excelData.map(row => {
+            const [ci, competitorType] = row.Ci_Competidor.split('|').map(item => item.trim());
+            
+            const formatDateToYMD = (dateString) => {
+              if (!dateString) return null;
+              const parts = dateString.split('/');
+              if (parts.length !== 3) return null;
+              const day = parts[0].padStart(2, '0');
+              const month = parts[1].padStart(2, '0');
+              const year = parts[2];
+              return `${year}-${month}-${day}`;
+            };
 
-              return {
-                estudiante: {
-                  nombres: row.Nombres,
-                  apellidos: row.Apellidos,
-                  ci: ci,
-                  correo: row.Correo, // <--- CORREGIDO: 'email' (implícito) a 'correo'
-                  fecha_nacimiento: formatDateToYMD(row['Fecha de Nacimiento']), // <--- FECHA FORMATEADA
-                  // tipo_competidor: competitorType // Este campo no está en el backend para estudiante
-                  // Si necesitas enviar 'tipo_competidor', asegúrate que el backend lo espere
-                  // y que la tabla 'estudiante' tenga una columna para ello.
-                  // Por ahora, lo omitimos para que coincida con la estructura esperada.
-                  curso: row.Curso // Asegúrate que este campo se mapee si es necesario
-                },
-                colegio: {
-                  nombre: row.Colegio,
-                  departamento: row.Departamento,
-                  provincia: row.Provincia
-                },
-                area1_nombre: row['Area 1'] ? row['Area 1'].toUpperCase() : null,
-                area1_categoria: row['Nivel 1'],
-                area2_nombre: row['Area 2'] ? row['Area 2'].toUpperCase() : null,
-                area2_categoria: row['Nivel 2'] || null
-              };
-            });
+            return {
+              estudiante: {
+                nombres: row.Nombres,
+                apellidos: row.Apellidos,
+                ci: ci,
+                correo: row.Correo,
+                fecha_nacimiento: formatDateToYMD(row['Fecha de Nacimiento']),
+                curso: row.Curso
+              },
+              colegio: {
+                nombre: row.Colegio,
+                departamento: row.Departamento,
+                provincia: row.Provincia
+              },
+              area1_nombre: row['Area 1'] ? row['Area 1'].toUpperCase() : null,
+              area1_categoria: row['Nivel 1'],
+              area2_nombre: row['Area 2'] ? row['Area 2'].toUpperCase() : null,
+              area2_categoria: row['Nivel 2'] || null
+            };
+          });
         }
       } else {
-         throw new Error("Método de registro no seleccionado");
+        throw new Error("Método de registro no seleccionado");
       }
       
-      // 2. Si hay errores de validación, mostrarlos
       if (validationErrors.length > 0) {
-        setExcelErrors(validationErrors); // Usar el estado excelErrors para mostrar
+        setExcelErrors(validationErrors);
         setUiState(prev => ({ 
           ...prev, 
           isSubmitting: false,
-          showErrorsModal: true // Mostrar modal de errores
+          showErrorsModal: true
         }));
-        return; // Detener el envío
+        return;
       }
       
-      // 3. Preparar payload para la API
       const payload = {
-        contacto_tutor: { // Datos del tutor
-          nombre: tutorData.name,
-          correo: tutorData.email, // <--- CAMBIADO DE 'email' A 'correo'
-          celular: tutorData.phone,
-          // relacion: 'Tutor Grupal' // Podrías añadir un campo para identificar
-        },
-        inscripciones: studentsDataForApi, // Array de datos de estudiantes
-        olimpiada_version: 2024 // <--- AÑADIR VERSIÓN DE OLIMPIADA AQUÍ (ej. 2024)
-        // Si necesitas que sea dinámico, obtén este valor de un estado o API.
+        contactos_tutores: tutors.map(tutor => ({
+          nombre: tutor.name,
+          correo: tutor.email,
+          celular: tutor.phone
+        })),
+        inscripciones: studentsDataForApi,
+        olimpiada_version: 2024
       };
 
-      // 4. Enviar a la API (Endpoint hipotético: /inscripciones/grupo)
-      // >>>>> LLAMADA API REAL <<<<<
-      const responseData = await api.post('/inscripción/grupo', payload); // CAMBIADO DE '/inscripciones/grupo' A '/inscripción/grupo'
+      const responseData = await api.post('/inscripción/grupo', payload);
 
-      // >>>>> LÓGICA MOCK (COMENTADA) <<<<<
-      /*
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      const mockPaymentData = { ... }; // Datos mock existentes
-      */
-
-      // 5. Procesar respuesta de la API y mostrar modal de pago/éxito
-      // Asumiendo que la API devuelve algo similar a mockPaymentData
       const paymentInfo = {
-        registrationId: responseData.registro_grupal_id || "GRP-" + Date.now(), // Usar ID de la API si existe
-        amount: responseData.monto_total || studentsDataForApi.length * 15, // Usar monto de la API
-        tutorName: tutorData.name,
-        studentCount: responseData.cantidad_estudiantes || studentsDataForApi.length, // Usar cantidad de la API
-        paymentDeadline: responseData.fecha_limite_pago ? new Date(responseData.fecha_limite_pago) : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // Usar fecha de la API
-        paymentCode: responseData.codigo_pago || "PAGO-" + Math.random().toString(36).substr(2, 6).toUpperCase() // Usar código de la API
+        registrationId: responseData.registro_grupal_id || "GRP-" + Date.now(),
+        amount: responseData.monto_total || studentsDataForApi.length * 15,
+        tutorName: tutors[0].name,
+        studentCount: responseData.cantidad_estudiantes || studentsDataForApi.length,
+        paymentDeadline: responseData.fecha_limite_pago ? new Date(responseData.fecha_limite_pago) : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        paymentCode: responseData.codigo_pago || "PAGO-" + Math.random().toString(36).substr(2, 6).toUpperCase()
       };
       
       setUiState(prev => ({ 
         ...prev, 
         showPaymentModal: true,
-        paymentData: paymentInfo, // Usar datos procesados de la API
+        paymentData: paymentInfo,
         isSubmitting: false
       }));
       
@@ -769,14 +726,13 @@ const StudentGroupRegistration = () => {
         
         for (const key in laravelErrors) {
           const messages = laravelErrors[key].join(', ');
-          const inscripcionMatch = key.match(/^inscripciones\.(\d+)\.(.+)$/); // inscripciones.INDEX.campo.subcampo
-          const tutorMatch = key.match(/^contacto_tutor\.(.+)$/); // contacto_tutor.campo
+          const inscripcionMatch = key.match(/^inscripciones\.(\d+)\.(.+)$/);
+          const tutorMatch = key.match(/^contactos_tutores\.(\d+)\.(.+)$/);
 
           if (inscripcionMatch) {
             const studentIndex = parseInt(inscripcionMatch[1], 10);
-            const fieldPath = inscripcionMatch[2]; // ej: "estudiante.ci" o "colegio.nombre"
+            const fieldPath = inscripcionMatch[2];
             
-            // Intentar encontrar el nombre del estudiante para dar más contexto
             let studentNameHint = "";
             if (registrationMethod === "form" && students[studentIndex]) {
               studentNameHint = ` (${students[studentIndex].firstName} ${students[studentIndex].lastName})`;
@@ -785,39 +741,37 @@ const StudentGroupRegistration = () => {
             }
 
             backendErrorsToShow.push({
-              // Usamos 'message' para un formato más genérico en el modal si no es de excel
               message: `Estudiante #${studentIndex + 1}${studentNameHint} - Campo '${fieldPath.replace(/\./g, ' -> ')}': ${messages}`
             });
           } else if (tutorMatch) {
-            const fieldPath = tutorMatch[1];
+            const tutorIndex = parseInt(tutorMatch[1], 10);
+            const fieldPath = tutorMatch[2];
             backendErrorsToShow.push({
-              message: `Tutor - Campo '${fieldPath}': ${messages}`
+              message: `Tutor #${tutorIndex + 1} - Campo '${fieldPath}': ${messages}`
             });
           } else {
-            // Errores más generales o que no siguen el patrón esperado
             backendErrorsToShow.push({ message: `${key.replace(/\./g, ' -> ')}: ${messages}` });
           }
         }
         
-        if (backendErrorsToShow.length === 0) { // Si no se pudieron parsear errores específicos
+        if (backendErrorsToShow.length === 0) {
           backendErrorsToShow.push({ message: userDisplayMessage });
         }
 
       } else if (error.message) {
-        userDisplayMessage = error.message;
-        backendErrorsToShow.push({ message: userDisplayMessage });
+        backendErrorsToShow.push({ message: error.message });
       } else {
         backendErrorsToShow.push({ message: "Ocurrió un error desconocido." });
       }
       
-      console.log("Errores detallados para el modal:", backendErrorsToShow); // <--- AÑADIR ESTE CONSOLE.LOG
-      setExcelErrors(backendErrorsToShow); // Usamos excelErrors para el modal, aunque no sea de Excel
+      console.log("Errores detallados para el modal:", backendErrorsToShow);
+      setExcelErrors(backendErrorsToShow);
       setUiState(prev => ({ 
         ...prev, 
         isSubmitting: false,
         showErrorsModal: true 
       }));
-      setErrors(prev => ({ ...prev, form: userDisplayMessage })); // Error general para el formulario
+      setErrors(prev => ({ ...prev, form: userDisplayMessage }));
     }
   };
 
@@ -944,81 +898,373 @@ const StudentGroupRegistration = () => {
     }
   };
 
+  const generateTemplateExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Plantilla");
+      
+      worksheet.columns = [
+        { header: "Correo", key: "Correo", width: 25 },
+        { header: "Apellidos", key: "Apellidos", width: 25 },
+        { header: "Nombres", key: "Nombres", width: 25 },
+        { header: "Ci_Competidor", key: "Ci_Competidor", width: 25 },
+        { header: "Fecha de Nacimiento", key: "Fecha de Nacimiento", width: 15 },
+        { header: "Colegio", key: "Colegio", width: 30 },
+        { header: "Curso", key: "Curso", width: 15 },
+        { header: "Departamento", key: "Departamento", width: 15 },
+        { header: "Provincia", key: "Provincia", width: 15 },
+        { header: "Area 1", key: "Area 1", width: 20 },
+        { header: "Nivel 1", key: "Nivel 1", width: 15 },
+        { header: "Area 2", key: "Area 2", width: 20 },
+        { header: "Nivel 2", key: "Nivel 2", width: 15, 
+          note: "Opcional - dejar vacío si no aplica" }
+      ];
+      
+      worksheet.addRow({
+        "Correo": "ejemplo@email.com",
+        "Apellidos": "Perez",
+        "Nombres": "Juan",
+        "Ci_Competidor": "1234567|Regular",
+        "Fecha de Nacimiento": "15/05/2008",
+        "Colegio": "Colegio Ejemplo",
+        "Curso": "4to de secundaria",
+        "Departamento": "Cochabamba",
+        "Provincia": "Cercado",
+        "Area 1": "MATEMÁTICAS",
+        "Nivel 1": "Primer Nivel",
+        "Area 2": "",
+        "Nivel 2": ""
+      });
+      
+      const headerRow = worksheet.getRow(1);
+      headerRow.eachCell(cell => {
+        cell.font = { 
+          bold: true, 
+          color: { argb: 'FFFFFFFF' },
+          size: 12
+        };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4F81BD' }
+        };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF000000' } },
+          left: { style: 'thin', color: { argb: 'FF000000' } },
+          bottom: { style: 'thin', color: { argb: 'FF000000' } },
+          right: { style: 'thin', color: { argb: 'FF000000' } }
+        };
+        cell.alignment = { 
+          vertical: 'middle', 
+          horizontal: 'center',
+          wrapText: true
+        };
+      });
+      
+      const exampleRow = worksheet.getRow(2);
+      exampleRow.eachCell(cell => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFD3D3D3' } },
+          left: { style: 'thin', color: { argb: 'FFD3D3D3' } },
+          bottom: { style: 'thin', color: { argb: 'FFD3D3D3' } },
+          right: { style: 'thin', color: { argb: 'FFD3D3D3' } }
+        };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF2F2F2' }
+        };
+        cell.font = {
+          italic: true
+        };
+      });
+      
+      worksheet.addRow([]);
+      
+      const noteRow = worksheet.addRow(["NOTA: Las áreas disponibles son: " + areaOptions.join(", ")]);
+      noteRow.font = { italic: true, size: 10 };
+      noteRow.getCell(1).alignment = { wrapText: true };
+      worksheet.mergeCells(`A${noteRow.number}:H${noteRow.number}`);
+      
+      worksheet.columns.forEach(column => {
+        if (column.values) {
+          const maxLength = column.values.reduce((max, value) => {
+            if (value && typeof value.toString === 'function') {
+              const length = value.toString().length;
+              return Math.max(max, length);
+            }
+            return max;
+          }, column.header.length);
+          
+          column.width = Math.min(Math.max(maxLength + 2, 10), 50);
+        }
+      });
+      
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { 
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "Plantilla_Inscripcion_Grupal.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    } catch (error) {
+      console.error("Error al generar plantilla Excel:", error);
+      alert("Error al generar la plantilla Excel");
+    }
+  };
+
+  const renderErrorsModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-2xl w-full shadow-xl animate-fade-in max-h-[80vh] overflow-y-auto">
+        <div className="text-center">
+          <h3 className="text-lg font-medium text-gray-900">
+            Errores en los datos
+          </h3>
+          <div className="mt-4 text-sm text-gray-600 text-left">
+            <p className="mb-4">Por favor corrija los siguientes errores antes de continuar:</p>
+            
+            {excelErrors.map((error, i) => (
+              <div key={i} className="mb-4 p-3 bg-red-50 rounded-md">
+                {error.message ? (
+                  <p className="font-medium">{error.message}</p>
+                ) : (
+                  <>
+                    {registrationMethod === "excel" && error.rowNumber ? (
+                      <p className="font-medium">Fila {error.rowNumber}:</p>
+                    ) : error.studentIndex ? (
+                      <p className="font-medium">Estudiante #{error.studentIndex}:</p>
+                    ) : (
+                      <p className="font-medium">Error:</p> 
+                    )}
+                    
+                    {error.errors && typeof error.errors === 'object' && (
+                      <ul className="list-disc pl-5 mt-1">
+                        {Object.entries(error.errors).map(([field, message]) => (
+                          <li key={field}>{message}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-6">
+          <button
+            type="button"
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            onClick={() => setUiState(prev => ({ ...prev, showErrorsModal: false }))}
+          >
+            Entendido, corregiré los errores
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderPaymentModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in">
+        <div className="text-center">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+            <Check className="h-6 w-6 text-blue-600" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mt-3">
+            Orden de Pago Grupal
+          </h3>
+          <div className="mt-4 text-sm text-gray-600 text-left space-y-3">
+            <div className="flex justify-between">
+              <span className="font-medium">Tutor:</span>
+              <span>{uiState.paymentData.tutorName}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Estudiantes:</span>
+              <span>{uiState.paymentData.studentCount}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Monto total:</span>
+              <span className="font-bold">{uiState.paymentData.amount} Bs.</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Código de pago:</span>
+              <span className="font-mono">{uiState.paymentData.paymentCode}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">ID de Registro:</span>
+              <span className="font-mono">{uiState.paymentData.registrationId}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Fecha límite:</span>
+              <span>{uiState.paymentData.paymentDeadline.toLocaleDateString()}</span>
+            </div>
+            
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-yellow-700 text-sm">
+                <span className="font-medium">Importante:</span> Debe presentar esta orden de pago en las cajas de la FCyT para completar la inscripción grupal.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="mt-6">
+          <button
+            onClick={handleDownloadPDF}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Descargar Orden de Pago (PDF)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderSuccessModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl animate-fade-in">
+        <div className="flex items-center justify-center">
+          <div className="flex-shrink-0 h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+            <Check className="h-6 w-6 text-green-600" />
+          </div>
+        </div>
+        <div className="mt-3 text-center">
+          <h3 className="text-lg font-medium text-gray-900">
+            Inscripción Grupal Completada
+          </h3>
+          <div className="mt-2 text-sm text-gray-500">
+            La inscripción grupal ha sido registrada correctamente. Recibirá un correo de confirmación con los detalles.
+          </div>
+          {uiState.paymentData && (
+            <div className="mt-3 p-2 bg-blue-50 rounded-md text-xs">
+              <p className="font-medium">ID de Registro:</p>
+              <p className="font-mono">{uiState.paymentData.registrationId}</p>
+            </div>
+          )}
+        </div>
+        <div className="mt-4">
+          <button
+            type="button"
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            onClick={() => {
+              setUiState(prev => ({ ...prev, showSuccessModal: false }));
+              navigate("/");
+            }}
+          >
+            Finalizar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderTutorDataSection = () => (
     <div className="space-y-4">
       <h3 className="text-lg font-medium text-gray-900 mb-4">
         1. Datos del tutor responsable
       </h3>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Nombre completo del tutor <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="name"
-            value={tutorData.name}
-            onChange={handleTutorChange}
-            className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.tutorName ? "border-red-500" : "border-gray-300"
-            }`}
-            placeholder="Nombre completo del tutor"
-          />
-          {errors.tutorName && (
-            <p className="mt-1 text-sm text-red-600 flex items-center">
-              <X className="h-4 w-4 mr-1" />
-              {errors.tutorName}
-            </p>
-          )}
+      {tutors.map((tutor, index) => (
+        <div key={tutor.id} className="border border-gray-200 rounded-lg p-4 mb-4">
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="font-medium text-gray-900">Tutor #{index + 1}</h4>
+            {tutors.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeTutor(tutor.id)}
+                className="text-red-600 hover:text-red-800 flex items-center text-sm"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Eliminar
+              </button>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nombre completo del tutor <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={tutor.name}
+                onChange={(e) => handleTutorChange(tutor.id, e)}
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  errors[`tutor${tutor.id}_name`] ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="Nombre completo del tutor"
+              />
+              {errors[`tutor${tutor.id}_name`] && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <X className="h-4 w-4 mr-1" />
+                  {errors[`tutor${tutor.id}_name`]}
+                </p>
+              )}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Correo electrónico <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={tutor.email}
+                onChange={(e) => handleTutorChange(tutor.id, e)}
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  errors[`tutor${tutor.id}_email`] ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="correo@tutor.com"
+              />
+              {errors[`tutor${tutor.id}_email`] && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <X className="h-4 w-4 mr-1" />
+                  {errors[`tutor${tutor.id}_email`]}
+                </p>
+              )}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Teléfono <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                value={tutor.phone}
+                onChange={(e) => handleTutorChange(tutor.id, e)}
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  errors[`tutor${tutor.id}_phone`] ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="Número de contacto"
+              />
+              {errors[`tutor${tutor.id}_phone`] && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <X className="h-4 w-4 mr-1" />
+                  {errors[`tutor${tutor.id}_phone`]}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Correo electrónico <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="email"
-            name="email"
-            value={tutorData.email}
-            onChange={handleTutorChange}
-            className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.tutorEmail ? "border-red-500" : "border-gray-300"
-            }`}
-            placeholder="correo@tutor.com"
-          />
-          {errors.tutorEmail && (
-            <p className="mt-1 text-sm text-red-600 flex items-center">
-              <X className="h-4 w-4 mr-1" />
-              {errors.tutorEmail}
-            </p>
-          )}
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Teléfono <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="tel"
-            name="phone"
-            value={tutorData.phone}
-            onChange={handleTutorChange}
-            className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.tutorPhone ? "border-red-500" : "border-gray-300"
-            }`}
-            placeholder="Número de contacto"
-          />
-          {errors.tutorPhone && (
-            <p className="mt-1 text-sm text-red-600 flex items-center">
-              <X className="h-4 w-4 mr-1" />
-              {errors.tutorPhone}
-            </p>
-          )}
-        </div>
-      </div>
+      ))}
       
-      <div className="mt-6 flex justify-end">
+      <div className="flex justify-between items-center">
+        <button
+          type="button"
+          onClick={addTutor}
+          className="flex items-center px-3 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100"
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          Agregar otro tutor
+        </button>
+        
         <button
           type="button"
           onClick={goToNextSection}
@@ -1159,7 +1405,6 @@ const StudentGroupRegistration = () => {
                 />
               </div>
 
-              {/* NUEVO CAMPO PARA EMAIL DEL ESTUDIANTE */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Correo Electrónico Estudiante <span className="text-red-500">*</span>
@@ -1472,63 +1717,62 @@ const StudentGroupRegistration = () => {
         </div>
       )}
       
-
       {excelData && (
-  <div className="border border-gray-200 rounded-lg overflow-hidden">
-    <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-      <h4 className="text-sm font-medium text-gray-700">
-        Vista previa de datos ({excelData.length} estudiantes)
-      </h4>
-    </div>
-    <div className="overflow-x-auto max-h-96">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Correo</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Apellidos</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nombres</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ci_Competidor</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fecha Nac.</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Colegio</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Curso</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Departamento</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Provincia</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Area 1</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nivel 1</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Area 2</th>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nivel 2</th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {excelData.slice(0, 5).map((row, i) => (
-            <tr key={i}>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate">{row.Correo}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Apellidos}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Nombres}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Ci_Competidor}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Fecha de Nacimiento']}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Colegio}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Curso}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Departamento}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Provincia}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Area 1']}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Nivel 1']}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Area 2'] || '-'}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Nivel 2'] || '-'}</td>
-            </tr>
-          ))}
-          {excelData.length > 5 && (
-            <tr>
-              <td colSpan={13} className="px-3 py-2 text-center text-xs text-gray-500">
-                + {excelData.length - 5} estudiantes más...
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  </div>
-)}
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+            <h4 className="text-sm font-medium text-gray-700">
+              Vista previa de datos ({excelData.length} estudiantes)
+            </h4>
+          </div>
+          <div className="overflow-x-auto max-h-96">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Correo</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Apellidos</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nombres</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ci_Competidor</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fecha Nac.</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Colegio</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Curso</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Departamento</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Provincia</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Area 1</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nivel 1</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Area 2</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nivel 2</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {excelData.slice(0, 5).map((row, i) => (
+                  <tr key={i}>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate">{row.Correo}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Apellidos}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Nombres}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Ci_Competidor}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Fecha de Nacimiento']}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Colegio}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Curso}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Departamento}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row.Provincia}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Area 1']}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Nivel 1']}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Area 2'] || '-'}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{row['Nivel 2'] || '-'}</td>
+                  </tr>
+                ))}
+                {excelData.length > 5 && (
+                  <tr>
+                    <td colSpan={13} className="px-3 py-2 text-center text-xs text-gray-500">
+                      + {excelData.length - 5} estudiantes más...
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
       
       <div className="mt-6 flex justify-between">
         <button
@@ -1552,274 +1796,6 @@ const StudentGroupRegistration = () => {
         >
           {uiState.isSubmitting ? "Validando..." : "Validar y Continuar"}
         </button>
-      </div>
-    </div>
-  );
-
-  const generateTemplateExcel = async () => {
-    try {
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet("Plantilla");
-      
-       worksheet.columns = [
-      { header: "Correo", key: "Correo", width: 25 },
-      { header: "Apellidos", key: "Apellidos", width: 25 },
-      { header: "Nombres", key: "Nombres", width: 25 },
-      { header: "Ci_Competidor", key: "Ci_Competidor", width: 25 },
-      { header: "Fecha de Nacimiento", key: "Fecha de Nacimiento", width: 15 },
-      { header: "Colegio", key: "Colegio", width: 30 },
-      { header: "Curso", key: "Curso", width: 15 },
-      { header: "Departamento", key: "Departamento", width: 15 },
-      { header: "Provincia", key: "Provincia", width: 15 },
-      { header: "Area 1", key: "Area 1", width: 20 },
-      { header: "Nivel 1", key: "Nivel 1", width: 15 },
-      { header: "Area 2", key: "Area 2", width: 20 },
-      { header: "Nivel 2", key: "Nivel 2", width: 15, 
-        note: "Opcional - dejar vacío si no aplica" }
-    ];
-      
-      // Ejemplo de fila
-    worksheet.addRow({
-      "Correo": "ejemplo@email.com",
-      "Apellidos": "Perez",
-      "Nombres": "Juan",
-      "Ci_Competidor": "1234567|Regular", // Formato: CI|TipoCompetidor
-      "Fecha de Nacimiento": "15/05/2008",
-      "Colegio": "Colegio Ejemplo",
-      "Curso": "4to de secundaria",
-      "Departamento": "Cochabamba",
-      "Provincia": "Cercado",
-      "Area 1": "MATEMÁTICAS",
-      "Nivel 1": "Primer Nivel",
-      "Area 2": "", // Opcional
-      "Nivel 2": ""  // Opcional
-    });
-      
-      const headerRow = worksheet.getRow(1);
-      headerRow.eachCell(cell => {
-        cell.font = { 
-          bold: true, 
-          color: { argb: 'FFFFFFFF' },
-          size: 12
-        };
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'FF4F81BD' }
-        };
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FF000000' } },
-          left: { style: 'thin', color: { argb: 'FF000000' } },
-          bottom: { style: 'thin', color: { argb: 'FF000000' } },
-          right: { style: 'thin', color: { argb: 'FF000000' } }
-        };
-        cell.alignment = { 
-          vertical: 'middle', 
-          horizontal: 'center',
-          wrapText: true
-        };
-      });
-      
-      const exampleRow = worksheet.getRow(2);
-      exampleRow.eachCell(cell => {
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FFD3D3D3' } },
-          left: { style: 'thin', color: { argb: 'FFD3D3D3' } },
-          bottom: { style: 'thin', color: { argb: 'FFD3D3D3' } },
-          right: { style: 'thin', color: { argb: 'FFD3D3D3' } }
-        };
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'FFF2F2F2' }
-        };
-        cell.font = {
-          italic: true
-        };
-      });
-      
-      worksheet.addRow([]);
-      
-      const noteRow = worksheet.addRow(["NOTA: Las áreas disponibles son: " + areaOptions.join(", ")]);
-      noteRow.font = { italic: true, size: 10 };
-      noteRow.getCell(1).alignment = { wrapText: true };
-      worksheet.mergeCells(`A${noteRow.number}:H${noteRow.number}`);
-      
-      worksheet.columns.forEach(column => {
-        if (column.values) {
-          const maxLength = column.values.reduce((max, value) => {
-            if (value && typeof value.toString === 'function') {
-              const length = value.toString().length;
-              return Math.max(max, length);
-            }
-            return max;
-          }, column.header.length);
-          
-          column.width = Math.min(Math.max(maxLength + 2, 10), 50);
-        }
-      });
-      
-      const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { 
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "Plantilla_Inscripcion_Grupal.xlsx";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-    } catch (error) {
-      console.error("Error al generar plantilla Excel:", error);
-      alert("Error al generar la plantilla Excel");
-    }
-  };
-
-  const renderErrorsModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-2xl w-full shadow-xl animate-fade-in max-h-[80vh] overflow-y-auto">
-        <div className="text-center">
-          <h3 className="text-lg font-medium text-gray-900">
-            Errores en los datos
-          </h3>
-          <div className="mt-4 text-sm text-gray-600 text-left">
-            <p className="mb-4">Por favor corrija los siguientes errores antes de continuar:</p>
-            
-            {excelErrors.map((error, i) => (
-              <div key={i} className="mb-4 p-3 bg-red-50 rounded-md">
-                {/* Si el error tiene una propiedad 'message', es un error formateado del backend o un error general */}
-                {error.message ? (
-                  <p className="font-medium">{error.message}</p>
-                ) : (
-                  // Si no, es un error de validación del frontend (formato original)
-                  <>
-                    {registrationMethod === "excel" && error.rowNumber ? (
-                      <p className="font-medium">Fila {error.rowNumber}:</p>
-                    ) : error.studentIndex ? (
-                      <p className="font-medium">Estudiante #{error.studentIndex}:</p>
-                    ) : (
-                      <p className="font-medium">Error:</p> 
-                    )}
-                    
-                    {error.errors && typeof error.errors === 'object' && (
-                      <ul className="list-disc pl-5 mt-1">
-                        {Object.entries(error.errors).map(([field, message]) => (
-                          <li key={field}>{message}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="mt-6">
-          <button
-            type="button"
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            onClick={() => setUiState(prev => ({ ...prev, showErrorsModal: false }))}
-          >
-            Entendido, corregiré los errores
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderPaymentModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in">
-        <div className="text-center">
-          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-            <Check className="h-6 w-6 text-blue-600" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mt-3">
-            Orden de Pago Grupal
-          </h3>
-          <div className="mt-4 text-sm text-gray-600 text-left space-y-3">
-            <div className="flex justify-between">
-              <span className="font-medium">Tutor:</span>
-              <span>{uiState.paymentData.tutorName}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium">Estudiantes:</span>
-              <span>{uiState.paymentData.studentCount}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium">Monto total:</span>
-              <span className="font-bold">{uiState.paymentData.amount} Bs.</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium">Código de pago:</span>
-              <span className="font-mono">{uiState.paymentData.paymentCode}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium">ID de Registro:</span>
-              <span className="font-mono">{uiState.paymentData.registrationId}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium">Fecha límite:</span>
-              <span>{uiState.paymentData.paymentDeadline.toLocaleDateString()}</span>
-            </div>
-            
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-yellow-700 text-sm">
-                <span className="font-medium">Importante:</span> Debe presentar esta orden de pago en las cajas de la FCyT para completar la inscripción grupal.
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="mt-6">
-          <button
-            onClick={handleDownloadPDF}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Descargar Orden de Pago (PDF)
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderSuccessModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl animate-fade-in">
-        <div className="flex items-center justify-center">
-          <div className="flex-shrink-0 h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-            <Check className="h-6 w-6 text-green-600" />
-          </div>
-        </div>
-        <div className="mt-3 text-center">
-          <h3 className="text-lg font-medium text-gray-900">
-            Inscripción Grupal Completada
-          </h3>
-          <div className="mt-2 text-sm text-gray-500">
-            La inscripción grupal ha sido registrada correctamente. Recibirá un correo de confirmación con los detalles.
-          </div>
-          {uiState.paymentData && (
-            <div className="mt-3 p-2 bg-blue-50 rounded-md text-xs">
-              <p className="font-medium">ID de Registro:</p>
-              <p className="font-mono">{uiState.paymentData.registrationId}</p>
-            </div>
-          )}
-        </div>
-        <div className="mt-4">
-          <button
-            type="button"
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            onClick={() => {
-              setUiState(prev => ({ ...prev, showSuccessModal: false }));
-              navigate("/");
-            }}
-          >
-            Finalizar
-          </button>
-        </div>
       </div>
     </div>
   );
