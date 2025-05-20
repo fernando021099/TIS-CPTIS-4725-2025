@@ -1,37 +1,44 @@
-import { useState, useEffect, useRef } from "react"
-import { ChevronDown, Menu, X } from "lucide-react"
-import { Link } from "react-router-dom"
+import { useState, useEffect, useRef } from "react";
+import { ChevronDown, Menu, X } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function Navbar() {
-  const [activeDropdown, setActiveDropdown] = useState(null)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [isScrolled, setIsScrolled] = useState(false)
-  const navRef = useRef(null)
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const navRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (navRef.current && !navRef.current.contains(event.target)) {
-        setActiveDropdown(null)
+        setActiveDropdown(null);
       }
-    }
+    };
 
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10)
-      setActiveDropdown(null)
-    }
+      setIsScrolled(window.scrollY > 10);
+      setActiveDropdown(null);
+    };
 
-    document.addEventListener("mousedown", handleClickOutside)
-    window.addEventListener("scroll", handleScroll)
+    document.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("scroll", handleScroll);
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-      window.removeEventListener("scroll", handleScroll)
-    }
-  }, [])
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   const toggleDropdown = (menu) => {
-    setActiveDropdown(activeDropdown === menu ? null : menu)
-  }
+    setActiveDropdown(activeDropdown === menu ? null : menu);
+  };
+
+  const handleNavigation = (path) => {
+    navigate(path);
+    setActiveDropdown(null);
+    setIsMobileMenuOpen(false);
+  };
 
   const menuItems = [
     { name: "Inicio", hasDropdown: false, link: "/" },
@@ -50,16 +57,16 @@ export default function Navbar() {
       dropdownItems: [
         { name: "Registrar nueva área", link: "/register" },
         { name: "Ver listado de áreas", link: "/areas" },
-        { name: "Editar área de prueba", link: "/editar-area/1" }, // Ruta dinámica
+        { name: "Editar área de prueba", link: "/editar-area/1" },
       ],
     },
     {
-      name: "Pagos", // Nombre cambiado a "Subir Comprobante"
+      name: "Pagos",
       hasDropdown: true,
       dropdownItems: [
         { name: "Verificar Pago", link: "#" },
         { name: "Historial", link: "#" },
-        { name: "Subir comprobante", link: "/comprobante-pago" }, // Ruta a la página ComprobantePago
+        { name: "Subir comprobante", link: "/comprobante-pago" },
       ],
     },
     {
@@ -70,10 +77,14 @@ export default function Navbar() {
         { name: "Resultados", link: "#" },
         { name: "Estadísticas", link: "#" },
         { name: "Certificados", link: "#" },
+        { 
+          name: "Reportes Varios", 
+          action: () => handleNavigation("/reportes") 
+        },
       ],
     },
     { name: "Contacto", hasDropdown: false, link: "#" },
-  ]
+  ];
 
   return (
     <div ref={navRef}>
@@ -108,14 +119,24 @@ export default function Navbar() {
                     {activeDropdown === index && (
                       <div className="absolute left-1/2 transform -translate-x-1/2 mt-0 w-56 bg-white dark:bg-gray-700 shadow-lg rounded-b-md z-50 border border-gray-100 dark:border-gray-600">
                         {item.dropdownItems.map((dropdownItem, dropIndex) => (
-                          <Link
-                            key={dropIndex}
-                            to={dropdownItem.link}
-                            className="block px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-red-50 dark:hover:bg-gray-600 hover:text-red-600 transition-colors"
-                            onClick={() => setActiveDropdown(null)}
-                          >
-                            {dropdownItem.name}
-                          </Link>
+                          dropdownItem.link ? (
+                            <Link
+                              key={dropIndex}
+                              to={dropdownItem.link}
+                              className="block px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-red-50 dark:hover:bg-gray-600 hover:text-red-600 transition-colors"
+                              onClick={() => setActiveDropdown(null)}
+                            >
+                              {dropdownItem.name}
+                            </Link>
+                          ) : (
+                            <button
+                              key={dropIndex}
+                              onClick={dropdownItem.action}
+                              className="block w-full text-left px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-red-50 dark:hover:bg-gray-600 hover:text-red-600 transition-colors"
+                            >
+                              {dropdownItem.name}
+                            </button>
+                          )
                         ))}
                       </div>
                     )}
@@ -173,17 +194,30 @@ export default function Navbar() {
                     {activeDropdown === index && (
                       <div className="pl-6 pb-2">
                         {item.dropdownItems.map((dropdownItem, dropIndex) => (
-                          <Link
-                            key={dropIndex}
-                            to={dropdownItem.link}
-                            className="block px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-red-600"
-                            onClick={() => {
-                              setActiveDropdown(null)
-                              setIsMobileMenuOpen(false)
-                            }}
-                          >
-                            {dropdownItem.name}
-                          </Link>
+                          dropdownItem.link ? (
+                            <Link
+                              key={dropIndex}
+                              to={dropdownItem.link}
+                              className="block px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-red-600"
+                              onClick={() => {
+                                setActiveDropdown(null);
+                                setIsMobileMenuOpen(false);
+                              }}
+                            >
+                              {dropdownItem.name}
+                            </Link>
+                          ) : (
+                            <button
+                              key={dropIndex}
+                              onClick={() => {
+                                dropdownItem.action();
+                                setIsMobileMenuOpen(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-red-600"
+                            >
+                              {dropdownItem.name}
+                            </button>
+                          )
                         ))}
                       </div>
                     )}
@@ -203,5 +237,5 @@ export default function Navbar() {
         )}
       </div>
     </div>
-  )
+  );
 }
