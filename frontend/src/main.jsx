@@ -12,6 +12,7 @@ import StudentsApprovedList from "./pages/StudentsApprovedList";
 import EditArea from "./pages/EditArea";
 import ComprobantePago from "./pages/ComprobantePago";
 import AdminLogin from "./pages/AdminLogin";
+import StudentDetail from "./pages/StudentDetail";  // <-- Importa StudentDetail
 
 import "./index.css";
 
@@ -52,9 +53,8 @@ const router = createBrowserRouter([
       { path: "student-registration", element: <StudentRegistration /> },
       { path: "group-registration", element: <StudentGroupRegistration /> },
       { path: "student-applications", element: <StudentsApprovedList /> },
+      { path: "student-detail/:id", element: <StudentDetail /> },  // <-- Nueva ruta detalle estudiante
       { path: "editar-area/:id", element: <EditArea /> },
-      // La ruta de comprobante-pago se mantiene solo en el modal, opcional si quieres página aparte
-      // { path: "comprobante-pago", element: <ComprobantePago /> },
       { path: "admin", element: <AdminLogin /> },
       { path: "*", element: <Navigate to="/" replace /> },
     ],
