@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { X, Check, Upload, Download } from "lucide-react";
 import { api } from '../api/apiClient';
+import Tesseract from 'tesseract.js';
 
 const ComprobantePago = ({ registrationId, onSuccess }) => {
   const fileInputRef = useRef(null);
@@ -12,6 +13,8 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
     isSubmitting: false,
     showSuccess: false
   });
+  const [textoDetectado, setTextoDetectado] = useState('');
+  const [procesando, setProcesando] = useState(false);
 
   const handleFileUpload = async (e) => {
     const uploadedFile = e.target.files[0];
@@ -38,6 +41,22 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
     setFileName(uploadedFile.name);
     setFile(uploadedFile);
     setErrors([]);
+
+    setTextoDetectado('');
+    setProcesando(true);
+
+    // Ejecutar OCR usando tesseract.js
+    const imageUrl = URL.createObjectURL(uploadedFile);
+
+    Tesseract.recognize(imageUrl, 'spa', {
+      logger: m => console.log(m) // Opcional: para ver el progreso
+    }).then(({ data: { text } }) => {
+      setTextoDetectado(text);
+      setProcesando(false);
+    }).catch(err => {
+      setProcesando(false);
+      setErrors([{ message: "Error al procesar OCR: " + err.message }]);
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -201,6 +220,16 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
               >
                 Aceptar
               </button>
+              {procesando && (
+  <div className="text-sm text-blue-600 mt-2">Procesando OCR, por favor espera...</div>
+)}
+
+{textoDetectado && (
+  <div className="mt-4 p-3 bg-gray-100 rounded-md border text-sm whitespace-pre-wrap">
+    <h4 className="font-semibold mb-2 text-gray-700">Texto detectado por OCR:</h4>
+    <pre>{textoDetectado}</pre>
+  </div>
+)}
             </div>
           </div>
         </div>

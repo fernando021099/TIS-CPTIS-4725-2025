@@ -14,6 +14,10 @@ use App\Http\Controllers\Api\InscripcionController;
 //     return $request->user();
 // });
 
+use App\Http\Controllers\PagoController;
+
+Route::post('/pagos/subir-comprobante', [PagoController::class, 'subirComprobante']);
+
 // Rutas de recursos API para los modelos
 Route::apiResource('olimpiadas', OlimpiadaController::class);
 Route::apiResource('areas', AreaController::class);
@@ -21,6 +25,8 @@ Route::apiResource('estudiantes', EstudianteController::class)->parameters(['est
 Route::apiResource('contactos', ContactoController::class);
 Route::apiResource('colegios', ColegioController::class);
 Route::apiResource('inscripciones', InscripcionController::class);
+Route::post('/pagos/subir-comprobante', [PagoController::class, 'subirComprobante']);
+
 
 // Ruta específica para inscripción grupal
 Route::post('/inscripciones/grupo', [InscripcionController::class, 'storeGroup']);
