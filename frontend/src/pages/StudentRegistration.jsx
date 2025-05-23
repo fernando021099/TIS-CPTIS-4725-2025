@@ -46,7 +46,14 @@ const StudentRegistration = () => {
   
   const provinceOptions = {
     "Cochabamba": ["Cercado", "Quillacollo", "Chapare", "Ayopaya", "Esteban Arce", "Arani", "Arque", "Capinota", "Germán Jordán", "Mizque", "Punata", "Tiraque"],
-    // ... otras provincias
+    "La Paz": ["Murillo", "Los Andes", "Larecaja", "Ingavi", "Sud Yungas", "Norte de La Paz", "Sur de La Paz"],
+    "Santa Cruz": ["Andrés Ibáñez", "Cordillera", "Florida", "Ichilo", "Obispo Santistevan", "Sara", "Vallegrande"],
+    "Oruro": ["Oruro", "Poopó", "Sajama", "San Pedro de Totora", "Soracachi"],
+    "Potosí": ["Potosí", "Chayanta", "Cornelio Saavedra", "Daniel Campos", "D. Antonio Quijarro", "Nor Chichas"],
+    "Chuquisaca": ["Chuquisaca", "Azurduy", "Cañada de Gómez", "Hernando Siles", "La Laguna", "Mojocoya"],
+    "Tarija": ["Tarija", "Avilés", "Cercado", "Eustaquio Méndez", "Gran Chaco", "San Lorenzo"],
+    "Beni": ["Beni", "Cercado", "Mamoré", "Yacuma"],
+    "Pando": ["Pando", "Abuná", "Manuripi"]
   };
 
   const [availableAreas] = useState([

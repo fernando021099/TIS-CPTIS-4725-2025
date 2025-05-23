@@ -61,7 +61,14 @@ USING TO_DATE(fecha, 'YYYY/MM/DD');
 INSERT INTO olimpiada (version, nombre, fecha,  estado) VALUES
 (2024, 'Oh! SanSi', '2025-06-09', 'habilitado');
 
+ALTER TABLE inscripción
+ADD nombre_pagador VARCHAR(50);
 
+CREATE TABLE tutoria (
+    id SERIAL PRIMARY KEY,
+    contacto_id INT REFERENCES contacto(id) ON DELETE SET NULL,
+    codigo_comprobante VARCHAR(20)
+);
 
 
 --Datos insertados
