@@ -56,15 +56,7 @@ const StudentRegistration = () => {
     "Pando": ["Pando", "Abuná", "Manuripi"]
   };
 
-  const [availableAreas] = useState([
-    "ASTRONOMÍA - ASTROFÍSICA",
-    "BIOLOGÍA",
-    "FÍSICA",
-    "INFORMÁTICA",
-    "MATEMÁTICAS",
-    "QUÍMICA",
-    "ROBÓTICA"
-  ]);
+  const [availableAreas, setAvailableAreas] = useState([]);
 
   const areaToCategories = {
     "ASTRONOMÍA - ASTROFÍSICA": ["3P", "4P", "5P", "6P", "1S", "2S", "3S", "4S", "5S", "6S"],
@@ -74,6 +66,49 @@ const StudentRegistration = () => {
     "MATEMÁTICAS": ["Primer Nivel", "Segundo Nivel", "Tercer Nivel", "Cuarto Nivel", "Quinto Nivel", "Sexto Nivel"],
     "QUÍMICA": ["2S", "3S", "4S", "5S", "6S"],
     "ROBÓTICA": ["Builders P", "Builders S", "Lego P", "Lego S"]
+  };
+
+  useEffect(() => {
+    // Cargar áreas disponibles desde la API
+    const fetchAreas = async () => {
+      try {
+        const areasData = await api.get('/area');
+        setAvailableAreas(areasData || []);
+        console.log('Áreas cargadas desde la API:', areasData);
+      } catch (error) {
+        console.error('Error al cargar áreas:', error);
+        // Fallback a áreas hardcodeadas si falla la API
+        setAvailableAreas([
+          { id: 1, nombre: "ASTRONOMÍA - ASTROFÍSICA" },
+          { id: 2, nombre: "BIOLOGÍA" },
+          { id: 3, nombre: "FÍSICA" },
+          { id: 4, nombre: "INFORMÁTICA" },
+          { id: 5, nombre: "MATEMÁTICAS" },
+          { id: 6, nombre: "QUÍMICA" },
+          { id: 7, nombre: "ROBÓTICA" }
+        ]);
+      }
+    };
+
+    fetchAreas();
+  }, []);
+
+  // Actualizar areaToCategories para usar IDs o nombres como respaldo
+  const getAreaCategories = (areaId) => {
+    const area = availableAreas.find(a => a.id === areaId);
+    const areaName = area?.nombre;
+    
+    const categoriesMap = {
+      "ASTRONOMÍA - ASTROFÍSICA": ["3P", "4P", "5P", "6P", "1S", "2S", "3S", "4S", "5S", "6S"],
+      "BIOLOGÍA": ["2S", "3S", "4S", "5S", "6S"],
+      "FÍSICA": ["4S", "5S", "6S"],
+      "INFORMÁTICA": ["Guacamayo", "Guanaco", "Londra", "Jucumari", "Bufeo", "Puma"],
+      "MATEMÁTICAS": ["Primer Nivel", "Segundo Nivel", "Tercer Nivel", "Cuarto Nivel", "Quinto Nivel", "Sexto Nivel"],
+      "QUÍMICA": ["2S", "3S", "4S", "5S", "6S"],
+      "ROBÓTICA": ["Builders P", "Builders S", "Lego P", "Lego S"]
+    };
+    
+    return categoriesMap[areaName] || [];
   };
 
   const validateSection = (section) => {
@@ -238,16 +273,18 @@ const StudentRegistration = () => {
       }
       
       // Validación específica para Robótica (solo 1 área si es Robótica)
-      const hasRobotics = formData.areas.includes("ROBÓTICA");
+      const area1 = availableAreas.find(a => a.id === formData.areas[0]);
+      const hasRobotics = area1?.nombre === "ROBÓTICA";
       
       if (hasRobotics && formData.areas.length > 1) {
         newErrors.areas = "Si postulas a ROBÓTICA, no puedes postular a otra área";
       }
       
       // Validar que todas las áreas tengan categoría seleccionada
-      formData.areas.forEach(area => {
-        if (!formData.categories[area]) {
-          newErrors[`category_${area}`] = `Seleccione categoría para ${area}`;
+      formData.areas.forEach(areaId => {
+        if (!formData.categories[areaId]) {
+          const area = availableAreas.find(a => a.id === areaId);
+          newErrors[`category_${areaId}`] = `Seleccione categoría para ${area?.nombre || 'el área'}`;
         }
       });
     }
@@ -270,18 +307,18 @@ const StudentRegistration = () => {
     }
   };
 
-  const handleAreaSelection = (area) => {
+  const handleAreaSelection = (areaId) => {
     setErrors(prev => ({ ...prev, areas: "" }));
     
     setFormData(prev => {
       // Si el área ya está seleccionada, la quitamos
-      if (prev.areas.includes(area)) {
+      if (prev.areas.includes(areaId)) {
         const newCategories = { ...prev.categories };
-        delete newCategories[area];
+        delete newCategories[areaId];
         
         return {
           ...prev,
-          areas: prev.areas.filter(a => a !== area),
+          areas: prev.areas.filter(a => a !== areaId),
           categories: newCategories
         };
       }
@@ -290,10 +327,10 @@ const StudentRegistration = () => {
       if (prev.areas.length < 2) {
         return {
           ...prev,
-          areas: [...prev.areas, area],
+          areas: [...prev.areas, areaId],
           categories: {
             ...prev.categories,
-            [area]: "" // Inicializar categoría vacía
+            [areaId]: "" // Inicializar categoría vacía
           }
         };
       }
@@ -302,14 +339,14 @@ const StudentRegistration = () => {
     });
   };
 
-  const handleCategoryChange = (area, category) => {
-    setErrors(prev => ({ ...prev, [`category_${area}`]: "" }));
+  const handleCategoryChange = (areaId, category) => {
+    setErrors(prev => ({ ...prev, [`category_${areaId}`]: "" }));
     
     setFormData(prev => ({
       ...prev,
       categories: {
         ...prev.categories,
-        [area]: category
+        [areaId]: category
       }
     }));
   };
@@ -354,7 +391,8 @@ const StudentRegistration = () => {
           departamento: formData.department,
           provincia: formData.province,
         },
-        area1_nombre: formData.areas[0] || null,
+        // CAMBIO PRINCIPAL: Enviar IDs en lugar de nombres
+        area1_id: formData.areas[0] || null,
         area1_categoria: formData.areas[0] && formData.categories[formData.areas[0]] ? formData.categories[formData.areas[0]] : null,
         olimpiada_version: 2024, 
         fecha: new Date().toISOString().split('T')[0], 
@@ -362,15 +400,16 @@ const StudentRegistration = () => {
       };
       
       // Solo incluir area2 si NO es ROBÓTICA y existe una segunda área
-      if (formData.areas[0] !== "ROBÓTICA" && formData.areas.length > 1 && formData.areas[1]) {
-        payload.area2_nombre = formData.areas[1];
+      const area1 = availableAreas.find(a => a.id === formData.areas[0]);
+      if (area1?.nombre !== "ROBÓTICA" && formData.areas.length > 1 && formData.areas[1]) {
+        payload.area2_id = formData.areas[1];
         payload.area2_categoria = formData.categories[formData.areas[1]] ? formData.categories[formData.areas[1]] : null;
       } else {
-        payload.area2_nombre = null;
+        payload.area2_id = null;
         payload.area2_categoria = null;
       }
 
-      console.log("Enviando payload:", JSON.stringify(payload, null, 2));
+      console.log("Enviando payload con IDs de áreas:", JSON.stringify(payload, null, 2));
 
       // 2. Enviar a la API. apiClient devuelve datos JSON parseados o null (para 204), o lanza error.
       const responseData = await api.post('/inscripción', payload); 
@@ -961,10 +1000,10 @@ const StudentRegistration = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           {availableAreas.map((area) => (
             <div 
-              key={area}
-              onClick={() => handleAreaSelection(area)}
+              key={area.id}
+              onClick={() => handleAreaSelection(area.id)}
               className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                formData.areas.includes(area) 
+                formData.areas.includes(area.id) 
                   ? "bg-blue-50 border-blue-500" 
                   : "border-gray-300 hover:bg-gray-50"
               }`}
@@ -972,42 +1011,47 @@ const StudentRegistration = () => {
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  checked={formData.areas.includes(area)}
+                  checked={formData.areas.includes(area.id)}
                   readOnly
                   className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                 />
-                <span className="ml-2 text-sm font-medium text-gray-700">{area}</span>
+                <span className="ml-2 text-sm font-medium text-gray-700">{area.nombre}</span>
               </div>
             </div>
           ))}
         </div>
         
         {/* Mostrar categorías para cada área seleccionada */}
-        {formData.areas.map(area => (
-          <div key={area} className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Categoría/Nivel para {area} <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formData.categories[area] || ""}
-              onChange={(e) => handleCategoryChange(area, e.target.value)}
-              className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors[`category_${area}`] ? "border-red-500" : "border-gray-300"
-              }`}
-            >
-              <option value="">Seleccione categoría</option>
-              {areaToCategories[area]?.map((cat, index) => (
-                <option key={index} value={cat}>{cat}</option>
-              ))}
-            </select>
-            {errors[`category_${area}`] && (
-              <p className="mt-1 text-sm text-red-600 flex items-center">
-                <X className="h-4 w-4 mr-1" />
-                {errors[`category_${area}`]}
-              </p>
-            )}
-          </div>
-        ))}
+        {formData.areas.map(areaId => {
+          const area = availableAreas.find(a => a.id === areaId);
+          const categories = getAreaCategories(areaId);
+          
+          return (
+            <div key={areaId} className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Categoría/Nivel para {area?.nombre || 'Área'} <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.categories[areaId] || ""}
+                onChange={(e) => handleCategoryChange(areaId, e.target.value)}
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  errors[`category_${areaId}`] ? "border-red-500" : "border-gray-300"
+                }`}
+              >
+                <option value="">Seleccione categoría</option>
+                {categories.map((cat, index) => (
+                  <option key={index} value={cat}>{cat}</option>
+                ))}
+              </select>
+              {errors[`category_${areaId}`] && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <X className="h-4 w-4 mr-1" />
+                  {errors[`category_${areaId}`]}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
       
       <div className="mt-6 flex justify-between">
