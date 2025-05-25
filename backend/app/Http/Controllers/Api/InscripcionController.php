@@ -117,11 +117,11 @@ class InscripcionController extends Controller
 
             // 4. Buscar o crear Colegio
             $colegio = Colegio::firstOrCreate(
-                 [
+                [
                     'nombre' => $validatedData['colegio']['nombre'],
                     'departamento' => $validatedData['colegio']['departamento'],
                     'provincia' => $validatedData['colegio']['provincia']
-                 ]
+                ]
             );
 
 
@@ -531,10 +531,16 @@ class InscripcionController extends Controller
     {
         $validatedData = $request->validate([
             'codigo_recibo' => 'required|string|max:100', 
+            'nombre_pagador' => 'nullable|string|max:100', // Añadido para el campo OCR "CANCELADO POR"
         ]);
 
         $codigoReciboInput = $validatedData['codigo_recibo'];
-        Log::info('Código OCR Input CRUDO recibido en aprobarPorCodigoRecibo:', ['raw_input' => $codigoReciboInput]);
+        $nombrePagador = $validatedData['nombre_pagador'] ?? null; // Extraer el nombre del pagador
+        
+        Log::info('Código OCR Input CRUDO recibido en aprobarPorCodigoRecibo:', [
+            'raw_input' => $codigoReciboInput,
+            'nombre_pagador' => $nombrePagador
+        ]);
 
         $codigoReciboLimpio = null;
         $tableName = (new Inscripcion)->getTable(); 
@@ -560,6 +566,7 @@ class InscripcionController extends Controller
         Log::info('Inicio de aprobarPorCodigoRecibo.', [
             'codigo_recibo_input_original' => $validatedData['codigo_recibo'], 
             'codigo_recibo_limpio' => $codigoReciboLimpio,
+            'nombre_pagador' => $nombrePagador,
             'table_name_from_model' => $tableName 
         ]);
 
@@ -578,11 +585,12 @@ class InscripcionController extends Controller
             $actualizadas = 0;
             foreach ($inscripciones as $inscripcion) {
                 // Solo actualizar si está pendiente para evitar re-aprobaciones innecesarias
-                // o conflictos si ya fue rechazada, etc.
                 if ($inscripcion->estado === 'pendiente') {
                     $inscripcion->estado = 'aprobado';
-                    // $inscripcion->fecha_aprobacion = now(); // Opcional: guardar fecha de aprobación
-                    // $inscripcion->url_comprobante = null; // Ya no se guarda el comprobante
+                    // Guardar el nombre del pagador si se proporcionó
+                    if ($nombrePagador) {
+                        $inscripcion->nombre_pagador = $nombrePagador;
+                    }
                     $inscripcion->save();
                     $actualizadas++;
                 }
@@ -591,7 +599,11 @@ class InscripcionController extends Controller
             DB::commit();
 
             // Log para verificar el estado después del commit
-            Log::info('Verificación post-aprobación para código de recibo:', ['codigo_recibo' => $codigoReciboLimpio, 'table_name_from_model' => $tableName]);
+            Log::info('Verificación post-aprobación para código de recibo:', [
+                'codigo_recibo' => $codigoReciboLimpio, 
+                'nombre_pagador_guardado' => $nombrePagador,
+                'table_name_from_model' => $tableName
+            ]);
             // Usar $tableName también en esta consulta de verificación
             $inscripcionesPostAprobacion = Inscripcion::whereRaw('LOWER(TRIM("'.$tableName.'".codigo_comprobante)) = ?', [strtolower($codigoReciboLimpio)])
                                                     ->with(['estudiante:ci,nombres,apellidos']) // Cargar solo lo necesario para el log
@@ -600,17 +612,24 @@ class InscripcionController extends Controller
 
 
             if ($actualizadas > 0) {
-                Log::info('Inscripciones aprobadas correctamente.', ['codigo_recibo' => $codigoReciboLimpio, 'cantidad' => $actualizadas]); // Log de prueba
-                return response()->json(['message' => 'Inscripciones aprobadas correctamente.', 'cantidad_aprobadas' => $actualizadas]);
+                Log::info('Inscripciones aprobadas correctamente.', [
+                    'codigo_recibo' => $codigoReciboLimpio, 
+                    'cantidad' => $actualizadas,
+                    'nombre_pagador' => $nombrePagador
+                ]);
+                return response()->json([
+                    'message' => 'Inscripciones aprobadas correctamente.', 
+                    'cantidad_aprobadas' => $actualizadas,
+                    'nombre_pagador_guardado' => $nombrePagador
+                ]);
             } else {
-                Log::info('No hubo inscripciones pendientes para aprobar.', ['codigo_recibo' => $codigoReciboLimpio]); // Log de prueba
-                // Esto podría ocurrir si todas las inscripciones encontradas ya estaban aprobadas o en otro estado.
+                Log::info('No hubo inscripciones pendientes para aprobar.', ['codigo_recibo' => $codigoReciboLimpio]);
                 return response()->json(['message' => 'No hubo inscripciones pendientes para aprobar con este código.', 'cantidad_aprobadas' => 0], 200);
             }
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al aprobar inscripciones por código de recibo: ' . $e->getMessage() . ' Trace: ' . $e->getTraceAsString()); // Añadir Trace para mejor depuración
+            Log::error('Error al aprobar inscripciones por código de recibo: ' . $e->getMessage() . ' Trace: ' . $e->getTraceAsString());
             return response()->json(['message' => 'Error interno al procesar la aprobación.'], 500);
         }
     }

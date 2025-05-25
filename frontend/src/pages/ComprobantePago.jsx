@@ -189,7 +189,7 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
     console.log("Texto completo del OCR recibido en parseOcrText:", text); // NUEVO CONSOLE.LOG
     let monto = null;
     let codigoRecibo = null;
-    let fechaRecibo = null;
+    let canceladoPor = null;
 
     // Intentar extraer TOTAL
     const totalRegex = /TOTAL\s*Bs\.?\s*([\d,]+\.?\d*)/i;
@@ -205,7 +205,6 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
         }
     }
 
-
     // Intentar extraer Código de Recibo (ej. IND-XXXXXXXXXX o GRP-XX-XXXXXXXXXX)
     // Se actualiza la regex para buscar "IND-" seguido de dígitos O "GRP-" seguido de dígitos-dígitos.
     const codigoRegex = /(IND-\d+|GRP-\d+-\d+)/i; 
@@ -216,14 +215,22 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
     addDebugEntry("parseOcrText: Código de Recibo Extraído.", { codigoRecibo });
     console.log("Código Recibo Extraído en parseOcrText:", `"${codigoRecibo}"`); // Modificado para ver comillas
 
-    // Intentar extraer Fecha (ej. Fecha: DD/MM/YYYY o DD-MM-YYYY)
-    const fechaRegex = /Fecha:\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i;
-    const fechaMatch = text.match(fechaRegex);
-    if (fechaMatch && fechaMatch[1]) {
-      fechaRecibo = fechaMatch[1];
+    // Intentar extraer CANCELADO POR (ej. CANCELADO POR: David Angel Perez Lopez)
+    // Mejorada para detenerse antes de palabras comunes en comprobantes
+    const canceladoPorRegex = /CANCELADO\s+POR\s*:?\s*([A-Za-zÀ-ÿ\u00f1\u00d1\s]+?)(?:\s+(?:NOMBRE|CONCEPTO|CANTIDAD|COSTO|TOTAL|FECHA|CI|C\.I\.|CARNET|DNI|RUT|DESCRIPCION|DESCRIPCIÓN|DETALLE|ITEM|ÍTEM|Bs\.|$))/i;
+    const canceladoPorMatch = text.match(canceladoPorRegex);
+    if (canceladoPorMatch && canceladoPorMatch[1]) {
+      canceladoPor = canceladoPorMatch[1].trim(); // Eliminar espacios en blanco al inicio y final
+    } else {
+      // Regex de respaldo más simple si la primera no funciona
+      const fallbackRegex = /CANCELADO\s+POR\s*:?\s*([A-Za-zÀ-ÿ\u00f1\u00d1]{2,}\s+[A-Za-zÀ-ÿ\u00f1\u00d1]{2,}(?:\s+[A-Za-zÀ-ÿ\u00f1\u00d1]{2,})*)/i;
+      const fallbackMatch = text.match(fallbackRegex);
+      if (fallbackMatch && fallbackMatch[1]) {
+        canceladoPor = fallbackMatch[1].trim();
+      }
     }
     
-    const parsedData = { monto, codigoRecibo, fechaRecibo };
+    const parsedData = { monto, codigoRecibo, canceladoPor }; // Cambiado fechaRecibo por canceladoPor
     setExtractedOcrData(parsedData);
     addDebugEntry("parseOcrText: Datos parseados del OCR.", { parsedData });
 
@@ -311,8 +318,6 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
     e.preventDefault();
     addDebugEntry("Iniciando handleSubmit.");
     
-    // El archivo 'file' ya no es estrictamente necesario para el submit, 
-    // pero sí para el OCR. Mantenemos la lógica de carga de archivo para el OCR.
     if (!extractedOcrData?.codigoRecibo) {
       setErrors([{ message: "No se ha extraído un código de recibo del OCR. Procese una imagen primero." }]);
       return;
@@ -322,23 +327,28 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
     setErrors([]);
     
     try {
-      // Ya no se envía FormData con el archivo.
-      // Solo se envía el código de recibo.
+      // Enviar tanto el código de recibo como el nombre del pagador (si se extrajo)
       const payload = {
         codigo_recibo: extractedOcrData.codigoRecibo,
+        nombre_pagador: extractedOcrData.canceladoPor || null, // Enviar el nombre extraído del OCR
       };
       addDebugEntry("handleSubmit: Payload para aprobar.", { payload });
       
+      console.log("Enviando payload con nombre_pagador:", payload); // Log adicional
+      
       // Llamar a la nueva API para aprobar por código
-      // Esta acción es para APROBAR, la búsqueda y muestra de datos ya ocurrió en fetchInscriptionsByReceiptCode.
-      await api.post('/pagos/aprobar-por-codigo', payload); // No se necesita 'Content-Type' especial
-      addDebugEntry("handleSubmit: Aprobación exitosa.");
+      const response = await api.post('/pagos/aprobar-por-codigo', payload);
+      addDebugEntry("handleSubmit: Aprobación exitosa.", { response });
+      
+      console.log("Respuesta de aprobación:", response); // Log adicional
       
       setUiState(prev => ({ 
         ...prev, 
         isSubmitting: false,
         showSuccess: true,
-        successMessage: "La inscripción se realizó con éxito." 
+        successMessage: response.nombre_pagador_guardado 
+          ? `La inscripción se realizó con éxito. Pagador registrado: ${response.nombre_pagador_guardado}`
+          : "La inscripción se realizó con éxito."
       }));
       
       if (onSuccess) onSuccess(); 
@@ -492,7 +502,7 @@ const ComprobantePago = ({ registrationId, onSuccess }) => {
               <div className="space-y-2 text-sm mt-2">
                 <p><strong>Código Recibo Extraído (OCR):</strong> {extractedOcrData.codigoRecibo || <span className="text-orange-500">No detectado</span>}</p>
                 <p><strong>Monto Extraído (OCR):</strong> {extractedOcrData.monto !== null ? `${extractedOcrData.monto.toFixed(2)} Bs.` : <span className="text-orange-500">No detectado</span>}</p>
-                <p><strong>Fecha Recibo Extraída (OCR):</strong> {extractedOcrData.fechaRecibo || <span className="text-orange-500">No detectada</span>}</p>
+                <p><strong>Cancelado por (OCR):</strong> {extractedOcrData.canceladoPor || <span className="text-orange-500">No detectado</span>}</p>
                 
                 {/* Comparación de montos (si aplica) */}
                 {comparisonResult && inscriptionApiData && (

@@ -27,6 +27,7 @@ class Inscripcion extends Model
         'estado',
         'codigo_comprobante',
         'fecha',
+        'nombre_pagador', // Añadido para OCR
     ];
 
     /**
