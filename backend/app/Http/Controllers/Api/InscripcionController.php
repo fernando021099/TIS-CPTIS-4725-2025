@@ -3,18 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Inscripcion; // Importa el modelo Inscripcion
+use App\Models\Inscripcion;
 use App\Models\Estudiante;
 use App\Models\Contacto;
 use App\Models\Colegio;
 use App\Models\Area;
 use App\Models\Olimpiada;
+use App\Models\Tutoria; // Importar el modelo Tutoria
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB; // Para transacciones
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Arr; // Para helpers de array
+use Illuminate\Support\Arr;
 
 class InscripcionController extends Controller
 {
@@ -320,12 +321,12 @@ class InscripcionController extends Controller
         // Iniciar transacción
         DB::beginTransaction();
         try {
-            // 1. Validar datos del tutor y array de inscripciones
+            // 1. Validar datos de tutores (ahora plural) y array de inscripciones
             $validatedData = $request->validate([
-                'contacto_tutor' => 'required|array',
-                'contacto_tutor.celular' => 'required|string|max:20',
-                'contacto_tutor.nombre' => 'required|string|max:100',
-                'contacto_tutor.correo' => 'required|string|email|max:100',
+                'contactos_tutores' => 'required|array|min:1',
+                'contactos_tutores.*.celular' => 'required|string|max:20',
+                'contactos_tutores.*.nombre' => 'required|string|max:100',
+                'contactos_tutores.*.correo' => 'required|string|email|max:100',
 
                 'inscripciones' => 'required|array|min:1',
                 'inscripciones.*.estudiante' => 'required|array',
@@ -349,22 +350,28 @@ class InscripcionController extends Controller
                 'olimpiada_version' => 'required|integer|exists:olimpiada,version',
             ]);
 
-            $contactoTutor = Contacto::firstOrCreate(
-                ['correo' => $validatedData['contacto_tutor']['correo']],
-                $validatedData['contacto_tutor']
-            );
+            // 2. Crear o buscar todos los contactos de tutores
+            $contactosTutores = [];
+            foreach ($validatedData['contactos_tutores'] as $tutorData) {
+                $contactoTutor = Contacto::firstOrCreate(
+                    ['correo' => $tutorData['correo']],
+                    $tutorData
+                );
+                $contactosTutores[] = $contactoTutor;
+            }
+
+            // Usar el primer tutor como contacto principal para las inscripciones
+            $contactoPrincipal = $contactosTutores[0];
 
             $inscripcionesCreadas = [];
             $montoTotal = 0;
             $fechaHoy = now()->toDateString();
             $olimpiadaVersion = $validatedData['olimpiada_version'];
 
-            // Generar un único ID para el grupo, que se usará como:
-            // - ID de Registro en el PDF
-            // - Código de Pago en el PDF (para el banco)
-            // - codigo_comprobante en la tabla 'inscripciones' (para búsqueda OCR)
-            $idUnicoGrupo = 'GRP-' . $contactoTutor->id . '-' . time(); // MANTIENE EL TIMESTAMP
+            // Generar un único ID para el grupo
+            $idUnicoGrupo = 'GRP-' . $contactoPrincipal->id . '-' . time();
 
+            // 3. Procesar cada inscripción de estudiante
             foreach ($validatedData['inscripciones'] as $inscripcionData) {
                 $estudiante = Estudiante::updateOrCreate(
                     ['ci' => $inscripcionData['estudiante']['ci']],
@@ -388,7 +395,8 @@ class InscripcionController extends Controller
                 if ($area1) $area1_id = $area1->id;
 
                 $area2_id = null;
-                if (isset($inscripcionData['area2_nombre'])) {
+                $area2 = null;
+                if (isset($inscripcionData['area2_nombre']) && !empty($inscripcionData['area2_nombre'])) {
                     $area2 = Area::where('nombre', $inscripcionData['area2_nombre'])
                                 ->when(isset($inscripcionData['area2_categoria']), function ($q) use ($inscripcionData) {
                                     return $q->where('categoria', $inscripcionData['area2_categoria']);
@@ -399,31 +407,66 @@ class InscripcionController extends Controller
 
                 $inscripcion = Inscripcion::create([
                     'estudiante_id' => $estudiante->ci,
-                    'contacto_id' => $contactoTutor->id,
+                    'contacto_id' => $contactoPrincipal->id,
                     'colegio_id' => $colegio->id,
                     'area1_id' => $area1_id,
                     'area2_id' => $area2_id,
                     'olimpiada_version' => $olimpiadaVersion,
                     'estado' => 'pendiente',
                     'fecha' => $fechaHoy,
-                    'codigo_comprobante' => $idUnicoGrupo, // Usar el ID único del grupo
+                    'codigo_comprobante' => $idUnicoGrupo,
                 ]);
 
                 $inscripcionesCreadas[] = $inscripcion->id;
-                $costoInscripcion = ($area1 ? $area1->costo : 0) + ($area2 ? $area2->costo : 0);
-                $montoTotal += $costoInscripcion > 0 ? $costoInscripcion : ($area1_id || $area2_id ? 15 : 0);
+                
+                // Calcular costo de inscripción
+                $costoPorDefecto = 15;
+                $costoInscripcion = 0;
+                
+                if ($area1) {
+                    $costoArea1 = (is_numeric($area1->costo) && $area1->costo > 0) ? $area1->costo : $costoPorDefecto;
+                    $costoInscripcion += $costoArea1;
+                }
+                
+                if ($area2 && (!$area1 || $area1->id != $area2->id)) {
+                    $costoArea2 = (is_numeric($area2->costo) && $area2->costo > 0) ? $area2->costo : $costoPorDefecto;
+                    $costoInscripcion += $costoArea2;
+                }
+                
+                // Si no hay áreas válidas pero se seleccionaron IDs, aplicar costo por defecto
+                if ($costoInscripcion == 0 && ($area1_id || $area2_id)) {
+                    $costoInscripcion = $costoPorDefecto;
+                }
+                
+                $montoTotal += $costoInscripcion;
+            }
+
+            // 4. Crear registros en la tabla tutoria para todos los tutores
+            foreach ($contactosTutores as $contactoTutor) {
+                Tutoria::create([
+                    'contacto_id' => $contactoTutor->id,
+                    'codigo_comprobante' => $idUnicoGrupo,
+                ]);
             }
 
             $fechaLimitePago = now()->addDays(3)->toDateString();
 
             DB::commit();
 
+            Log::info('Inscripción grupal creada exitosamente', [
+                'registro_grupal_id' => $idUnicoGrupo,
+                'cantidad_estudiantes' => count($inscripcionesCreadas),
+                'cantidad_tutores' => count($contactosTutores),
+                'monto_total' => $montoTotal
+            ]);
+
             return response()->json([
                 'message' => 'Inscripciones grupales registradas correctamente.',
-                'registro_grupal_id' => $idUnicoGrupo, // Este es el ID de Registro del PDF
+                'registro_grupal_id' => $idUnicoGrupo,
                 'cantidad_estudiantes' => count($inscripcionesCreadas),
+                'cantidad_tutores' => count($contactosTutores),
                 'monto_total' => $montoTotal,
-                'codigo_pago' => $idUnicoGrupo, // Este es el Código de Pago para el banco (mismo que ID de Registro)
+                'codigo_pago' => $idUnicoGrupo,
                 'fecha_limite_pago' => $fechaLimitePago,
                 'ids_inscripciones' => $inscripcionesCreadas,
             ], 201);
@@ -431,11 +474,10 @@ class InscripcionController extends Controller
         } catch (ValidationException $e) {
             DB::rollBack();
             Log::warning('Error de validación al crear inscripción grupal: ', $e->errors());
-            // Devolver errores de validación específicos
             return response()->json(['message' => 'Error de validación.', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error interno al crear inscripción grupal: ' . $e->getMessage() . ' Trace: ' . $e->getTraceAsString()); // Añadir Trace
+            Log::error('Error interno al crear inscripción grupal: ' . $e->getMessage() . ' Trace: ' . $e->getTraceAsString());
             return response()->json(['message' => 'Error interno al procesar la inscripción grupal.'], 500);
         }
     }
