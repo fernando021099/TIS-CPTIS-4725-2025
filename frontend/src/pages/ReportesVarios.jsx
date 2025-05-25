@@ -1,62 +1,59 @@
 import { useState, useEffect } from 'react';
-import {
-  Search, Download, Filter, ChevronDown, ChevronUp, FileText, Printer
-} from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import { Search, Download, Filter, ChevronDown, ChevronUp, Eye, Printer, Calendar, User, GraduationCap, FileText } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { api } from '../api/apiClient';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const ReportesVarios = () => {
-  const [students, setStudents] = useState([]);
+  const [inscriptions, setInscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     searchTerm: '',
-    area: 'all',
     status: 'all',
-    teacher: 'all',
-    sortBy: 'ci',
-    sortOrder: 'asc'
+    area: 'all',
+    categoria: 'all',
+    sortBy: 'fecha',
+    sortOrder: 'desc'
   });
   const [showFilters, setShowFilters] = useState(false);
   const [availableAreas, setAvailableAreas] = useState([]);
-  const [availableTeachers, setAvailableTeachers] = useState([]);
+  const [availableCategorias, setAvailableCategorias] = useState([]);
 
   useEffect(() => {
-    // Simular carga de datos
-    const fetchData = async () => {
-      try {
-        // Datos de ejemplo - en producción vendrían de una API
-        const mockStudents = [
-          {
-            id: 1,
-            fullName: "Juan Pérez",
-            ci: "12345678",
-            email: "juan@example.com",
-            area: "Matemáticas",
-            category: "Primer Nivel",
-            teacher: "Prof. García",
-            status: "aprobado",
-            registrationDate: "2025-05-01"
-          },
-          // ... más datos de ejemplo
-        ];
-
-        setStudents(mockStudents);
-        
-        const areas = [...new Set(mockStudents.map(s => s.area))];
-        const teachers = [...new Set(mockStudents.map(s => s.teacher))];
-        
-        setAvailableAreas(areas);
-        setAvailableTeachers(teachers);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error al cargar datos:", error);
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    fetchInscriptions();
   }, []);
+
+  const fetchInscriptions = async () => {
+    try {
+      setLoading(true);
+      // Cargar todas las inscripciones con sus relaciones
+      const response = await api.get('/inscripción?_relations=estudiante,contacto,colegio,area1,area2,olimpiada');
+      console.log('Inscripciones cargadas para reportes varios:', response);
+      
+      setInscriptions(response || []);
+      
+      // Extraer áreas y categorías únicas para filtros
+      const areas = new Set();
+      const categorias = new Set();
+      
+      response.forEach(inscription => {
+        if (inscription.area1?.nombre) areas.add(inscription.area1.nombre);
+        if (inscription.area2?.nombre) areas.add(inscription.area2.nombre);
+        if (inscription.area1?.categoria) categorias.add(inscription.area1.categoria);
+        if (inscription.area2?.categoria) categorias.add(inscription.area2.categoria);
+      });
+      
+      setAvailableAreas([...areas]);
+      setAvailableCategorias([...categorias]);
+      
+    } catch (error) {
+      console.error('Error al cargar inscripciones:', error);
+      setError('Error al cargar las inscripciones');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -66,92 +63,256 @@ const ReportesVarios = () => {
     }));
   };
 
-  const filteredStudents = students.filter(student => {
+  const filteredInscriptions = inscriptions.filter(inscription => {
+    const studentName = inscription.estudiante ? 
+      `${inscription.estudiante.nombres} ${inscription.estudiante.apellidos}`.toLowerCase() : '';
+    const studentCI = inscription.estudiante?.ci || '';
+    
     return (
       (filters.searchTerm === '' || 
-       student.fullName.toLowerCase().includes(filters.searchTerm.toLowerCase()) || 
-       student.ci.includes(filters.searchTerm)) &&
-      (filters.area === 'all' || student.area === filters.area) &&
-      (filters.status === 'all' || student.status === filters.status) &&
-      (filters.teacher === 'all' || student.teacher === filters.teacher)
+       studentName.includes(filters.searchTerm.toLowerCase()) || 
+       studentCI.includes(filters.searchTerm)) &&
+      (filters.status === 'all' || inscription.estado === filters.status) &&
+      (filters.area === 'all' || 
+       inscription.area1?.nombre === filters.area || 
+       inscription.area2?.nombre === filters.area) &&
+      (filters.categoria === 'all' || 
+       inscription.area1?.categoria === filters.categoria || 
+       inscription.area2?.categoria === filters.categoria)
     );
   }).sort((a, b) => {
     const order = filters.sortOrder === 'asc' ? 1 : -1;
+    
+    if (filters.sortBy === 'estudiante') {
+      const nameA = a.estudiante ? `${a.estudiante.nombres} ${a.estudiante.apellidos}` : '';
+      const nameB = b.estudiante ? `${b.estudiante.nombres} ${b.estudiante.apellidos}` : '';
+      return nameA.localeCompare(nameB) * order;
+    }
+    
     if (a[filters.sortBy] < b[filters.sortBy]) return -1 * order;
     if (a[filters.sortBy] > b[filters.sortBy]) return 1 * order;
     return 0;
   });
 
-  const generatePDF = () => {
-    const doc = new jsPDF();
+  const getStatusBadge = (status) => {
+    const badges = {
+      'aprobado': 'bg-green-100 text-green-800',
+      'pendiente': 'bg-yellow-100 text-yellow-800',
+      'rechazado': 'bg-red-100 text-red-800'
+    };
     
-    doc.setFontSize(18);
-    doc.text('Reporte de Estudiantes Inscritos', 14, 22);
+    const texts = {
+      'aprobado': 'Aprobado',
+      'pendiente': 'Pendiente',
+      'rechazado': 'Rechazado'
+    };
     
-    doc.setFontSize(10);
-    doc.text(`Generado el: ${new Date().toLocaleDateString()}`, 14, 30);
+    return (
+      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${badges[status] || 'bg-gray-100 text-gray-800'}`}>
+        {texts[status] || status}
+      </span>
+    );
+  };
+
+  const handlePrintStudent = (inscription) => {
+    // Crear una nueva ventana para imprimir
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
     
-    let filterText = 'Filtros: ';
-    if (filters.area !== 'all') filterText += `Área: ${filters.area} `;
-    if (filters.status !== 'all') filterText += `Estado: ${filters.status} `;
-    if (filters.teacher !== 'all') filterText += `Docente: ${filters.teacher}`;
+    const studentData = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Reporte Completo del Estudiante - ${inscription.estudiante?.nombres} ${inscription.estudiante?.apellidos}</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 20px; 
+              line-height: 1.6;
+              color: #333;
+            }
+            .header {
+              text-align: center;
+              border-bottom: 2px solid #333;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .section {
+              margin-bottom: 25px;
+              border: 1px solid #ddd;
+              padding: 15px;
+              border-radius: 5px;
+            }
+            .section h3 {
+              color: #2563eb;
+              margin-top: 0;
+              border-bottom: 1px solid #e5e7eb;
+              padding-bottom: 10px;
+            }
+            .field {
+              margin-bottom: 10px;
+              display: flex;
+            }
+            .field-label {
+              font-weight: bold;
+              min-width: 150px;
+              color: #4b5563;
+            }
+            .field-value {
+              flex: 1;
+            }
+            .status-badge {
+              padding: 4px 12px;
+              border-radius: 20px;
+              font-size: 12px;
+              font-weight: bold;
+              text-transform: uppercase;
+            }
+            .status-aprobado { background-color: #dcfce7; color: #166534; }
+            .status-pendiente { background-color: #fef3c7; color: #92400e; }
+            .status-rechazado { background-color: #fee2e2; color: #991b1b; }
+            .areas-container {
+              display: flex;
+              gap: 15px;
+              flex-wrap: wrap;
+            }
+            .area-card {
+              border: 1px solid #d1d5db;
+              padding: 10px;
+              border-radius: 5px;
+              background-color: #f9fafb;
+              min-width: 200px;
+            }
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>REPORTE VARIOS - ESTUDIANTE</h1>
+            <p>Fecha de generación: ${new Date().toLocaleDateString('es-ES')} - ${new Date().toLocaleTimeString('es-ES')}</p>
+          </div>
+
+          <div class="section">
+            <h3>👤 Información Personal</h3>
+            <div class="field">
+              <span class="field-label">CI:</span>
+              <span class="field-value">${inscription.estudiante?.ci || 'N/A'}</span>
+            </div>
+            <div class="field">
+              <span class="field-label">Nombre Completo:</span>
+              <span class="field-value">${inscription.estudiante?.nombres || 'N/A'} ${inscription.estudiante?.apellidos || ''}</span>
+            </div>
+            <div class="field">
+              <span class="field-label">Correo Electrónico:</span>
+              <span class="field-value">${inscription.estudiante?.correo || 'No disponible'}</span>
+            </div>
+            <div class="field">
+              <span class="field-label">Fecha de Nacimiento:</span>
+              <span class="field-value">${inscription.estudiante?.fecha_nacimiento ? new Date(inscription.estudiante.fecha_nacimiento).toLocaleDateString('es-ES') : 'No disponible'}</span>
+            </div>
+            <div class="field">
+              <span class="field-label">Curso:</span>
+              <span class="field-value">${inscription.estudiante?.curso || 'No disponible'}</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>📚 Áreas de Competencia y Docentes</h3>
+            <div class="areas-container">
+              ${inscription.area1 ? `
+                <div class="area-card">
+                  <h4 style="margin: 0 0 10px 0; color: #2563eb;">Área Principal</h4>
+                  <div class="field">
+                    <span class="field-label">Área:</span>
+                    <span class="field-value">${inscription.area1.nombre}</span>
+                  </div>
+                  <div class="field">
+                    <span class="field-label">Categoría:</span>
+                    <span class="field-value">${inscription.area1.categoria || 'No especificada'}</span>
+                  </div>
+                  <div class="field">
+                    <span class="field-label">Docente:</span>
+                    <span class="field-value">${inscription.area1.docente_responsable || 'Sin asignar'}</span>
+                  </div>
+                </div>
+              ` : ''}
+              
+              ${inscription.area2 ? `
+                <div class="area-card">
+                  <h4 style="margin: 0 0 10px 0; color: #16a34a;">Área Secundaria</h4>
+                  <div class="field">
+                    <span class="field-label">Área:</span>
+                    <span class="field-value">${inscription.area2.nombre}</span>
+                  </div>
+                  <div class="field">
+                    <span class="field-label">Categoría:</span>
+                    <span class="field-value">${inscription.area2.categoria || 'No especificada'}</span>
+                  </div>
+                  <div class="field">
+                    <span class="field-label">Docente:</span>
+                    <span class="field-value">${inscription.area2.docente_responsable || 'Sin asignar'}</span>
+                  </div>
+                </div>
+              ` : ''}
+              
+              ${!inscription.area1 && !inscription.area2 ? '<p style="color: #6b7280; font-style: italic;">No hay áreas asignadas</p>' : ''}
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>🏫 Institución Educativa</h3>
+            <div class="field">
+              <span class="field-label">Nombre del Colegio:</span>
+              <span class="field-value">${inscription.colegio?.nombre || 'No disponible'}</span>
+            </div>
+            <div class="field">
+              <span class="field-label">Departamento:</span>
+              <span class="field-value">${inscription.colegio?.departamento || 'No disponible'}</span>
+            </div>
+            <div class="field">
+              <span class="field-label">Provincia:</span>
+              <span class="field-value">${inscription.colegio?.provincia || 'No disponible'}</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>📋 Estado e Información de Inscripción</h3>
+            <div class="field">
+              <span class="field-label">Estado:</span>
+              <span class="field-value">
+                <span class="status-badge status-${inscription.estado}">${inscription.estado}</span>
+              </span>
+            </div>
+            <div class="field">
+              <span class="field-label">Fecha de Inscripción:</span>
+              <span class="field-value">${inscription.fecha ? new Date(inscription.fecha).toLocaleDateString('es-ES') : 'No disponible'}</span>
+            </div>
+            ${inscription.motivo_rechazo ? `
+              <div class="field">
+                <span class="field-label">Motivo de Rechazo:</span>
+                <span class="field-value" style="color: #dc2626;">${inscription.motivo_rechazo}</span>
+              </div>
+            ` : ''}
+          </div>
+
+          <div style="margin-top: 40px; text-align: center; font-size: 12px; color: #6b7280;">
+            <p>Este reporte fue generado automáticamente por el Sistema de Gestión de Olimpiadas</p>
+            <p>Reporte Varios - Documento generado el ${new Date().toLocaleString('es-ES')}</p>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            }
+          </script>
+        </body>
+      </html>
+    `;
     
-    if (filterText !== 'Filtros: ') {
-      doc.text(filterText, 14, 38);
-    }
-    
-    const headers = [
-      'CI', 
-      'Nombre Completo', 
-      'Correo', 
-      'Área', 
-      'Categoría', 
-      'Docente', 
-      'Estado', 
-      'Fecha Inscripción'
-    ];
-    
-    const data = filteredStudents.map(student => [
-      student.ci,
-      student.fullName,
-      student.email,
-      student.area,
-      student.category,
-      student.teacher,
-      student.status === 'aprobado' ? 'Aprobado' : 
-        student.status === 'pendiente' ? 'Pendiente' : 'Rechazado',
-      student.registrationDate
-    ]);
-    
-    doc.autoTable({
-      startY: 45,
-      head: [headers],
-      body: data,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [41, 128, 185],
-        textColor: 255,
-        fontStyle: 'bold'
-      },
-      alternateRowStyles: {
-        fillColor: [245, 245, 245]
-      },
-      margin: { top: 40 }
-    });
-    
-    const pageCount = doc.internal.getNumberOfPages();
-    for(let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(10);
-      doc.text(
-        `Página ${i} de ${pageCount}`,
-        190,
-        doc.internal.pageSize.height - 10,
-        { align: 'right' }
-      );
-    }
-    
-    doc.save(`reporte_estudiantes_${new Date().toISOString().slice(0,10)}.pdf`);
+    printWindow.document.write(studentData);
+    printWindow.document.close();
   };
 
   if (loading) {
@@ -162,10 +323,28 @@ const ReportesVarios = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-600">{error}</p>
+        <button 
+          onClick={fetchInscriptions}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Reportes de Estudiantes</h1>
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Reportes Varios</h1>
+        <p className="text-gray-600">Reporte detallado de estudiantes con áreas, categorías y docentes</p>
+      </div>
       
+      {/* Filtros y búsqueda */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="relative flex-grow">
@@ -192,32 +371,17 @@ const ReportesVarios = () => {
             </button>
 
             <button
-              onClick={generatePDF}
+              onClick={() => window.print()}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
               <Download className="h-5 w-5 mr-2" />
-              Exportar PDF
+              Imprimir Reporte
             </button>
           </div>
         </div>
 
         {showFilters && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Área</label>
-              <select
-                name="area"
-                value={filters.area}
-                onChange={handleFilterChange}
-                className="w-full border rounded-md px-3 py-2"
-              >
-                <option value="all">Todas las áreas</option>
-                {availableAreas.map(area => (
-                  <option key={area} value={area}>{area}</option>
-                ))}
-              </select>
-            </div>
-
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-5 gap-4 pt-4 border-t">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
               <select
@@ -234,63 +398,125 @@ const ReportesVarios = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Docente</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Área</label>
               <select
-                name="teacher"
-                value={filters.teacher}
+                name="area"
+                value={filters.area}
                 onChange={handleFilterChange}
                 className="w-full border rounded-md px-3 py-2"
               >
-                <option value="all">Todos los docentes</option>
-                {availableTeachers.map(teacher => (
-                  <option key={teacher} value={teacher}>{teacher}</option>
+                <option value="all">Todas las áreas</option>
+                {availableAreas.map(area => (
+                  <option key={area} value={area}>{area}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+              <select
+                name="categoria"
+                value={filters.categoria}
+                onChange={handleFilterChange}
+                className="w-full border rounded-md px-3 py-2"
+              >
+                <option value="all">Todas las categorías</option>
+                {availableCategorias.map(categoria => (
+                  <option key={categoria} value={categoria}>{categoria}</option>
                 ))}
               </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ordenar por</label>
-              <div className="flex space-x-2">
-                <select
-                  name="sortBy"
-                  value={filters.sortBy}
-                  onChange={handleFilterChange}
-                  className="w-full border rounded-md px-3 py-2"
-                >
-                  <option value="ci">CI</option>
-                  <option value="fullName">Nombre</option>
-                  <option value="area">Área</option>
-                  <option value="teacher">Docente</option>
-                  <option value="registrationDate">Fecha Inscripción</option>
-                </select>
-                <select
-                  name="sortOrder"
-                  value={filters.sortOrder}
-                  onChange={handleFilterChange}
-                  className="w-full border rounded-md px-3 py-2"
-                >
-                  <option value="asc">Ascendente</option>
-                  <option value="desc">Descendente</option>
-                </select>
-              </div>
+              <select
+                name="sortBy"
+                value={filters.sortBy}
+                onChange={handleFilterChange}
+                className="w-full border rounded-md px-3 py-2"
+              >
+                <option value="fecha">Fecha de Inscripción</option>
+                <option value="estudiante">Nombre del Estudiante</option>
+                <option value="estado">Estado</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Orden</label>
+              <select
+                name="sortOrder"
+                value={filters.sortOrder}
+                onChange={handleFilterChange}
+                className="w-full border rounded-md px-3 py-2"
+              >
+                <option value="desc">Descendente</option>
+                <option value="asc">Ascendente</option>
+              </select>
             </div>
           </div>
         )}
       </div>
 
+      {/* Estadísticas rápidas */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <User className="h-8 w-8 text-blue-600 mr-3" />
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Total Estudiantes</h3>
+              <p className="text-2xl font-bold text-blue-600">{inscriptions.length}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <GraduationCap className="h-8 w-8 text-green-600 mr-3" />
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Aprobados</h3>
+              <p className="text-2xl font-bold text-green-600">
+                {inscriptions.filter(i => i.estado === 'aprobado').length}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <Calendar className="h-8 w-8 text-yellow-600 mr-3" />
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Pendientes</h3>
+              <p className="text-2xl font-bold text-yellow-600">
+                {inscriptions.filter(i => i.estado === 'pendiente').length}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <FileText className="h-8 w-8 text-red-600 mr-3" />
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Rechazados</h3>
+              <p className="text-2xl font-bold text-red-600">
+                {inscriptions.filter(i => i.estado === 'rechazado').length}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Contador de resultados */}
       <div className="mb-4 flex justify-between items-center">
         <p className="text-sm text-gray-600">
-          Mostrando {filteredStudents.length} de {students.length} estudiantes
+          Mostrando {filteredInscriptions.length} de {inscriptions.length} registros
         </p>
-        {(filters.area !== 'all' || filters.status !== 'all' || filters.teacher !== 'all') && (
+        {(filters.status !== 'all' || filters.area !== 'all' || filters.categoria !== 'all' || filters.searchTerm !== '') && (
           <button
             onClick={() => setFilters({
               searchTerm: '',
-              area: 'all',
               status: 'all',
-              teacher: 'all',
-              sortBy: 'ci',
-              sortOrder: 'asc'
+              area: 'all',
+              categoria: 'all',
+              sortBy: 'fecha',
+              sortOrder: 'desc'
             })}
             className="text-sm text-blue-600 hover:text-blue-800"
           >
@@ -299,65 +525,150 @@ const ReportesVarios = () => {
         )}
       </div>
 
-      {filteredStudents.length === 0 ? (
+      {/* Tabla de reportes */}
+      {filteredInscriptions.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
-          <p className="text-gray-500">No se encontraron estudiantes con los filtros aplicados</p>
+          <p className="text-gray-500">No se encontraron registros con los filtros aplicados</p>
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CI</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Área</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Docente</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredStudents.map((student) => (
-                <tr key={student.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.ci}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.fullName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.area}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.category}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.teacher}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      student.status === 'aprobado' ? 'bg-green-100 text-green-800' :
-                      student.status === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {student.status === 'aprobado' ? 'Aprobado' : 
-                       student.status === 'pendiente' ? 'Pendiente' : 'Rechazado'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.registrationDate}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => {
-                        // Implementar vista detallada
-                        alert(`Mostrar detalles de ${student.fullName}`);
-                      }}
-                      className="text-blue-600 hover:text-blue-900 mr-3"
-                    >
-                      <FileText className="h-4 w-4 inline" />
-                    </button>
-                    <button
-                      onClick={() => window.print()}
-                      className="text-gray-600 hover:text-gray-900"
-                    >
-                      <Printer className="h-4 w-4 inline" />
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CI</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Áreas</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Docente</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredInscriptions.map((inscription) => (
+                  <tr key={inscription.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
+                      {inscription.estudiante?.ci || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {inscription.estudiante ? 
+                          `${inscription.estudiante.nombres} ${inscription.estudiante.apellidos}` : 
+                          'N/A'
+                        }
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {inscription.estudiante?.correo || 'Sin correo'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="space-y-1">
+                        {inscription.area1 && (
+                          <div className="flex items-center">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {inscription.area1.nombre}
+                            </span>
+                          </div>
+                        )}
+                        {inscription.area2 && (
+                          <div className="flex items-center">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              {inscription.area2.nombre}
+                            </span>
+                          </div>
+                        )}
+                        {!inscription.area1 && !inscription.area2 && (
+                          <span className="text-gray-400 italic">Sin áreas</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="space-y-1">
+                        {inscription.area1?.categoria && (
+                          <div className="text-xs text-blue-600 font-medium">
+                            {inscription.area1.categoria}
+                          </div>
+                        )}
+                        {inscription.area2?.categoria && (
+                          <div className="text-xs text-green-600 font-medium">
+                            {inscription.area2.categoria}
+                          </div>
+                        )}
+                        {(!inscription.area1?.categoria && !inscription.area2?.categoria) && (
+                          <span className="text-gray-400 italic">Sin categoría</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="space-y-1">
+                        {inscription.area1?.docente_responsable && (
+                          <div className="text-xs text-blue-700 font-medium">
+                            {inscription.area1.docente_responsable}
+                          </div>
+                        )}
+                        {inscription.area2?.docente_responsable && (
+                          <div className="text-xs text-green-700 font-medium">
+                            {inscription.area2.docente_responsable}
+                          </div>
+                        )}
+                        {(!inscription.area1?.docente_responsable && !inscription.area2?.docente_responsable) && (
+                          <span className="text-gray-400 italic">Sin docente asignado</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusBadge(inscription.estado)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 text-gray-400 mr-1" />
+                        {inscription.fecha ? new Date(inscription.fecha).toLocaleDateString('es-ES', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit'
+                        }) : 'N/A'}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        {inscription.fecha ? new Date(inscription.fecha).toLocaleTimeString('es-ES', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }) : ''}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-3">
+                        {inscription.estudiante?.ci && (
+                          <Link
+                            to={`/student-detail/${inscription.estudiante.ci}`}
+                            className="text-indigo-600 hover:text-indigo-900 relative group"
+                            title="Ver detalles del estudiante"
+                          >
+                            <Eye className="h-4 w-4" />
+                            <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                              Ver detalles del estudiante
+                            </span>
+                          </Link>
+                        )}
+
+                        <button
+                          onClick={() => handlePrintStudent(inscription)}
+                          className="text-green-600 hover:text-green-900 relative group"
+                          title="Imprimir datos completos"
+                        >
+                          <Printer className="h-4 w-4" />
+                          <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                            Imprimir datos completos
+                          </span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
