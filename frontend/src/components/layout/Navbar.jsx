@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
-export default function Navbar() {
+export default function Navbar({ onOpenComprobantePago }) {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -66,7 +66,18 @@ export default function Navbar() {
       dropdownItems: [
         { name: "Verificar Pago", link: "#" },
         { name: "Historial", link: "#" },
-        { name: "Subir comprobante", link: "/comprobante-pago" },
+        { 
+          name: "Subir comprobante", 
+          action: () => {
+            console.log("Botón 'Subir comprobante' clickeado en Navbar");
+            if (onOpenComprobantePago) {
+              onOpenComprobantePago();
+            } else {
+              console.error("onOpenComprobantePago no está definido");
+            }
+            setActiveDropdown(null);
+          }
+        },
       ],
     },
     {

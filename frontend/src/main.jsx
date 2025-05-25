@@ -20,7 +20,10 @@ import "./index.css";
 function Main() {
   const [showComprobante, setShowComprobante] = useState(false);
 
-  const handleShowComprobante = () => setShowComprobante(true);
+  const handleShowComprobante = () => {
+    console.log("handleShowComprobante llamado desde Main");
+    setShowComprobante(true);
+  };
   const handleCloseComprobante = () => setShowComprobante(false);
 
   return (
@@ -35,7 +38,7 @@ function Main() {
             >
               X
             </button>
-            <ComprobantePago />
+            <ComprobantePago onSuccess={handleCloseComprobante} />
           </div>
         </div>
       )}
@@ -54,10 +57,10 @@ const router = createBrowserRouter([
       { path: "student-registration", element: <StudentRegistration /> },
       { path: "group-registration", element: <StudentGroupRegistration /> },
       { path: "student-applications", element: <StudentsApprovedList /> },
-      { path: "student-detail/:id", element: <StudentDetail /> },
+      { path: "student-detail/:ci", element: <StudentDetail /> },
       { path: "editar-area/:id", element: <EditArea /> },
       { path: "admin", element: <AdminLogin /> },
-      { path: "reportes", element: <ReportesVarios /> }, // <-- Nueva ruta para reportes
+      { path: "reportes", element: <ReportesVarios /> },
       { path: "*", element: <Navigate to="/" replace /> },
     ],
   },

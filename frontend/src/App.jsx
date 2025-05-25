@@ -7,7 +7,7 @@ import Footer from './components/layout/Footer'
 import { Toaster } from 'react-hot-toast'
 import LoadingSpinner from './components/common/LoadingSpinner'
 
-export default function App() {
+export default function App({ onOpenComprobantePago }) {
   const [isLoading, setIsLoading] = useState(true)
   const location = useLocation()
   const navigate = useNavigate()
@@ -48,7 +48,7 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900 transition-colors duration-200">
       <TopbarGuest />
-      <Navbar />
+      <Navbar onOpenComprobantePago={onOpenComprobantePago} />
       
       <main className="flex-grow py-6">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
