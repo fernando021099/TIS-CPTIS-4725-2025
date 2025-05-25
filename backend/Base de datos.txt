@@ -118,6 +118,38 @@ INSERT INTO area (nombre, categoria, descripcion, estado, costo, modo) VALUES
 ('ROBOTICA', 'Lego S', '1ro a 6to Secundaria', 'activo', 15, 'unico');
 
 
+-- Datos de ejemplo para testing
+-- Insertar estudiantes de prueba
+INSERT INTO estudiante (ci, correo, apellidos, nombres, fecha_nacimiento, curso) VALUES
+('12345678', 'juan.perez@email.com', 'Pérez López', 'Juan Carlos', '2008-03-15', '4to Secundaria'),
+('87654321', 'maria.garcia@email.com', 'García Mendoza', 'María Elena', '2009-07-22', '3ro Secundaria'),
+('11223344', 'carlos.rodriguez@email.com', 'Rodríguez Silva', 'Carlos Antonio', '2007-11-08', '5to Secundaria');
+
+-- Insertar contactos de prueba
+INSERT INTO contacto (celular, nombre, correo) VALUES
+('70123456', 'Roberto Pérez', 'roberto.perez@email.com'),
+('70234567', 'Ana García', 'ana.garcia@email.com'),
+('70345678', 'Luis Rodríguez', 'luis.rodriguez@email.com');
+
+-- Insertar colegios de prueba
+INSERT INTO colegio (nombre, departamento, provincia) VALUES
+('Colegio Nacional Bolívar', 'Cochabamba', 'Cercado'),
+('Unidad Educativa San José', 'Cochabamba', 'Quillacollo'),
+('Colegio Técnico Humanístico', 'La Paz', 'Murillo');
+
+-- Insertar inscripciones de prueba
+INSERT INTO inscripción (estudiante_id, contacto_id, colegio_id, area1_id, area2_id, olimpiada_version, estado, codigo_comprobante, fecha, nombre_pagador) VALUES
+('12345678', 1, 1, 25, NULL, 2024, 'aprobado', 'IND-12345678', '2025-01-15', 'Roberto Pérez'),
+('87654321', 2, 2, 11, 31, 2024, 'pendiente', 'IND-87654321', '2025-01-16', NULL),
+('11223344', 3, 3, 16, NULL, 2024, 'aprobado', 'IND-11223344', '2025-01-17', 'Luis Rodríguez');
+
+-- Verificar que los datos se insertaron correctamente
+-- SELECT * FROM estudiante;
+-- SELECT * FROM contacto;
+-- SELECT * FROM colegio;
+-- SELECT * FROM inscripción;
+
+
 --Prueba las URLs:
 http://127.0.0.1:8000/api/olimpiadas
 http://127.0.0.1:8000/api/areas
