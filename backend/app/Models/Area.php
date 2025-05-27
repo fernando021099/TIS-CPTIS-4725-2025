@@ -9,11 +9,11 @@ class Area extends Model
 {
     use HasFactory;
 
-    protected $table = 'area';
-    public $timestamps = false;
+    protected $table = 'area'; // Especifica el nombre de la tabla
+    public $timestamps = false; // Asume que no hay columnas created_at/updated_at
 
     /**
-     * The attributes that are mass assignable.
+     * Los atributos que son asignables masivamente.
      *
      * @var array<int, string>
      */
@@ -23,63 +23,19 @@ class Area extends Model
         'descripcion',
         'estado',
         'costo',
-        'modo'
+        'modo',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array
-     */
-    protected $casts = [
-        'costo' => 'decimal:2',
-    ];
-
-    /**
-     * Get inscriptions that use this area as area1
-     */
-    public function inscripcionesArea1()
+    // Si necesitas relaciones inversas (desde Area a Inscripcion), puedes definirlas aquí
+    // Por ejemplo, para obtener todas las inscripciones donde esta área es area1
+    public function inscripcionesComoArea1()
     {
         return $this->hasMany(Inscripcion::class, 'area1_id');
     }
 
-    /**
-     * Get inscriptions that use this area as area2
-     */
-    public function inscripcionesArea2()
+    // Para obtener todas las inscripciones donde esta área es area2
+    public function inscripcionesComoArea2()
     {
         return $this->hasMany(Inscripcion::class, 'area2_id');
-    }
-
-    /**
-     * Get all inscriptions that use this area (either as area1 or area2)
-     */
-    public function inscripciones()
-    {
-        return $this->inscripcionesArea1()->union($this->inscripcionesArea2());
-    }
-
-    /**
-     * Scope a query to only include active areas.
-     */
-    public function scopeActive($query)
-    {
-        return $query->where('estado', 'activo');
-    }
-
-    /**
-     * Scope a query to filter by area name.
-     */
-    public function scopeByName($query, $name)
-    {
-        return $query->where('nombre', $name);
-    }
-
-    /**
-     * Scope a query to filter by category.
-     */
-    public function scopeByCategory($query, $category)
-    {
-        return $query->where('categoria', $category);
     }
 }

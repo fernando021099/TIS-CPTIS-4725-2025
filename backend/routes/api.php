@@ -32,17 +32,6 @@ Route::apiResource('inscripción', InscripcionController::class);
 // Comenta o elimina esta línea si OCRController no existe aún
 Route::post('/ocr', [OCRController::class, 'procesarImagen']);
 
-// Rutas para áreas
-Route::apiResource('area', AreaController::class);
-Route::get('areas/nombres', [AreaController::class, 'getAreaNames']);
-Route::get('areas/{areaName}/categorias', [AreaController::class, 'getCategoriesByArea']);
-
-// Rutas para inscripciones
-Route::apiResource('inscripción', InscripcionController::class);
-Route::post('inscripción/grupo', [InscripcionController::class, 'storeGroup']);
-Route::get('inscripción/buscar-por-codigo-recibo', [InscripcionController::class, 'buscarPorCodigoRecibo']);
-Route::post('pagos/aprobar-por-codigo', [InscripcionController::class, 'aprobarPorCodigoRecibo']);
-
 // Puedes añadir rutas personalizadas aquí si necesitas lógica más específica
 // Ejemplo: Obtener áreas activas
 // Route::get('/areas-activas', [AreaController::class, 'activas']);

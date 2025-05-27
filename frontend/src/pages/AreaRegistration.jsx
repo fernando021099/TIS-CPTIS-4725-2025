@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, X, List } from 'lucide-react'
-import { api } from '../api/apiClient'
+import { useState, useEffect } from "react"
+import { X, Check, ArrowLeft, List } from "lucide-react"
+import { useNavigate } from "react-router-dom"
+// import { supabase } from '../supabaseClient' // Comentado: No se usa Supabase
+import { api } from '../api/apiClient'; // Importar apiClient
 
 const AreaRegistration = () => {
   const navigate = useNavigate()
@@ -22,7 +23,7 @@ const AreaRegistration = () => {
   })
 
   const [errors, setErrors] = useState({})
-  const [connectionStatus, setConnectionStatus] = useState({ message: "", type: "" })
+  const [connectionStatus, setConnectionStatus] = useState({ message: "", type: "" }) // Para mostrar estado de conexión
   
   // Datos de opciones para áreas y niveles
   const [areaOptions, setAreaOptions] = useState([])
@@ -32,61 +33,82 @@ const AreaRegistration = () => {
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        setConnectionStatus({ message: "Cargando opciones desde la base de datos...", type: "info" })
+        // Obtener todas las áreas desde la API
+        const allAreasData = await api.get('/areas');
+
+        // Supabase original (comentado)
+        /*
+        // Obtener áreas únicas
+        const { data: areas, error: areasError } = await supabase
+          .from('area')
+          .select('nombre')
+          .order('nombre')
         
-        // Obtener áreas existentes para generar opciones
-        const areasData = await api.get('/area')
+        if (areasError) throw areasError
         
-        // Extraer nombres únicos de áreas
-        const uniqueAreaNames = [...new Set(areasData.map(area => area.nombre))]
-        setAreaOptions([...uniqueAreaNames, "Otro (especificar)"])
+        // Crear lista de opciones únicas
+        const uniqueAreas = [...new Set(areas.map(a => a.nombre))]
+        const options = [...uniqueAreas, "Otro (especificar)"]
+        setAreaOptions(options)
         
-        // Mapear áreas a sus categorías/niveles
-        const areaToLevelsMap = {}
-        areasData.forEach(area => {
-          if (!areaToLevelsMap[area.nombre]) {
-            areaToLevelsMap[area.nombre] = []
-          }
-          if (!areaToLevelsMap[area.nombre].includes(area.categoria)) {
-            areaToLevelsMap[area.nombre].push(area.categoria)
-          }
-        })
+        // Obtener niveles por área
+        const levelsMap = {}
+        for (const area of uniqueAreas) {
+          const { data: levels, error: levelsError } = await supabase
+            .from('area')
+            .select('nivel') // Supabase usaba 'nivel', API usa 'categoria'
+            .eq('nombre', area)
+            .order('nivel')
+          
+          if (levelsError) throw levelsError
+          
+          levelsMap[area] = [...new Set(levels.map(l => l.nivel))]
+        }
         
-        setAreaToLevels(areaToLevelsMap)
+        setAreaToLevels(levelsMap)
+        */
+
+        // Procesar datos de la API para obtener opciones
+        const uniqueAreaNames = [...new Set(allAreasData.map(a => a.nombre))].sort();
+        const options = [...uniqueAreaNames, "Otro (especificar)"];
+        setAreaOptions(options);
+
+        const levelsMap = {};
+        uniqueAreaNames.forEach(name => {
+          levelsMap[name] = [...new Set(
+            allAreasData
+              .filter(a => a.nombre === name)
+              .map(a => a.categoria) // Usar 'categoria' de la API
+          )].sort();
+        });
+        setAreaToLevels(levelsMap);
+        
         setConnectionStatus({ 
-          message: "Opciones cargadas correctamente desde la base de datos", 
+          message: "Opciones cargadas desde la API", // Mensaje actualizado
           type: "success" 
-        })
-        
-        console.log('Opciones de áreas cargadas:', { uniqueAreaNames, areaToLevelsMap })
+        });
       } catch (error) {
-        console.error('Error al cargar opciones de áreas:', error)
+        console.error("Error cargando opciones desde API:", error);
         setConnectionStatus({ 
-          message: "Error al cargar opciones. Usando valores por defecto.", 
+          message: `Error al obtener datos: ${error.message}`, 
           type: "error" 
         })
         
-        // Fallback a opciones hardcodeadas
-        const fallbackAreas = [
-          "ASTRONOMIA_ASTROFISICA", "BIOLOGIA", "FISICA", "INFORMATICA", 
-          "MATEMATICAS", "QUIMICA", "ROBOTICA", "Otro (especificar)"
-        ]
-        setAreaOptions(fallbackAreas)
-        
-        const fallbackLevels = {
-          "ASTRONOMIA_ASTROFISICA": ["3P", "4P", "5P", "6P", "1S", "2S", "3S", "4S", "5S", "6S"],
-          "BIOLOGIA": ["2S", "3S", "4S", "5S", "6S"],
-          "FISICA": ["4S", "5S", "6S"],
-          "INFORMATICA": ["Guacamayo", "Guanaco", "Londra", "Jucumari", "Bufeo", "Puma"],
-          "MATEMATICAS": ["Primer Nivel", "Segundo Nivel", "Tercer Nivel", "Cuarto Nivel", "Quinto Nivel", "Sexto Nivel"],
-          "QUIMICA": ["2S", "3S", "4S", "5S", "6S"],
-          "ROBOTICA": ["Builders P", "Builders S", "Lego P", "Lego S"]
-        }
-        setAreaToLevels(fallbackLevels)
+        // Mantener valores por defecto en caso de error
+        setAreaOptions([
+          "ASTRONOMÍA - ASTROFÍSICA",
+          "BIOLOGÍA",
+          "FÍSICA",
+          "INFORMÁTICA",
+          "MATEMÁTICAS",
+          "QUÍMICA",
+          "ROBÓTICA",
+          "Otro (especificar)"
+        ])
       }
-    }
+    };
     
-    fetchOptions()
+    fetchOptions();
   }, [])
 
   const getLevelOptions = () => {
@@ -96,67 +118,85 @@ const AreaRegistration = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: "" }))
-    }
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }))
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
   const handleNameChange = (e) => {
     const value = e.target.value
-    setErrors(prev => ({ ...prev, name: "" }))
+    const isOtherOption = value === "Otro (especificar)"
     
     setFormData(prev => ({ 
       ...prev, 
       name: value,
-      categoryLevel: "", // Reset category when area changes
-      customCategory: ""
+      customName: isOtherOption ? prev.customName : "",
+      categoryLevel: isOtherOption ? "Otro (especificar)" : "",
+      customCategory: isOtherOption ? prev.customCategory : ""
     }))
     
-    // Show/hide custom name input
-    setUiState(prev => ({ 
-      ...prev, 
-      showCustomNameInput: value === "Otro (especificar)",
-      showCustomCategoryInput: false // Reset custom category
+    setUiState(prev => ({
+      ...prev,
+      showCustomNameInput: isOtherOption,
+      showCustomCategoryInput: isOtherOption
     }))
   }
 
   const handleCategoryLevelChange = (e) => {
     const value = e.target.value
-    setErrors(prev => ({ ...prev, categoryLevel: "" }))
+    const isOtherOption = value === "Otro (especificar)"
     
-    setFormData(prev => ({ ...prev, categoryLevel: value, customCategory: "" }))
-    
-    // Show/hide custom category input
-    setUiState(prev => ({ 
+    setFormData(prev => ({ 
       ...prev, 
-      showCustomCategoryInput: value === "Otro (especificar)"
+      categoryLevel: value,
+      customCategory: isOtherOption ? prev.customCategory : ""
+    }))
+    
+    setUiState(prev => ({
+      ...prev,
+      showCustomCategoryInput: isOtherOption
     }))
   }
 
-  // Validate form in real time
   useEffect(() => {
     const newErrors = {}
+    const finalName = formData.name === "Otro (especificar)" ? formData.customName : formData.name
+    const finalCategory = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory : formData.categoryLevel
     
-    // Area name validation
-    if (!formData.name) {
-      newErrors.name = "Seleccione un área"
-    } else if (formData.name === "Otro (especificar)" && !formData.customName.trim()) {
-      newErrors.name = "Especifique el nombre del área"
+    // Validación del campo de área
+    if (!finalName.trim()) newErrors.name = "Nombre de área requerido"
+
+    if (formData.name === "Otro (especificar)"){
+      const customName = formData.customName.trim()
+      const onlyUppercase = /^[A-ZÁÉÍÓÚÑ ]+$/ // mayúsculas + espacios
+  
+      if (!customName){
+        newErrors.name = "Debe ingresar un nombre"
+      } else if (!onlyUppercase.test(customName)){
+        newErrors.name = "Solo se permiten letras mayúsculas sin números ni caracteres especiales"
+      }
     }
     
-    // Category validation
-    if (!formData.categoryLevel) {
-      newErrors.categoryLevel = "Seleccione una categoría/nivel"
-    } else if (formData.categoryLevel === "Otro (especificar)" && !formData.customCategory.trim()) {
-      newErrors.categoryLevel = "Especifique la categoría/nivel"
+    // Validación del campo categoría/nivel
+    if (!finalCategory) newErrors.categoryLevel = "Seleccione categoría/nivel"
+    
+    if (formData.categoryLevel === "Otro (especificar)") {
+      const customCategory = formData.customCategory.trim()
+      const lettersAndNumbers = /^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 ]+$/ // Letras (cualquier caso), números, espacios
+  
+      if (!customCategory) {
+        newErrors.categoryLevel = "Debe ingresar una categoría/nivel"
+      } else if (!lettersAndNumbers.test(customCategory)) {
+        newErrors.categoryLevel = "Solo se permiten letras y números (sin caracteres especiales)"
+      }
     }
     
-    // Cost validation
-    if (!formData.cost) {
-      newErrors.cost = "Ingrese el costo"
-    } else if (isNaN(formData.cost) || parseFloat(formData.cost) < 0) {
-      newErrors.cost = "El costo debe ser un número válido mayor o igual a 0"
+    // Validación del campo costo
+    if (!formData.cost || Number(formData.cost) <= 0) newErrors.cost = "Costo inválido (debe ser mayor a 0)"
+    if (Number(formData.cost) > 10000) newErrors.cost = "Costo demasiado alto"
+
+    // Validación del campo descripción
+    if (formData.description && formData.description.length > 250){
+      newErrors.description = "La descripción no puede exceder los 250 caracteres"
     }
     
     setErrors(newErrors)
@@ -164,70 +204,70 @@ const AreaRegistration = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    // Final validation
-    if (Object.keys(errors).length > 0) {
-      setConnectionStatus({ 
-        message: "Por favor corrija los errores antes de continuar", 
-        type: "error" 
-      })
-      return
-    }
+    if (Object.keys(errors).length > 0) return
     
     setUiState(prev => ({ ...prev, isSubmitting: true }))
-    setConnectionStatus({ message: "Registrando área...", type: "info" })
     
     try {
-      // Prepare the data for API
+      // Preparar los datos para la API
+      const nombre = formData.name === "Otro (especificar)" ? formData.customName : formData.name
+      // La API espera 'categoria', el frontend usa 'categoryLevel' o 'customCategory'
+      const categoria = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory : formData.categoryLevel
+      const costo = Number(formData.cost)
+      const descripcion = formData.description
+      const estado = 'activo' // Estado por defecto para nuevas áreas
+      const modo = 'normal' // Modo por defecto (o ajustar si es necesario)
+
       const areaData = {
-        nombre: formData.name === "Otro (especificar)" ? formData.customName.trim() : formData.name,
-        categoria: formData.categoryLevel === "Otro (especificar)" ? formData.customCategory.trim() : formData.categoryLevel,
-        costo: parseFloat(formData.cost),
-        descripcion: formData.description.trim() || null,
-        estado: "activo" // Default status
+        nombre,
+        categoria,
+        costo,
+        descripcion,
+        estado,
+        modo
       }
+
+      // Crear nueva área usando apiClient
+      const createdArea = await api.post('/areas', areaData)
+
+      // Supabase original (comentado)
+      /*
+      const { data, error } = await supabase
+        .from('area')
+        .insert([
+          { 
+            nombre: nombre,
+            nivel: nivel, // Supabase usaba 'nivel'
+            descripcion: formData.description,
+            estado: 'ACTIVO', // Supabase usaba 'ACTIVO'
+            costo: Number(formData.cost) 
+          }
+        ])
+        .select()
       
-      console.log('Enviando datos del área:', areaData)
-      
-      // Send to API
-      const response = await api.post('/area', areaData)
-      
-      console.log('Área registrada exitosamente:', response)
+      if (error) throw error
+      */
       
       setConnectionStatus({ 
-        message: "Área registrada correctamente en la base de datos", 
+        message: "Área registrada correctamente en la API", // Mensaje actualizado
         type: "success" 
       })
       
-      setUiState(prev => ({ 
-        ...prev, 
-        isSubmitting: false, 
-        showSuccessModal: true 
-      }))
+      // Mostrar modal de éxito
+      setUiState(prev => ({ ...prev, showSuccessModal: true }))
+      resetForm()
       
-      // Reset form
+      // Redirigir después de 2 segundos
       setTimeout(() => {
-        resetForm()
+        navigate('/areas') // Asegúrate que esta ruta sea correcta
       }, 2000)
-      
     } catch (error) {
-      console.error('Error al registrar área:', error)
-      
-      let errorMessage = "Error al registrar el área"
-      if (error.status === 422 && error.data?.errors) {
-        // Handle validation errors from backend
-        const backendErrors = error.data.errors
-        const errorMessages = Object.values(backendErrors).flat()
-        errorMessage = errorMessages.join(", ")
-      } else if (error.message) {
-        errorMessage = error.message
-      }
-      
+      console.error("Error al registrar área vía API:", error)
       setConnectionStatus({ 
-        message: errorMessage, 
+        message: `Error al registrar área: ${error.message}`, 
         type: "error" 
       })
-      
+    } finally {
       setUiState(prev => ({ ...prev, isSubmitting: false }))
     }
   }
@@ -241,19 +281,16 @@ const AreaRegistration = () => {
       cost: "",
       description: "",
     })
-    setUiState({
+    setUiState(prev => ({
+      ...prev,
       showCustomNameInput: false,
-      showCustomCategoryInput: false,
-      isSubmitting: false,
-      showSuccessModal: false
-    })
-    setErrors({})
-    setConnectionStatus({ message: "", type: "" })
+      showCustomCategoryInput: false
+    }))
   }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
-      {/* Header */}
+      {/* Encabezado */}
       <div className="flex items-center justify-between mb-6">
         <button 
           onClick={() => navigate(-1)}
@@ -266,7 +303,7 @@ const AreaRegistration = () => {
           Registro de Áreas
         </h1>
         <button
-          onClick={() => navigate('/areas')}
+          onClick={() => navigate('/areas')} // Asegúrate de que esta ruta coincida con tu configuración de enrutamiento
           className="flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
         >
           <List className="h-5 w-5 mr-1" />
@@ -274,27 +311,23 @@ const AreaRegistration = () => {
         </button>
       </div>
 
-      {/* Connection Status */}
+      {/* Mostrar estado de conexión */}
       {connectionStatus.message && (
         <div className={`mb-4 p-3 rounded-md text-sm ${
           connectionStatus.type === "success" 
             ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
-            : connectionStatus.type === "error"
-            ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-            : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
         }`}>
           {connectionStatus.type === "success" ? (
             <Check className="h-4 w-4 inline mr-1" />
-          ) : connectionStatus.type === "error" ? (
-            <X className="h-4 w-4 inline mr-1" />
           ) : (
-            <div className="h-4 w-4 inline mr-1 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <X className="h-4 w-4 inline mr-1" />
           )}
           {connectionStatus.message}
         </div>
       )}
 
-      {/* Main Form */}
+      {/* Resto del código del formulario sigue igual... */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -304,7 +337,7 @@ const AreaRegistration = () => {
         
         <form onSubmit={handleSubmit} className="p-6">
           <div className="space-y-4">
-            {/* Area Selection */}
+            {/* Campo Área */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Área <span className="text-red-500">*</span>
@@ -345,7 +378,7 @@ const AreaRegistration = () => {
               )}
             </div>
 
-            {/* Category/Level Selection */}
+            {/* Campo Categoría/Nivel */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Categoría/Nivel <span className="text-red-500">*</span>
@@ -396,7 +429,7 @@ const AreaRegistration = () => {
               )}
             </div>
 
-            {/* Cost and Description */}
+            {/* Campo Costo */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -427,6 +460,7 @@ const AreaRegistration = () => {
                 )}
               </div>
 
+              {/* Campo Descripción */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Descripción (opcional)
@@ -439,6 +473,7 @@ const AreaRegistration = () => {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   placeholder="Descripción breve del área"
                 />
+                {/* Aquí se agrega el mensaje de error si existe */}
                 {errors.description && (
                   <p className="text-red-500 text-sm mt-1">{errors.description}</p>
                 )}
@@ -446,7 +481,7 @@ const AreaRegistration = () => {
             </div>
           </div>
 
-          {/* Form Actions */}
+          {/* Botones de acción */}
           <div className="mt-6 flex justify-end space-x-3">
             <button
               type="button"
@@ -470,7 +505,7 @@ const AreaRegistration = () => {
         </form>
       </div>
 
-      {/* Success Modal */}
+      {/* Modal de éxito */}
       {uiState.showSuccessModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full shadow-xl animate-fade-in">
