@@ -28,9 +28,8 @@ const StudentRegistration = () => {
     grade: "",
     department: "Cochabamba",
     province: "",
-    // Para manejar múltiples áreas (máximo 2)
-    areas: location.state?.area ? [location.state.area] : [],
-    categories: {} // { "ÁREA": "CATEGORÍA" }
+    // Nuevo manejo de selecciones de área
+    selections: [], // Array de objetos: { name, category, id, cost }
   });
 
   const [uiState, setUiState] = useState({
@@ -56,60 +55,78 @@ const StudentRegistration = () => {
     "Pando": ["Pando", "Abuná", "Manuripi"]
   };
 
-  const [availableAreas, setAvailableAreas] = useState([]);
+  // Estados para la lógica de áreas desde API
+  const [allAreasFromApi, setAllAreasFromApi] = useState([]);
+  const [uniqueAreaNamesForDisplay, setUniqueAreaNamesForDisplay] = useState([]);
+  const [categoriesForAreaNameMap, setCategoriesForAreaNameMap] = useState({});
 
-  const areaToCategories = {
-    "ASTRONOMÍA - ASTROFÍSICA": ["3P", "4P", "5P", "6P", "1S", "2S", "3S", "4S", "5S", "6S"],
-    "BIOLOGÍA": ["2S", "3S", "4S", "5S", "6S"],
-    "FÍSICA": ["4S", "5S", "6S"],
-    "INFORMÁTICA": ["Guacamayo", "Guanaco", "Londra", "Jucumari", "Bufeo", "Puma"],
-    "MATEMÁTICAS": ["Primer Nivel", "Segundo Nivel", "Tercer Nivel", "Cuarto Nivel", "Quinto Nivel", "Sexto Nivel"],
-    "QUÍMICA": ["2S", "3S", "4S", "5S", "6S"],
-    "ROBÓTICA": ["Builders P", "Builders S", "Lego P", "Lego S"]
-  };
 
   useEffect(() => {
-    // Cargar áreas disponibles desde la API
-    const fetchAreas = async () => {
+    const fetchAndProcessAreas = async () => {
       try {
-        const areasData = await api.get('/area');
-        setAvailableAreas(areasData || []);
-        console.log('Áreas cargadas desde la API:', areasData);
+        const areasData = await api.get('/areas'); // Usar /areas para obtener todas
+        if (areasData && Array.isArray(areasData)) {
+          setAllAreasFromApi(areasData);
+
+          const uniqueNames = [...new Set(areasData.map(a => a.nombre))].sort();
+          setUniqueAreaNamesForDisplay(uniqueNames);
+
+          const catMap = {};
+          areasData.forEach(area => {
+            if (!catMap[area.nombre]) {
+              catMap[area.nombre] = [];
+            }
+            // Guardar objeto completo para fácil acceso a id y costo luego
+            if (!catMap[area.nombre].find(c => c.category === area.categoria)) {
+              catMap[area.nombre].push({ 
+                category: area.categoria, 
+                id: area.id, 
+                cost: area.costo 
+              });
+            }
+          });
+          // Ordenar categorías dentro de cada mapa si es necesario
+          for (const areaName in catMap) {
+            catMap[areaName].sort((a, b) => a.category.localeCompare(b.category));
+          }
+          setCategoriesForAreaNameMap(catMap);
+          
+          // Preselección si viene de location.state.area
+          if (location.state?.area) {
+            const preselected = location.state.area;
+            // Asegurarse que la preselección es válida con los datos cargados
+            const isValidPreselection = areasData.some(a => a.id === preselected.id && a.nombre === preselected.nombre && a.categoria === preselected.categoria);
+            if (isValidPreselection) {
+              setFormData(prev => ({
+                ...prev,
+                selections: [{
+                  name: preselected.nombre,
+                  category: preselected.categoria,
+                  id: preselected.id,
+                  cost: preselected.costo
+                }]
+              }));
+            } else {
+              console.warn("Área preseleccionada de location.state no es válida o no encontrada.");
+            }
+          }
+
+        } else {
+          console.error('Formato de datos de áreas inesperado:', areasData);
+          setAllAreasFromApi([]); // Fallback a vacío
+        }
       } catch (error) {
         console.error('Error al cargar áreas:', error);
-        // Fallback a áreas hardcodeadas si falla la API
-        setAvailableAreas([
-          { id: 1, nombre: "ASTRONOMÍA - ASTROFÍSICA" },
-          { id: 2, nombre: "BIOLOGÍA" },
-          { id: 3, nombre: "FÍSICA" },
-          { id: 4, nombre: "INFORMÁTICA" },
-          { id: 5, nombre: "MATEMÁTICAS" },
-          { id: 6, nombre: "QUÍMICA" },
-          { id: 7, nombre: "ROBÓTICA" }
-        ]);
+        setAllAreasFromApi([]); // Fallback a vacío
       }
     };
 
-    fetchAreas();
-  }, []);
+    fetchAndProcessAreas();
+  }, [location.state]);
 
-  // Actualizar areaToCategories para usar IDs o nombres como respaldo
-  const getAreaCategories = (areaId) => {
-    const area = availableAreas.find(a => a.id === areaId);
-    const areaName = area?.nombre;
-    
-    const categoriesMap = {
-      "ASTRONOMÍA - ASTROFÍSICA": ["3P", "4P", "5P", "6P", "1S", "2S", "3S", "4S", "5S", "6S"],
-      "BIOLOGÍA": ["2S", "3S", "4S", "5S", "6S"],
-      "FÍSICA": ["4S", "5S", "6S"],
-      "INFORMÁTICA": ["Guacamayo", "Guanaco", "Londra", "Jucumari", "Bufeo", "Puma"],
-      "MATEMÁTICAS": ["Primer Nivel", "Segundo Nivel", "Tercer Nivel", "Cuarto Nivel", "Quinto Nivel", "Sexto Nivel"],
-      "QUÍMICA": ["2S", "3S", "4S", "5S", "6S"],
-      "ROBÓTICA": ["Builders P", "Builders S", "Lego P", "Lego S"]
-    };
-    
-    return categoriesMap[areaName] || [];
-  };
+
+  // Ya no se usa directamente areaToCategories, se usa categoriesForAreaNameMap
+  // const areaToCategories = { ... };
 
   const validateSection = (section) => {
     const newErrors = {};
@@ -266,27 +283,24 @@ const StudentRegistration = () => {
       if (!formData.province) newErrors.province = "Provincia requerida";
       
       // Validación de áreas de competencia
-      if (formData.areas.length === 0) {
+      if (formData.selections.length === 0) {
         newErrors.areas = "Debe seleccionar al menos un área";
-      } else if (formData.areas.length > 2) {
+      } else if (formData.selections.length > 2) {
         newErrors.areas = "Máximo 2 áreas por postulante";
-      }
-      
-      // Validación específica para Robótica (solo 1 área si es Robótica)
-      const area1 = availableAreas.find(a => a.id === formData.areas[0]);
-      const hasRobotics = area1?.nombre === "ROBÓTICA";
-      
-      if (hasRobotics && formData.areas.length > 1) {
-        newErrors.areas = "Si postulas a ROBÓTICA, no puedes postular a otra área";
-      }
-      
-      // Validar que todas las áreas tengan categoría seleccionada
-      formData.areas.forEach(areaId => {
-        if (!formData.categories[areaId]) {
-          const area = availableAreas.find(a => a.id === areaId);
-          newErrors[`category_${areaId}`] = `Seleccione categoría para ${area?.nombre || 'el área'}`;
+      } else {
+        // Validar que todas las áreas seleccionadas tengan categoría
+        formData.selections.forEach(selection => {
+          if (!selection.category) {
+            newErrors[`category_${selection.name.replace(/\s+/g, '_')}`] = `Seleccione categoría para ${selection.name}`;
+          }
+        });
+
+        // Validación específica para Robótica
+        const hasRobotics = formData.selections.some(s => s.name === "ROBÓTICA");
+        if (hasRobotics && formData.selections.length > 1) {
+          newErrors.areas = "Si postulas a ROBÓTICA, no puedes postular a otra área";
         }
-      });
+      }
     }
     
     setErrors(newErrors);
@@ -307,48 +321,64 @@ const StudentRegistration = () => {
     }
   };
 
-  const handleAreaSelection = (areaId) => {
-    setErrors(prev => ({ ...prev, areas: "" }));
+  const handleAreaSelection = (areaName) => {
+    setErrors(prev => ({ ...prev, areas: "", [`category_${areaName.replace(/\s+/g, '_')}`]: "" }));
     
-    setFormData(prev => {
-      // Si el área ya está seleccionada, la quitamos
-      if (prev.areas.includes(areaId)) {
-        const newCategories = { ...prev.categories };
-        delete newCategories[areaId];
-        
-        return {
-          ...prev,
-          areas: prev.areas.filter(a => a !== areaId),
-          categories: newCategories
-        };
-      }
-      
-      // Si no está seleccionada y hay menos de 2, la agregamos
-      if (prev.areas.length < 2) {
-        return {
-          ...prev,
-          areas: [...prev.areas, areaId],
-          categories: {
-            ...prev.categories,
-            [areaId]: "" // Inicializar categoría vacía
-          }
-        };
-      }
-      
-      return prev;
-    });
-  };
+    const isCurrentlySelected = formData.selections.some(s => s.name === areaName);
 
-  const handleCategoryChange = (areaId, category) => {
-    setErrors(prev => ({ ...prev, [`category_${areaId}`]: "" }));
-    
-    setFormData(prev => ({
-      ...prev,
-      categories: {
-        ...prev.categories,
-        [areaId]: category
+    if (isCurrentlySelected) {
+      setFormData(prev => ({
+        ...prev,
+        selections: prev.selections.filter(s => s.name !== areaName)
+      }));
+    } else {
+      if (formData.selections.length >= 2) {
+        setErrors(prev => ({ ...prev, areas: "Máximo 2 áreas por postulante" }));
+        return;
       }
-    }));
+
+      const isRoboticsAlreadySelected = formData.selections.some(s => s.name === "ROBÓTICA");
+      if (areaName === "ROBÓTICA" && formData.selections.length > 0) {
+        setErrors(prev => ({ ...prev, areas: "Si postulas a ROBÓTICA, no puedes seleccionar otra área." }));
+        return;
+      }
+      if (isRoboticsAlreadySelected) {
+        setErrors(prev => ({ ...prev, areas: "Ya has seleccionado ROBÓTICA, no puedes añadir otra área." }));
+        return;
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        selections: [...prev.selections, { name: areaName, category: "", id: null, cost: null }]
+      }));
+    }
+  };
+  
+  const handleCategoryChange = (areaName, selectedCategoryValue) => {
+    setErrors(prev => ({ ...prev, [`category_${areaName.replace(/\s+/g, '_')}`]: "" }));
+
+    setFormData(prev => {
+      const newSelections = prev.selections.map(selection => {
+        if (selection.name === areaName) {
+          if (selectedCategoryValue === "") { // Deseleccionando categoría
+            return { ...selection, category: "", id: null, cost: null };
+          }
+          // Encontrar el detalle del área (incluye id, costo) para esta categoría específica
+          const areaCategoryDetail = categoriesForAreaNameMap[areaName]?.find(
+            catDetail => catDetail.category === selectedCategoryValue
+          );
+          
+          return {
+            ...selection,
+            category: selectedCategoryValue,
+            id: areaCategoryDetail ? areaCategoryDetail.id : null,
+            cost: areaCategoryDetail ? areaCategoryDetail.cost : null
+          };
+        }
+        return selection;
+      });
+      return { ...prev, selections: newSelections };
+    });
   };
 
   const goToNextSection = () => {
@@ -368,9 +398,19 @@ const StudentRegistration = () => {
     
     setUiState(prev => ({ ...prev, isSubmitting: true }));
     setErrors({}); 
+
+    // Calcular monto total basado en las selecciones
+    const totalAmount = formData.selections.reduce((sum, sel) => sum + (sel.cost || 0), 0);
     
     try {
-      // 1. Preparar el payload para la API
+      const area1Selection = formData.selections[0];
+      let area2Selection = formData.selections[1];
+
+      // Si la primera área es Robótica, la segunda no debe existir
+      if (area1Selection?.name === "ROBÓTICA") {
+        area2Selection = undefined;
+      }
+
       const payload = {
         estudiante: {
           nombres: formData.firstName,
@@ -392,22 +432,21 @@ const StudentRegistration = () => {
           provincia: formData.province,
         },
         // CAMBIO PRINCIPAL: Enviar IDs en lugar de nombres
-        area1_id: formData.areas[0] || null,
-        area1_categoria: formData.areas[0] && formData.categories[formData.areas[0]] ? formData.categories[formData.areas[0]] : null,
+        area1_id: area1Selection ? area1Selection.id : null,
+        area1_categoria: area1Selection ? area1Selection.category : null,
+        area2_id: area2Selection ? area2Selection.id : null,
+        area2_categoria: area2Selection ? area2Selection.category : null,
         olimpiada_version: 2024, 
         fecha: new Date().toISOString().split('T')[0], 
         estado: 'pendiente', 
       };
       
-      // Solo incluir area2 si NO es ROBÓTICA y existe una segunda área
-      const area1 = availableAreas.find(a => a.id === formData.areas[0]);
-      if (area1?.nombre !== "ROBÓTICA" && formData.areas.length > 1 && formData.areas[1]) {
-        payload.area2_id = formData.areas[1];
-        payload.area2_categoria = formData.categories[formData.areas[1]] ? formData.categories[formData.areas[1]] : null;
-      } else {
-        payload.area2_id = null;
-        payload.area2_categoria = null;
+      // Eliminar area2 si no existe o si area1 es Robótica
+      if (!area2Selection || area1Selection?.name === "ROBÓTICA") {
+        delete payload.area2_id;
+        delete payload.area2_categoria;
       }
+
 
       console.log("Enviando payload con IDs de áreas:", JSON.stringify(payload, null, 2));
 
@@ -428,15 +467,12 @@ const StudentRegistration = () => {
         
         const paymentInfo = {
           registrationId: responseData.registro_id_display, // Usar el ID de display para el PDF
-          amount: responseData.monto_total, 
+          amount: responseData.monto_total || totalAmount, // Usar monto del backend o el calculado
           studentName: `${responseData.estudiante?.nombres || formData.firstName} ${responseData.estudiante?.apellidos || formData.lastName}`, 
           tutorName: responseData.contacto?.nombre || formData.tutorName, 
-          areas: [responseData.area1?.nombre, responseData.area2?.nombre].filter(Boolean).map((areaName, index) => {
-              const areaData = index === 0 ? responseData.area1 : responseData.area2;
-              return `${areaName} (${areaData?.categoria || 'N/A'})`;
-          }).join(", ") || formData.areas.map(area => `${area} (${formData.categories[area] || 'N/A'})`).join(", "), 
-          paymentDeadline: responseData.fecha_limite_pago ? new Date(responseData.fecha_limite_pago + 'T00:00:00') : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // Asegurar que la fecha se interprete correctamente
-          paymentCode: responseData.codigo_pago // Usar el código de pago del backend
+          areas: formData.selections.map(s => `${s.name} (${s.category || 'N/A'})`).join(", "),
+          paymentDeadline: responseData.fecha_limite_pago ? new Date(responseData.fecha_limite_pago + 'T00:00:00') : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+          paymentCode: responseData.codigo_pago
         };
         
         setUiState(prev => ({ 
@@ -591,9 +627,9 @@ const StudentRegistration = () => {
       // Contenido de tabla
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(73, 80, 87);
-      doc.text('Inscripción por área', margin + 5, yPosition + 5);
-      doc.text(formData.areas.length.toString(), pageWidth - margin - 40, yPosition + 5, { align: 'right' });
-      doc.text('15 Bs.', pageWidth - margin - 25, yPosition + 5, { align: 'right' });
+      doc.text('Inscripción por área(s)', margin + 5, yPosition + 5);
+      doc.text(formData.selections.length.toString(), pageWidth - margin - 40, yPosition + 5, { align: 'right' });
+      // doc.text('15 Bs.', pageWidth - margin - 25, yPosition + 5, { align: 'right' }); // Costo unitario no es fijo
       doc.text(`${amount} Bs.`, pageWidth - margin - 10, yPosition + 5, { align: 'right' });
       yPosition += 8;
       
@@ -998,60 +1034,60 @@ const StudentRegistration = () => {
         )}
         
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {availableAreas.map((area) => (
-            <div 
-              key={area.id}
-              onClick={() => handleAreaSelection(area.id)}
-              className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                formData.areas.includes(area.id) 
-                  ? "bg-blue-50 border-blue-500" 
-                  : "border-gray-300 hover:bg-gray-50"
-              }`}
-            >
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.areas.includes(area.id)}
-                  readOnly
-                  className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                />
-                <span className="ml-2 text-sm font-medium text-gray-700">{area.nombre}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        {/* Mostrar categorías para cada área seleccionada */}
-        {formData.areas.map(areaId => {
-          const area = availableAreas.find(a => a.id === areaId);
-          const categories = getAreaCategories(areaId);
-          
-          return (
-            <div key={areaId} className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Categoría/Nivel para {area?.nombre || 'Área'} <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.categories[areaId] || ""}
-                onChange={(e) => handleCategoryChange(areaId, e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors[`category_${areaId}`] ? "border-red-500" : "border-gray-300"
+          {uniqueAreaNamesForDisplay.map((areaName) => {
+            const isChecked = formData.selections.some(s => s.name === areaName);
+            return (
+              <div 
+                key={areaName}
+                onClick={() => handleAreaSelection(areaName)}
+                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                  isChecked 
+                    ? "bg-blue-50 border-blue-500" 
+                    : "border-gray-300 hover:bg-gray-50"
                 }`}
               >
-                <option value="">Seleccione categoría</option>
-                {categories.map((cat, index) => (
-                  <option key={index} value={cat}>{cat}</option>
-                ))}
-              </select>
-              {errors[`category_${areaId}`] && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <X className="h-4 w-4 mr-1" />
-                  {errors[`category_${areaId}`]}
-                </p>
-              )}
-            </div>
-          );
-        })}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    readOnly // El click en el div maneja la lógica
+                    className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 pointer-events-none"
+                  />
+                  <span className="ml-2 text-sm font-medium text-gray-700">{areaName}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        
+        {/* Mostrar selectores de categoría para cada área seleccionada */}
+        {formData.selections.map(selectedArea => (
+          <div key={selectedArea.name} className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Categoría/Nivel para {selectedArea.name} <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedArea.category || ""}
+              onChange={(e) => handleCategoryChange(selectedArea.name, e.target.value)}
+              className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors[`category_${selectedArea.name.replace(/\s+/g, '_')}`] ? "border-red-500" : "border-gray-300"
+              }`}
+            >
+              <option value="">Seleccione categoría</option>
+              {(categoriesForAreaNameMap[selectedArea.name] || []).map((catDetail, index) => (
+                <option key={index} value={catDetail.category}>
+                  {catDetail.category} (Costo: {catDetail.cost} Bs)
+                </option>
+              ))}
+            </select>
+            {errors[`category_${selectedArea.name.replace(/\s+/g, '_')}`] && (
+              <p className="mt-1 text-sm text-red-600 flex items-center">
+                <X className="h-4 w-4 mr-1" />
+                {errors[`category_${selectedArea.name.replace(/\s+/g, '_')}`]}
+              </p>
+            )}
+          </div>
+        ))}
       </div>
       
       <div className="mt-6 flex justify-between">
