@@ -9,13 +9,12 @@ const AreaList = () => {
   const [areas, setAreas] = useState([])
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedLevels, setSelectedLevels] = useState([])
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [selectedLevels, setSelectedLevels] = useState([]) // Esto filtra por 'categoria'
+  const [statusFilter, setStatusFilter] = useState('all') // 'activo', 'inactivo'
   const [isLoading, setIsLoading] = useState(true)
-  const [showDeleteModal, setShowDeleteModal] = useState(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(null) // Almacena el ID del área a eliminar
   const [connectionStatus, setConnectionStatus] = useState({ message: "", type: "" })
-  // Cambiar el estado inicial para ordenar por fecha descendente
-  const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' }) 
+  const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'desc' }) // Ordenar por ID descendente por defecto
   const [showFilters, setShowFilters] = useState(false)
   const itemsPerPage = 8
 
@@ -24,63 +23,55 @@ const AreaList = () => {
     console.log("AreaList: Montando componente y ejecutando fetchAreas..."); // Log al montar
     const fetchAreas = async () => {
       try {
-        setIsLoading(true); // Asegurar que isLoading sea true al inicio de la carga
-        setConnectionStatus({ message: "", type: "" }); // Limpiar estado previo
-        console.log("AreaList: Llamando a api.get('/areas')..."); // Log antes de la llamada
-        // Llamada con apiClient
-        const data = await api.get('/areas');
-        console.log("AreaList: Datos recibidos de la API:", data); // Log de datos crudos
+        setIsLoading(true);
+        setConnectionStatus({ message: "", type: "" });
+        // console.log("AreaList: Llamando a api.get('/areas')..."); 
+        const response = await api.get('/areas'); // API call
+        // console.log("AreaList: Datos recibidos de la API:", response); 
 
-        // Supabase original (comentado)
-        /*
-        const { data, error } = await supabase
-          .from('area')
-          .select('*')
-        
-        if (error) throw error
-        */
-        
-        // Asumiendo que la API devuelve un array de objetos con la misma estructura
-        // que la tabla 'area' (id, nombre, categoria, costo, descripcion, estado, created_at)
-        const formattedAreas = data.map(area => ({
+        // La API ya devuelve los datos en el formato esperado por el backend
+        // id, nombre, categoria, costo, descripcion, estado, modo
+        // El frontend espera: id, name, categoryLevel, cost, description, isActive, createdAt (o id)
+        const formattedAreas = response.map(area => ({
           id: area.id,
-          name: area.nombre, // Ajustar si los nombres de campo son diferentes
-          categoryLevel: area.categoria, // Ajustar si los nombres de campo son diferentes
-          cost: area.costo ?? 0, // Usar costo de la API, default a 0 si es null/undefined
+          name: area.nombre,
+          categoryLevel: area.categoria, // Mapear 'categoria' a 'categoryLevel'
+          cost: area.costo ?? 0,
           description: area.descripcion || "",
-          isActive: area.estado === 'activo', // Ajustar si el valor de estado es diferente ('activo' vs 'ACTIVO')
-          // Asegúrate que la API devuelve 'created_at' o un campo similar.
-          // Si no, el ordenamiento por fecha no funcionará.
-          // Usamos 'id' como fallback si no hay fecha, asumiendo que IDs mayores son más recientes.
-          createdAt: area.created_at || area.id 
-        }))
-        console.log("AreaList: Datos formateados:", formattedAreas); // Log de datos formateados
+          isActive: area.estado === 'activo', // Mapear 'estado' a 'isActive'
+          // createdAt: area.created_at || area.id // La tabla 'area' no tiene timestamps
+          // Usaremos 'id' para ordenar si se selecciona fecha, o un campo que no existe
+          // Lo ideal sería añadir timestamps a la tabla 'area' si se necesita ordenar por fecha de creación.
+          // Por ahora, si se ordena por 'createdAt', se ordenará por 'id'.
+          createdAt: area.id, // Usar 'id' como fallback para 'createdAt'
+          modo: area.modo,
+        }));
+        // console.log("AreaList: Datos formateados:", formattedAreas);
         
-        setAreas(formattedAreas)
-        setConnectionStatus({ message: "Datos cargados desde la API", type: "success" }) // Mensaje actualizado
+        setAreas(formattedAreas);
+        // setConnectionStatus({ message: "Datos cargados desde la API", type: "success" });
       } catch (error) {
-        console.error("Error cargando áreas desde API:", error)
-        setConnectionStatus({ message: `Error al obtener datos: ${error.message}`, type: "error" })
+        console.error("Error cargando áreas desde API:", error);
+        setConnectionStatus({ message: `Error al obtener datos: ${error.response?.data?.message || error.message}`, type: "error" });
       } finally {
-        setIsLoading(false)
-        console.log("AreaList: fetchAreas finalizado."); // Log al finalizar
+        setIsLoading(false);
+        // console.log("AreaList: fetchAreas finalizado.");
       }
-    }
+    };
     
-    fetchAreas()
-  }, []) // El array vacío significa que se ejecuta solo al montar
+    fetchAreas();
+  }, []); // El array vacío significa que se ejecuta solo al montar
 
   // Ordenamiento
   const requestSort = (key) => {
-    let direction = 'asc'
+    let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc'
+      direction = 'desc';
     }
-    setSortConfig({ key, direction })
-  }
+    setSortConfig({ key, direction });
+  };
 
   const sortedAreas = [...areas].sort((a, b) => {
-    // Manejar comparación de fechas/números/strings
     const valA = a[sortConfig.key];
     const valB = b[sortConfig.key];
 
@@ -93,24 +84,25 @@ const AreaList = () => {
     return 0;
   });
 
+
   // Filtrado combinado
   const filteredAreas = sortedAreas.filter(area => {
     const matchesSearch = area.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         (area.description && area.description.toLowerCase().includes(searchTerm.toLowerCase()))
+                         (area.description && area.description.toLowerCase().includes(searchTerm.toLowerCase()));
+    // selectedLevels filtra por 'categoryLevel' que es la 'categoria' del backend
     const matchesLevel = selectedLevels.length === 0 || 
-                        selectedLevels.some(level => area.categoryLevel.includes(level))
+                        selectedLevels.some(level => area.categoryLevel.toLowerCase().includes(level.toLowerCase()));
     const matchesStatus = statusFilter === 'all' || 
                          (statusFilter === 'active' && area.isActive) || 
-                         (statusFilter === 'inactive' && !area.isActive)
-    return matchesSearch && matchesLevel && matchesStatus
-  })
+                         (statusFilter === 'inactive' && !area.isActive);
+    return matchesSearch && matchesLevel && matchesStatus;
+  });
 
-  // Extraer niveles únicos para los filtros
+  // Extraer niveles únicos para los filtros (basado en categoryLevel)
   const uniqueLevels = [...new Set(
-    areas.map(area => {
-      const parts = area.categoryLevel.split(" - ")
-      return parts.length > 1 ? parts[1] : area.categoryLevel
-    })
+    areas.map(area => area.categoryLevel) // Usar categoryLevel directamente
+         .filter(level => level) // Filtrar nulos o vacíos
+         .sort()
   )]
 
   // Paginación
@@ -122,82 +114,73 @@ const AreaList = () => {
   // ============== LLAMADA API: CAMBIAR ESTADO ÁREA ==============
   const toggleAreaStatus = async (id) => {
     try {
-      const areaToUpdate = areas.find(area => area.id === id)
-      // Ajustar el valor del nuevo estado según lo que espere la API ('activo'/'inactivo')
-      const newStatus = areaToUpdate.isActive ? 'inactivo' : 'activo' 
-      
-      // Llamada con apiClient (PATCH para actualizar parcialmente)
-      await api.patch(`/areas/${id}`, { estado: newStatus });
+      const areaToUpdate = areas.find(area => area.id === id);
+      if (!areaToUpdate) return;
 
-      // Supabase original (comentado)
-      /*
-      const { error } = await supabase
-        .from('area')
-        .update({ estado: newStatus === 'activo' ? 'ACTIVO' : 'INACTIVO' }) // Ajustar valor para Supabase
-        .eq('id', id)
+      const newStatusApi = areaToUpdate.isActive ? 'inactivo' : 'activo'; // Estado para la API
       
-      if (error) throw error
-      */
+      // Se necesita enviar todos los campos requeridos por la validación del backend
+      // o modificar el backend para permitir actualizaciones parciales de 'estado'
+      // Por ahora, asumimos que el backend permite actualizar solo el estado
+      // o que el controlador de backend maneja esto adecuadamente con PATCH.
+      // Si el backend requiere todos los campos para PUT, esto fallará.
+      // La solución es usar PATCH en el backend o enviar todos los campos.
+
+      const areaDataForUpdate = {
+        nombre: areaToUpdate.name,
+        categoria: areaToUpdate.categoryLevel,
+        costo: areaToUpdate.cost,
+        descripcion: areaToUpdate.description,
+        estado: newStatusApi,
+        modo: areaToUpdate.modo,
+      };
       
-      // Actualizar estado local
+      await api.put(`/areas/${id}`, areaDataForUpdate); // Usar PUT
+      
       setAreas(areas.map(area => 
-        area.id === id ? { ...area, isActive: !area.isActive } : area
-      ))
-      
+        area.id === id ? { ...area, isActive: !areaToUpdate.isActive } : area
+      ));
       setConnectionStatus({ 
-        message: `Estado actualizado (ID: ${id})`, 
+        message: `Estado del área ID: ${id} actualizado a ${newStatusApi}.`, 
         type: "success" 
-      })
+      });
     } catch (error) {
-      console.error("Error cambiando estado vía API:", error)
+      console.error("Error cambiando estado vía API:", error);
       setConnectionStatus({ 
-        message: `Error al actualizar (ID: ${id}): ${error.message}`, 
+        message: `Error al actualizar estado (ID: ${id}): ${error.response?.data?.message || error.message}`, 
         type: "error" 
-      })
+      });
     }
-  }
+  };
 
   // ============== LLAMADA API: ELIMINAR ÁREA ==============
   const handleDelete = async (id) => {
+    if (!id) return;
     try {
-      // Llamada con apiClient
       await api.delete(`/areas/${id}`);
-
-      // Supabase original (comentado)
-      /*
-      const { error } = await supabase
-        .from('area')
-        .delete()
-        .eq('id', id)
       
-      if (error) throw error
-      */
-      
-      // Actualizar estado local
-      setAreas(areas.filter(area => area.id !== id))
-      setShowDeleteModal(null)
-      
+      setAreas(areas.filter(area => area.id !== id));
+      setShowDeleteModal(null); // Cerrar modal
       setConnectionStatus({ 
         message: `Área eliminada (ID: ${id})`, 
         type: "success" 
-      })
+      });
     } catch (error) {
-      console.error("Error eliminando área vía API:", error)
+      console.error("Error eliminando área vía API:", error);
       setConnectionStatus({ 
-        message: `Error al eliminar (ID: ${id}): ${error.message}`, 
+        message: `Error al eliminar (ID: ${id}): ${error.response?.data?.message || error.message}`, 
         type: "error" 
-      })
-      // Considerar no cerrar el modal si hay error
-      // setShowDeleteModal(null); 
+      });
+      // No cerrar el modal si hay error para que el usuario vea el mensaje
     }
-  }
+  };
 
   const handleEdit = (id) => {
-    navigate(`/editar-area/${id}`);
-  }
+    navigate(`/editar-area/${id}`); // Navega a la página de edición
+  };
 
   const handleNewArea = () => {
-    navigate('/register', { state: { fromList: true } })
+    navigate('/register'); // Navega a la página de registro de área
   }
 
   return (
@@ -342,15 +325,25 @@ const AreaList = () => {
                     sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4 inline ml-1" /> : <ChevronDown className="h-4 w-4 inline ml-1" />
                   )}
                 </button>
-                {/* Cambiar el key a 'createdAt' para el botón de Fecha */}
-                <button
+                <button // Botón para ordenar por 'createdAt' (que ahora usa 'id')
                   onClick={() => requestSort('createdAt')} 
                   className={`px-3 py-1 text-sm rounded-md ${
                     sortConfig.key === 'createdAt' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'bg-gray-100 dark:bg-gray-700'
                   }`}
                 >
-                  Fecha
+                  ID (Fecha Reg.) 
                   {sortConfig.key === 'createdAt' && (
+                    sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4 inline ml-1" /> : <ChevronDown className="h-4 w-4 inline ml-1" />
+                  )}
+                </button>
+                 <button // Botón para ordenar por 'cost'
+                  onClick={() => requestSort('cost')} 
+                  className={`px-3 py-1 text-sm rounded-md ${
+                    sortConfig.key === 'cost' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'bg-gray-100 dark:bg-gray-700'
+                  }`}
+                >
+                  Costo
+                  {sortConfig.key === 'cost' && (
                     sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4 inline ml-1" /> : <ChevronDown className="h-4 w-4 inline ml-1" />
                   )}
                 </button>
@@ -459,7 +452,7 @@ const AreaList = () => {
                   {area.categoryLevel}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400">
-                  Bs. {area.cost.toFixed(2)}
+                  {area.cost ? `Bs. ${Number(area.cost).toFixed(2)}` : 'N/A'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
@@ -504,8 +497,67 @@ const AreaList = () => {
 
       {/* Paginación */}
       {totalPages > 1 && (
-        <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-600">
-          {/* ... (paginación sigue igual) */}
+        <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-600 sm:px-6">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+            >
+              Anterior
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          </div>
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                Mostrando <span className="font-medium">{indexOfFirstItem + 1}</span> a <span className="font-medium">{Math.min(indexOfLastItem, filteredAreas.length)}</span> de <span className="font-medium">{filteredAreas.length}</span> resultados
+              </p>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Paginación">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                >
+                  <span className="sr-only">Anterior</span>
+                  <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                </button>
+                {/* Aquí podrías agregar la lógica para mostrar números de página si lo deseas */}
+                {/* Ejemplo simple de números de página (podría mejorarse para rangos grandes) */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNumber => (
+                  <button
+                    key={pageNumber}
+                    onClick={() => setCurrentPage(pageNumber)}
+                    aria-current={pageNumber === currentPage ? 'page' : undefined}
+                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium
+                      ${pageNumber === currentPage 
+                        ? 'z-10 bg-blue-50 border-blue-500 text-blue-600 dark:bg-blue-900 dark:border-blue-700 dark:text-blue-200' 
+                        : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }
+                    `}
+                  >
+                    {pageNumber}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                >
+                  <span className="sr-only">Siguiente</span>
+                  <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </nav>
+            </div>
+          </div>
         </div>
       )}
     </>

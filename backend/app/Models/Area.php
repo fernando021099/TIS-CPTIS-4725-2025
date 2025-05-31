@@ -9,8 +9,8 @@ class Area extends Model
 {
     use HasFactory;
 
-    protected $table = 'area'; // Especifica el nombre de la tabla
-    public $timestamps = false; // Asume que no hay columnas created_at/updated_at
+    protected $table = 'area'; // Nombre exacto de la tabla en la base de datos
+    public $timestamps = false; // La tabla 'area' no tiene timestamps created_at/updated_at
 
     /**
      * Los atributos que son asignables masivamente.

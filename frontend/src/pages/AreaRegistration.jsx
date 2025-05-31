@@ -5,14 +5,16 @@ import { useNavigate } from "react-router-dom"
 import { api } from '../api/apiClient'; // Importar apiClient
 
 const AreaRegistration = () => {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    name: "",
-    customName: "",
-    categoryLevel: "",
-    customCategory: "",
-    cost: "",
-    description: "",
+    name: "", // Corresponde a 'nombre' en el backend si no es "Otro"
+    customName: "", // Usado si name es "Otro"
+    categoryLevel: "", // Corresponde a 'categoria' en el backend si no es "Otro"
+    customCategory: "", // Usado si categoryLevel es "Otro"
+    cost: "", // Corresponde a 'costo'
+    description: "", // Corresponde a 'descripcion'
+    estado: "activo", // Por defecto 'activo' para nuevas áreas
+    modo: "normal", // Por defecto 'normal', se añadirá como select
   })
 
   const [uiState, setUiState] = useState({
@@ -33,67 +35,32 @@ const AreaRegistration = () => {
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        // Obtener todas las áreas desde la API
-        const allAreasData = await api.get('/areas');
+        const allAreasData = await api.get('/areas'); // Obtener áreas existentes para prellenar opciones
+        
+        const uniqueAreaNamesApi = [...new Set(allAreasData.map(a => a.nombre))].sort();
+        const optionsApi = [...uniqueAreaNamesApi, "Otro (especificar)"];
+        setAreaOptions(optionsApi);
 
-        // Supabase original (comentado)
-        /*
-        // Obtener áreas únicas
-        const { data: areas, error: areasError } = await supabase
-          .from('area')
-          .select('nombre')
-          .order('nombre')
-        
-        if (areasError) throw areasError
-        
-        // Crear lista de opciones únicas
-        const uniqueAreas = [...new Set(areas.map(a => a.nombre))]
-        const options = [...uniqueAreas, "Otro (especificar)"]
-        setAreaOptions(options)
-        
-        // Obtener niveles por área
-        const levelsMap = {}
-        for (const area of uniqueAreas) {
-          const { data: levels, error: levelsError } = await supabase
-            .from('area')
-            .select('nivel') // Supabase usaba 'nivel', API usa 'categoria'
-            .eq('nombre', area)
-            .order('nivel')
-          
-          if (levelsError) throw levelsError
-          
-          levelsMap[area] = [...new Set(levels.map(l => l.nivel))]
-        }
-        
-        setAreaToLevels(levelsMap)
-        */
-
-        // Procesar datos de la API para obtener opciones
-        const uniqueAreaNames = [...new Set(allAreasData.map(a => a.nombre))].sort();
-        const options = [...uniqueAreaNames, "Otro (especificar)"];
-        setAreaOptions(options);
-
-        const levelsMap = {};
-        uniqueAreaNames.forEach(name => {
-          levelsMap[name] = [...new Set(
+        const levelsMapApi = {};
+        uniqueAreaNamesApi.forEach(name => {
+          levelsMapApi[name] = [...new Set(
             allAreasData
-              .filter(a => a.nombre === name)
-              .map(a => a.categoria) // Usar 'categoria' de la API
+              .filter(a => a.nombre === name && a.categoria) // Asegurar que categoria exista
+              .map(a => a.categoria)
           )].sort();
         });
-        setAreaToLevels(levelsMap);
+        setAreaToLevels(levelsMapApi);
         
-        setConnectionStatus({ 
-          message: "Opciones cargadas desde la API", // Mensaje actualizado
-          type: "success" 
-        });
+        // setConnectionStatus({ 
+        //   message: "Opciones cargadas desde la API",
+        //   type: "success" 
+        // });
       } catch (error) {
         console.error("Error cargando opciones desde API:", error);
         setConnectionStatus({ 
-          message: `Error al obtener datos: ${error.message}`, 
+          message: `Error al obtener datos de áreas existentes: ${error.response?.data?.message || error.message}`, 
           type: "error" 
-        })
-        
+        });
         // Mantener valores por defecto en caso de error
         setAreaOptions([
           "ASTRONOMÍA - ASTROFÍSICA",
@@ -196,78 +163,66 @@ const AreaRegistration = () => {
 
     // Validación del campo descripción
     if (formData.description && formData.description.length > 250){
-      newErrors.description = "La descripción no puede exceder los 250 caracteres"
+      newErrors.description = "La descripción no puede exceder los 250 caracteres";
+    }
+
+    // Validación del campo modo
+    if (!formData.modo) {
+      newErrors.modo = "Seleccione un modo";
+    } else if (!["normal", "especial"].includes(formData.modo)) {
+      newErrors.modo = "Modo inválido";
     }
     
-    setErrors(newErrors)
-  }, [formData])
+    setErrors(newErrors);
+  }, [formData]);
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (Object.keys(errors).length > 0) return
+    e.preventDefault();
+    if (Object.keys(errors).length > 0) {
+      setConnectionStatus({ message: "Por favor corrija los errores del formulario.", type: "error" });
+      return;
+    }
     
     setUiState(prev => ({ ...prev, isSubmitting: true }))
+    setConnectionStatus({ message: "", type: "" }); // Limpiar mensajes previos
     
     try {
-      // Preparar los datos para la API
-      const nombre = formData.name === "Otro (especificar)" ? formData.customName : formData.name
-      // La API espera 'categoria', el frontend usa 'categoryLevel' o 'customCategory'
-      const categoria = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory : formData.categoryLevel
-      const costo = Number(formData.cost)
-      const descripcion = formData.description
-      const estado = 'activo' // Estado por defecto para nuevas áreas
-      const modo = 'normal' // Modo por defecto (o ajustar si es necesario)
+      const finalName = formData.name === "Otro (especificar)" ? formData.customName.trim() : formData.name;
+      const finalCategory = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory.trim() : formData.categoryLevel;
 
       const areaData = {
-        nombre,
-        categoria,
-        costo,
-        descripcion,
-        estado,
-        modo
-      }
+        nombre: finalName,
+        categoria: finalCategory,
+        costo: Number(formData.cost),
+        descripcion: formData.description.trim() || null, // Enviar null si está vacío
+        estado: formData.estado, 
+        modo: formData.modo, // Se envía el valor seleccionado
+      };
 
-      // Crear nueva área usando apiClient
-      const createdArea = await api.post('/areas', areaData)
-
-      // Supabase original (comentado)
-      /*
-      const { data, error } = await supabase
-        .from('area')
-        .insert([
-          { 
-            nombre: nombre,
-            nivel: nivel, // Supabase usaba 'nivel'
-            descripcion: formData.description,
-            estado: 'ACTIVO', // Supabase usaba 'ACTIVO'
-            costo: Number(formData.cost) 
-          }
-        ])
-        .select()
-      
-      if (error) throw error
-      */
+      // console.log("Enviando datos a la API:", areaData);
+      await api.post('/areas', areaData);
       
       setConnectionStatus({ 
-        message: "Área registrada correctamente en la API", // Mensaje actualizado
+        message: "Área registrada correctamente en la API.",
         type: "success" 
       })
       
-      // Mostrar modal de éxito
-      setUiState(prev => ({ ...prev, showSuccessModal: true }))
-      resetForm()
-      
-      // Redirigir después de 2 segundos
+      setUiState(prev => ({ ...prev, showSuccessModal: true, isSubmitting: false }))
+      // resetForm(); // Se resetea en el modal o al redirigir
+
       setTimeout(() => {
-        navigate('/areas') // Asegúrate que esta ruta sea correcta
+        setUiState(prev => ({ ...prev, showSuccessModal: false }))
+        navigate('/areas'); // Redirigir a la lista de áreas
       }, 2000)
     } catch (error) {
       console.error("Error al registrar área vía API:", error)
+      const errorMsg = error.response?.data?.errors 
+        ? Object.values(error.response.data.errors).flat().join(' ') 
+        : (error.response?.data?.message || error.message);
       setConnectionStatus({ 
-        message: `Error al registrar área: ${error.message}`, 
+        message: `Error al registrar área: ${errorMsg}`, 
         type: "error" 
       })
-    } finally {
       setUiState(prev => ({ ...prev, isSubmitting: false }))
     }
   }
@@ -280,7 +235,9 @@ const AreaRegistration = () => {
       customCategory: "",
       cost: "",
       description: "",
-    })
+      estado: "activo", // Mantener valor por defecto
+      modo: "normal",   // Mantener valor por defecto
+    });
     setUiState(prev => ({
       ...prev,
       showCustomNameInput: false,
@@ -429,10 +386,10 @@ const AreaRegistration = () => {
               )}
             </div>
 
-            {/* Campo Costo */}
+            {/* Campo Costo y Modo en una fila */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="cost" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Costo (Bs.) <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -442,14 +399,15 @@ const AreaRegistration = () => {
                   <input
                     type="number"
                     name="cost"
+                    id="cost"
                     value={formData.cost}
                     onChange={handleChange}
-                    step="0.01"
+                    step="1" // Costo es INT en BD
                     min="0"
                     className={`pl-10 w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
                       errors.cost ? "border-red-500" : "border-gray-300"
                     }`}
-                    placeholder="0.00"
+                    placeholder="0"
                   />
                 </div>
                 {errors.cost && (
@@ -459,25 +417,52 @@ const AreaRegistration = () => {
                   </p>
                 )}
               </div>
-
-              {/* Campo Descripción */}
+              
+              {/* Campo Modo */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Descripción (opcional)
+                <label htmlFor="modo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Modo <span className="text-red-500">*</span>
                 </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
+                <select
+                  name="modo"
+                  id="modo"
+                  value={formData.modo}
                   onChange={handleChange}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  placeholder="Descripción breve del área"
-                />
-                {/* Aquí se agrega el mensaje de error si existe */}
-                {errors.description && (
-                  <p className="text-red-500 text-sm mt-1">{errors.description}</p>
+                  className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                    errors.modo ? "border-red-500" : "border-gray-300"
+                  }`}
+                >
+                  <option value="normal">Normal</option>
+                  <option value="especial">Especial</option>
+                </select>
+                {errors.modo && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <X className="h-4 w-4 mr-1" />
+                    {errors.modo}
+                  </p>
                 )}
               </div>
+            </div>
+            
+            {/* Campo Descripción (movido fuera del grid para ocupar ancho completo si es necesario) */}
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Descripción (opcional)
+              </label>
+              <textarea
+                name="description"
+                id="description"
+                value={formData.description}
+                onChange={handleChange}
+                rows={3} // Aumentado a 3 filas para consistencia con EditArea
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                  errors.description ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="Descripción breve del área"
+              />
+              {errors.description && (
+                <p className="text-red-500 text-sm mt-1">{errors.description}</p>
+              )}
             </div>
           </div>
 
