@@ -40,6 +40,23 @@ export default function Navbar({ onOpenComprobantePago }) {
     setIsMobileMenuOpen(false);
   };
 
+  const scrollToFooterContact = () => {
+    const footerElement = document.getElementById('footer-contact-section');
+    if (footerElement) {
+      footerElement.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      console.warn('Elemento del footer con id "footer-contact-section" no encontrado.');
+      // Opcionalmente, si el footer solo está en la página de inicio y se quiere asegurar la navegación:
+      // navigate('/');
+      // setTimeout(() => {
+      //   const el = document.getElementById('footer-contact-section');
+      //   if (el) el.scrollIntoView({ behavior: 'smooth' });
+      // }, 100); // Dar tiempo para la navegación
+    }
+    setActiveDropdown(null); // Cierra cualquier dropdown abierto
+    setIsMobileMenuOpen(false); // Cierra el menú móvil si está abierto
+  };
+
   const menuItems = [
     { name: "Inicio", hasDropdown: false, link: "/" },
     {
@@ -94,7 +111,12 @@ export default function Navbar({ onOpenComprobantePago }) {
         },
       ],
     },
-    { name: "Contacto", hasDropdown: false, link: "#" },
+    { 
+      name: "Contacto", 
+      hasDropdown: false, 
+      // link: "#", // Se reemplaza link por action
+      action: scrollToFooterContact 
+    },
   ];
 
   return (
@@ -153,12 +175,21 @@ export default function Navbar({ onOpenComprobantePago }) {
                     )}
                   </div>
                 ) : (
-                  <Link
-                    to={item.link}
-                    className="px-5 py-4 flex items-center font-medium text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-500 transition-colors"
-                  >
-                    {item.name}
-                  </Link>
+                  item.link ? (
+                    <Link
+                      to={item.link}
+                      className="px-5 py-4 flex items-center font-medium text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-500 transition-colors"
+                    >
+                      {item.name}
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={item.action}
+                      className="px-5 py-4 flex items-center font-medium text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-500 transition-colors"
+                    >
+                      {item.name}
+                    </button>
+                  )
                 )}
               </div>
             ))}
@@ -234,13 +265,25 @@ export default function Navbar({ onOpenComprobantePago }) {
                     )}
                   </>
                 ) : (
-                  <Link
-                    to={item.link}
-                    className="block px-4 py-3 text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-500"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {item.name}
-                  </Link>
+                  item.link ? (
+                    <Link
+                      to={item.link}
+                      className="block px-4 py-3 text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-500"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {item.name}
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (item.action) item.action(); // Ejecutar la acción si existe
+                        setIsMobileMenuOpen(false); // Siempre cerrar el menú móvil
+                      }}
+                      className="block w-full text-left px-4 py-3 text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-500"
+                    >
+                      {item.name}
+                    </button>
+                  )
                 )}
               </div>
             ))}

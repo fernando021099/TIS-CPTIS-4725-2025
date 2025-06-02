@@ -69,10 +69,10 @@ export default function TopbarGuest() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-red-600 rounded-full p-1.5">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 3a1 1 0 00-1 1v5H4a1 1 0 100 2h5v5a1 1 0 102 0v-5h5a1 1 0 100-2h-5V4a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
+            {/* El div contenedor ahora no tiene las clases del círculo rojo */}
+            <div> 
+              {/* El SVG ha sido reemplazado por la imagen */}
+              <img src="/ohsansi.jpg" alt="Logo Olimpiadas San Simón" className="h-12 w-12" /> {/* Ajusta h-10 w-10 según necesites */}
             </div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
               Olimpiadas San Simón

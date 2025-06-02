@@ -130,7 +130,7 @@ export default function HomePage() {
       <div className="max-w-4xl mx-auto mb-12">
   <h2 className="text-2xl font-bold mb-4">Noticias</h2>
   <p className="mb-4">
-    Formulario de pre-inscripción abierto: <a href="#" className="text-blue-600 underline">AQUÍ</a>
+    Descarga la convocatoria: <a href="https://ohsansi.umss.edu.bo/convocatoria_OhSansi.pdf" className="text-blue-600 underline" target="_blank" rel="noopener noreferrer">AQUÍ</a>
   </p>
 
   <h2 className="text-xl font-bold mb-4">OLIMPIADA CIENTÍFICA NACIONAL SAN SIMÓN 2025</h2>

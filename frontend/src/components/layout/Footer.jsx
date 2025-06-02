@@ -8,9 +8,7 @@ export default function Footer() {
       title: "Olimpiadas San Simón",
       description: "Olimpiadas en Ciencias y Tecnología San Simón - Ohi SanSi. Un espacio de competencia para estudiantes de educación regular en ocho áreas de competencia.",
       icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M10 3a1 1 0 00-1 1v5H4a1 1 0 100 2h5v5a1 1 0 102 0v-5h5a1 1 0 100-2h-5V4a1 1 0 00-1-1z" clipRule="evenodd"/>
-        </svg>
+        <img src="/ohsansi.jpg" alt="Logo Olimpiadas San Simón" className="h-10 w-10" />
       )
     },
     links: [
@@ -39,14 +37,14 @@ export default function Footer() {
   }
 
   return (
-    <footer className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-t border-gray-200 dark:border-gray-700 transition-colors duration-200">
+    <footer id="footer-contact-section" className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-t border-gray-200 dark:border-gray-700 transition-colors duration-200">
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           
           {/* Logo y descripción */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="bg-red-600 rounded-full p-2">
+              <div>
                 {footerData.logo.icon}
               </div>
               <h2 className="text-xl font-bold dark:text-white">{footerData.logo.title}</h2>
