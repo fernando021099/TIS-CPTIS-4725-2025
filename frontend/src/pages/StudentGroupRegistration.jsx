@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
-import { X, Check, ArrowLeft, Upload, Download, Plus, Trash2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react"; // Asegurar useEffect
 import { useNavigate } from "react-router-dom";
-import ExcelJS from 'exceljs';
+import { Plus, Upload, Trash2, Download, Check, ArrowLeft, X } from "lucide-react";
+import * as ExcelJS from 'exceljs';
 import { api } from '../api/apiClient'; // Importar apiClient
 
 const StudentGroupRegistration = () => {
@@ -60,25 +60,56 @@ const StudentGroupRegistration = () => {
     "Santa Cruz": ["Andrés Ibáñez", "Warnes", "Velasco", "Ichilo", "Chiquitos", "Sara", "Cordillera", "Vallegrande", "Florida", "Obispo Santistevan", "Ñuflo de Chávez", "Ángel Sandoval"],
   };
 
-  const areaOptions = [
-    "ASTRONOMÍA - ASTROFÍSICA",
-    "BIOLOGÍA",
-    "FÍSICA",
-    "INFORMÁTICA",
-    "MATEMÁTICAS",
-    "QUÍMICA",
-    "ROBÓTICA"
-  ];
+  // Estados para la lógica de áreas desde API (similar a StudentRegistration)
+  const [allAreasFromApi, setAllAreasFromApi] = useState([]);
+  const [uniqueAreaNamesForDisplay, setUniqueAreaNamesForDisplay] = useState([]);
+  const [categoriesForAreaNameMap, setCategoriesForAreaNameMap] = useState({});
 
-  const areaToCategories = {
-    "ASTRONOMÍA - ASTROFÍSICA": ["3P", "4P", "5P", "6P", "1S", "2S", "3S", "4S", "5S", "6S"],
-    "BIOLOGÍA": ["2S", "3S", "4S", "5S", "6S"],
-    "FÍSICA": ["4S", "5S", "6S"],
-    "INFORMÁTICA": ["Guacamayo", "Guanaco", "Londra", "Jucumari", "Bufeo", "Puma"],
-    "MATEMÁTICAS": ["Primer Nivel", "Segundo Nivel", "Tercer Nivel", "Cuarto Nivel", "Quinto Nivel", "Sexto Nivel"],
-    "QUÍMICA": ["2S", "3S", "4S", "5S", "6S"],
-    "ROBÓTICA": ["Builders P", "Builders S", "Lego P", "Lego S"]
-  };
+  // Ya no se usan estas constantes estáticas para áreas y categorías
+  // const areaOptions = [ ... ];
+  // const areaToCategories = { ... };
+
+  useEffect(() => {
+    const fetchAndProcessAreas = async () => {
+      try {
+        const areasData = await api.get('/areas');
+        if (areasData && Array.isArray(areasData)) {
+          setAllAreasFromApi(areasData);
+
+          const uniqueNames = [...new Set(areasData.map(a => a.nombre))].sort();
+          setUniqueAreaNamesForDisplay(uniqueNames);
+
+          const catMap = {};
+          areasData.forEach(area => {
+            if (!catMap[area.nombre]) {
+              catMap[area.nombre] = [];
+            }
+            if (!catMap[area.nombre].find(c => c.category === area.categoria)) {
+              catMap[area.nombre].push({ 
+                category: area.categoria, 
+                id: area.id, 
+                cost: area.costo,
+                mode: area.modo // Guardar el modo del área
+              });
+            }
+          });
+          for (const areaName in catMap) {
+            catMap[areaName].sort((a, b) => a.category.localeCompare(b.category));
+          }
+          setCategoriesForAreaNameMap(catMap);
+        } else {
+          console.error('Formato de datos de áreas inesperado:', areasData);
+          setAllAreasFromApi([]);
+        }
+      } catch (error) {
+        console.error('Error al cargar áreas:', error);
+        setAllAreasFromApi([]);
+      }
+    };
+
+    fetchAndProcessAreas();
+  }, []);
+
 
   const handleTutorChange = (id, e) => {
     const { name, value } = e.target;
@@ -149,46 +180,84 @@ const StudentGroupRegistration = () => {
     ));
   };
 
-  const handleStudentAreaSelection = (studentId, area) => {
+  const handleStudentAreaSelection = (studentId, areaName) => {
     setStudents(prev => prev.map(student => {
       if (student.id !== studentId) return student;
-      
-      if (student.areas.includes(area)) {
-        const newCategories = { ...student.categories };
-        delete newCategories[area];
-        
-        return {
-          ...student,
-          areas: student.areas.filter(a => a !== area),
-          categories: newCategories
-        };
-      }
-      
-      if (student.areas.length < 2) {
-        return {
-          ...student,
-          areas: [...student.areas, area],
-          categories: {
-            ...student.categories,
-            [area]: ""
-          }
-        };
-      }
-      
-      return student;
-    }));
-  };
 
-  const handleStudentCategoryChange = (studentId, area, category) => {
-    setStudents(prev => prev.map(student => {
-      if (student.id !== studentId) return student;
+      const isCurrentlySelected = student.areas.some(s => s.name === areaName);
+      let newSelections = [...student.areas];
+      let newCategories = { ...student.categories };
+
+      if (isCurrentlySelected) {
+        newSelections = newSelections.filter(s => s.name !== areaName);
+        delete newCategories[areaName];
+      } else {
+        // Validaciones de selección de área
+        if (newSelections.length >= 2) {
+          // Podrías manejar un error visual aquí si es necesario
+          console.warn("Máximo 2 áreas por estudiante");
+          return student;
+        }
+        
+        const areaDetail = allAreasFromApi.find(a => a.nombre === areaName && categoriesForAreaNameMap[areaName]?.[0]?.id); // Tomar el primer id como referencia
+        const areaMode = areaDetail?.mode;
+
+        const hasRoboticsLikeArea = newSelections.some(s => {
+            const existingAreaDetail = allAreasFromApi.find(a => a.id === s.id);
+            return existingAreaDetail?.mode === 'unico';
+        });
+
+        if (areaMode === 'unico' && newSelections.length > 0) {
+            console.warn("Si postula a un área de modo 'unico', no puede postular a otra área");
+            return student; // No permitir selección
+        }
+        if (hasRoboticsLikeArea && newSelections.length > 0) {
+             console.warn("Ya ha seleccionado un área de modo 'unico', no puede añadir otra.");
+             return student; // No permitir selección
+        }
+
+
+        newSelections.push({ name: areaName, category: "", id: null, cost: null });
+        newCategories[areaName] = ""; // Inicializar categoría
+      }
       
       return {
         ...student,
-        categories: {
-          ...student.categories,
-          [area]: category
+        areas: newSelections,
+        categories: newCategories
+      };
+    }));
+  };
+
+  const handleStudentCategoryChange = (studentId, areaName, selectedCategoryValue) => {
+    setStudents(prev => prev.map(student => {
+      if (student.id !== studentId) return student;
+      
+      const newSelections = student.areas.map(selection => {
+        if (selection.name === areaName) {
+          if (selectedCategoryValue === "") {
+            return { ...selection, category: "", id: null, cost: null };
+          }
+          const areaCategoryDetail = categoriesForAreaNameMap[areaName]?.find(
+            catDetail => catDetail.category === selectedCategoryValue
+          );
+          return {
+            ...selection,
+            category: selectedCategoryValue,
+            id: areaCategoryDetail ? areaCategoryDetail.id : null,
+            cost: areaCategoryDetail ? areaCategoryDetail.cost : null
+          };
         }
+        return selection;
+      });
+
+      // Actualizar también el objeto categories directamente
+      const newCategories = { ...student.categories, [areaName]: selectedCategoryValue };
+      
+      return {
+        ...student,
+        areas: newSelections,
+        categories: newCategories
       };
     }));
   };
@@ -284,14 +353,22 @@ const StudentGroupRegistration = () => {
         studentErrors.areas = "Máximo 2 áreas por estudiante";
       }
       
-      const hasRobotics = student.areas.includes("ROBÓTICA");
-      if (hasRobotics && student.areas.length > 1) {
-        studentErrors.areas = "Si postula a ROBÓTICA, no puede postular a otra área";
+      // const hasRobotics = student.areas.includes("ROBÓTICA"); // Lógica anterior
+      // Nueva lógica basada en el modo 'unico'
+      const hasUniqueModeArea = student.areas.some(s => {
+        const areaDetails = categoriesForAreaNameMap[s.name];
+        // Asumimos que todas las categorías de un área 'unico' tienen el mismo modo.
+        // Tomamos la primera categoría como referencia para el modo.
+        return areaDetails && areaDetails.length > 0 && areaDetails[0].mode === 'unico';
+      });
+
+      if (hasUniqueModeArea && student.areas.length > 1) {
+        studentErrors.areas = "Si postula a un área de inscripción única (ej. ROBÓTICA), no puede postular a otra área";
       }
       
-      student.areas.forEach(area => {
-        if (!student.categories[area]) {
-          studentErrors[`category_${area}`] = `Seleccione categoría para ${area}`;
+      student.areas.forEach(areaSelection => { // areaSelection es ahora un objeto {name, category, id, cost}
+        if (!areaSelection.category) { // Verificar si la categoría está seleccionada
+          studentErrors[`category_${areaSelection.name.replace(/\s+/g, '_')}`] = `Seleccione categoría para ${areaSelection.name}`;
         }
       });
       
@@ -509,13 +586,13 @@ const StudentGroupRegistration = () => {
           "Apellidos": student.lastName,
           "Nombres": student.firstName,
           "CI": student.ci,
-          "Fecha Nacimiento": student.birthDate,
+          "Fecha Nacimiento": student.birthDate, // Asegurar formato correcto si es necesario
           "Colegio": student.school,
           "Curso": student.grade,
           "Departamento": student.department,
           "Provincia": student.province,
-          "Áreas": student.areas.join(", "),
-          "Categorías": Object.entries(student.categories).map(([area, cat]) => `${area}: ${cat}`).join(", ")
+          "Áreas": student.areas.map(s => s.name).join(", "), // Mapear para obtener solo nombres
+          "Categorías": student.areas.map(s => `${s.name}: ${s.category || 'N/A'}`).join(", ") // Usar s.category
         });
       });
       
@@ -613,25 +690,36 @@ const StudentGroupRegistration = () => {
       if (registrationMethod === "form") {
         validationErrors = validateAllStudents();
         if (validationErrors.length === 0) {
-          studentsDataForApi = students.map(student => ({
-            estudiante: {
-              nombres: student.firstName,
-              apellidos: student.lastName,
-              ci: student.ci,
-              correo: student.email,
-              fecha_nacimiento: student.birthDate,
-              curso: student.grade,
-            },
-            colegio: {
-              nombre: student.school,
-              departamento: student.department,
-              provincia: student.province,
-            },
-            area1_nombre: student.areas[0] ? student.areas[0].toUpperCase() : null,
-            area1_categoria: student.categories[student.areas[0]] || null,
-            area2_nombre: student.areas[1] ? student.areas[1].toUpperCase() : null,
-            area2_categoria: student.categories[student.areas[1]] || null,
-          }));
+          studentsDataForApi = students.map(student => {
+            const area1Selection = student.areas[0];
+            let area2Selection = student.areas[1];
+
+            // Si la primera área es de modo 'unico', la segunda no debe existir
+            const area1Details = area1Selection ? categoriesForAreaNameMap[area1Selection.name]?.find(c => c.id === area1Selection.id) : null;
+            if (area1Details?.mode === 'unico') {
+                area2Selection = undefined;
+            }
+
+            return {
+              estudiante: {
+                nombres: student.firstName,
+                apellidos: student.lastName,
+                ci: student.ci,
+                fecha_nacimiento: student.birthDate,
+                correo: student.email,
+                curso: student.grade,
+              },
+              colegio: {
+                nombre: student.school,
+                departamento: student.department,
+                provincia: student.province,
+              },
+              area1_id: area1Selection ? area1Selection.id : null,
+              // area1_categoria: area1Selection ? area1Selection.category : null, // Backend puede inferir de ID o no necesitarlo si ID está
+              area2_id: area2Selection ? area2Selection.id : null,
+              // area2_categoria: area2Selection ? area2Selection.category : null, // Backend puede inferir de ID
+            };
+          });
         }
       } else if (registrationMethod === "excel") {
         if (!excelData) {
@@ -981,7 +1069,7 @@ const StudentGroupRegistration = () => {
       
       worksheet.addRow([]);
       
-      const noteRow = worksheet.addRow(["NOTA: Las áreas disponibles son: " + areaOptions.join(", ")]);
+      const noteRow = worksheet.addRow(["NOTA: Las áreas disponibles son: " + uniqueAreaNamesForDisplay.join(", ")]);
       noteRow.font = { italic: true, size: 10 };
       noteRow.getCell(1).alignment = { wrapText: true };
       worksheet.mergeCells(`A${noteRow.number}:H${noteRow.number}`);
@@ -1521,46 +1609,57 @@ const StudentGroupRegistration = () => {
                 )}
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {areaOptions.map((area) => (
-                    <div 
-                      key={area}
-                      onClick={() => handleStudentAreaSelection(student.id, area)}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                        student.areas.includes(area) 
-                          ? "bg-blue-50 border-blue-500" 
-                          : "border-gray-300 hover:bg-gray-50"
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={student.areas.includes(area)}
-                          readOnly
-                          className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                        />
-                        <span className="ml-2 text-sm font-medium text-gray-700">{area}</span>
+                  {uniqueAreaNamesForDisplay.map((areaName) => {
+                    const isChecked = student.areas.some(s => s.name === areaName);
+                    return (
+                      <div 
+                        key={areaName}
+                        onClick={() => handleStudentAreaSelection(student.id, areaName)}
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          isChecked 
+                            ? "bg-blue-50 border-blue-500" 
+                            : "border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            readOnly
+                            className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 pointer-events-none"
+                          />
+                          <span className="ml-2 text-sm font-medium text-gray-700">{areaName}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 
-                {student.areas.map(area => (
-                  <div key={area} className="mt-4">
+                {student.areas.map(selectedArea => ( // selectedArea es ahora un objeto {name, category, id, cost}
+                  <div key={selectedArea.name} className="mt-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Categoría/Nivel para {area} <span className="text-red-500">*</span>
+                      Categoría/Nivel para {selectedArea.name} <span className="text-red-500">*</span>
                     </label>
                     <select
-                      value={student.categories[area] || ""}
-                      onChange={(e) => handleStudentCategoryChange(student.id, area, e.target.value)}
+                      value={selectedArea.category || ""} // Usar selectedArea.category
+                      onChange={(e) => handleStudentCategoryChange(student.id, selectedArea.name, e.target.value)}
                       className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        errors[`student${index}_category_${area}`] ? "border-red-500" : "border-gray-300"
+                        errors[`student${index}_category_${selectedArea.name.replace(/\s+/g, '_')}`] ? "border-red-500" : "border-gray-300"
                       }`}
                     >
                       <option value="">Seleccione categoría</option>
-                      {areaToCategories[area]?.map((cat, i) => (
-                        <option key={i} value={cat}>{cat}</option>
+                      {(categoriesForAreaNameMap[selectedArea.name] || []).map((catDetail, i) => (
+                        <option key={i} value={catDetail.category}>
+                          {catDetail.category} (Costo: {catDetail.cost || 0} Bs)
+                        </option>
                       ))}
                     </select>
+                    {errors[`student${index}_category_${selectedArea.name.replace(/\s+/g, '_')}`] && (
+                        <p className="mt-1 text-sm text-red-600 flex items-center">
+                            <X className="h-4 w-4 mr-1" />
+                            {errors[`student${index}_category_${selectedArea.name.replace(/\s+/g, '_')}`]}
+                        </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1665,7 +1764,7 @@ const StudentGroupRegistration = () => {
             <p className="text-sm font-medium text-gray-900 mb-1">
               Archivo cargado correctamente
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray500">
               {excelFileName} - {excelData.length} estudiantes
             </p>
             <button

@@ -342,10 +342,14 @@ class InscripcionController extends Controller
                 'inscripciones.*.colegio.departamento' => 'required|string|max:100',
                 'inscripciones.*.colegio.provincia' => 'required|string|max:100',
 
-                'inscripciones.*.area1_nombre' => 'required|string|max:100',
-                'inscripciones.*.area1_categoria' => 'nullable|string|max:50',
-                'inscripciones.*.area2_nombre' => 'nullable|string|max:100',
-                'inscripciones.*.area2_categoria' => 'nullable|string|max:50',
+                // Ajuste para aceptar IDs de área o nombres/categorías
+                'inscripciones.*.area1_id' => 'nullable|integer|exists:area,id',
+                'inscripciones.*.area1_nombre' => 'required_without:inscripciones.*.area1_id|nullable|string|max:100',
+                // 'inscripciones.*.area1_categoria' => 'required_with:inscripciones.*.area1_nombre|nullable|string|max:50', // Categoría puede no ser necesaria si se envía ID
+                
+                'inscripciones.*.area2_id' => 'nullable|integer|exists:area,id',
+                'inscripciones.*.area2_nombre' => 'required_without:inscripciones.*.area2_id|nullable|string|max:100',
+                // 'inscripciones.*.area2_categoria' => 'required_with:inscripciones.*.area2_nombre|nullable|string|max:50', // Categoría puede no ser necesaria si se envía ID
 
                 'olimpiada_version' => 'required|integer|exists:olimpiada,version',
             ]);
@@ -386,17 +390,28 @@ class InscripcionController extends Controller
                     ]
                 );
 
-                $area1_id = null;
-                $area1 = Area::where('nombre', $inscripcionData['area1_nombre'])
-                             ->when(isset($inscripcionData['area1_categoria']), function ($q) use ($inscripcionData) {
-                                 return $q->where('categoria', $inscripcionData['area1_categoria']);
-                             })
-                             ->first();
-                if ($area1) $area1_id = $area1->id;
+                $area1_id = $inscripcionData['area1_id'] ?? null;
+                $area1 = null;
+                if ($area1_id) {
+                    $area1 = Area::find($area1_id);
+                } elseif (isset($inscripcionData['area1_nombre'])) {
+                    $area1 = Area::where('nombre', $inscripcionData['area1_nombre'])
+                                 ->when(isset($inscripcionData['area1_categoria']), function ($q) use ($inscripcionData) {
+                                     // Si se envía area1_categoria, se usa para filtrar. Si no, se toma la primera categoría que coincida con el nombre.
+                                     // Esto es útil si el frontend solo envía el ID y el backend necesita el objeto Area completo.
+                                     // O si el frontend envía nombre y categoría.
+                                     return $q->where('categoria', $inscripcionData['area1_categoria']);
+                                 })
+                                 ->first(); // Podría necesitar ajustarse si un nombre de área tiene múltiples categorías y no se especifica una.
+                    if ($area1) $area1_id = $area1->id;
+                }
 
-                $area2_id = null;
+
+                $area2_id = $inscripcionData['area2_id'] ?? null;
                 $area2 = null;
-                if (isset($inscripcionData['area2_nombre']) && !empty($inscripcionData['area2_nombre'])) {
+                if ($area2_id) {
+                    $area2 = Area::find($area2_id);
+                } elseif (isset($inscripcionData['area2_nombre']) && !empty($inscripcionData['area2_nombre'])) {
                     $area2 = Area::where('nombre', $inscripcionData['area2_nombre'])
                                 ->when(isset($inscripcionData['area2_categoria']), function ($q) use ($inscripcionData) {
                                     return $q->where('categoria', $inscripcionData['area2_categoria']);
@@ -404,6 +419,7 @@ class InscripcionController extends Controller
                                 ->first();
                     if ($area2) $area2_id = $area2->id;
                 }
+
 
                 $inscripcion = Inscripcion::create([
                     'estudiante_id' => $estudiante->ci,
