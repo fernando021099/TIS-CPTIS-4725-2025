@@ -345,11 +345,11 @@ class InscripcionController extends Controller
                 // Ajuste para aceptar IDs de área o nombres/categorías
                 'inscripciones.*.area1_id' => 'nullable|integer|exists:area,id',
                 'inscripciones.*.area1_nombre' => 'required_without:inscripciones.*.area1_id|nullable|string|max:100',
-                // 'inscripciones.*.area1_categoria' => 'required_with:inscripciones.*.area1_nombre|nullable|string|max:50', // Categoría puede no ser necesaria si se envía ID
+                'inscripciones.*.area1_categoria' => 'nullable|string|max:50', // Ya no es 'required_with' si el ID puede venir solo
                 
                 'inscripciones.*.area2_id' => 'nullable|integer|exists:area,id',
-                'inscripciones.*.area2_nombre' => 'required_without:inscripciones.*.area2_id|nullable|string|max:100',
-                // 'inscripciones.*.area2_categoria' => 'required_with:inscripciones.*.area2_nombre|nullable|string|max:50', // Categoría puede no ser necesaria si se envía ID
+                'inscripciones.*.area2_nombre' => 'nullable|string|max:100', // No 'required_without' area2_id, puede ser opcional
+                'inscripciones.*.area2_categoria' => 'nullable|string|max:50',
 
                 'olimpiada_version' => 'required|integer|exists:olimpiada,version',
             ]);
@@ -376,7 +376,7 @@ class InscripcionController extends Controller
             $idUnicoGrupo = 'GRP-' . $contactoPrincipal->id . '-' . time();
 
             // 3. Procesar cada inscripción de estudiante
-            foreach ($validatedData['inscripciones'] as $inscripcionData) {
+            foreach ($validatedData['inscripciones'] as $index => $inscripcionData) { // Añadir $index para mensajes de error
                 $estudiante = Estudiante::updateOrCreate(
                     ['ci' => $inscripcionData['estudiante']['ci']],
                     Arr::except($inscripcionData['estudiante'], ['ci'])
@@ -395,15 +395,25 @@ class InscripcionController extends Controller
                 if ($area1_id) {
                     $area1 = Area::find($area1_id);
                 } elseif (isset($inscripcionData['area1_nombre'])) {
-                    $area1 = Area::where('nombre', $inscripcionData['area1_nombre'])
-                                 ->when(isset($inscripcionData['area1_categoria']), function ($q) use ($inscripcionData) {
-                                     // Si se envía area1_categoria, se usa para filtrar. Si no, se toma la primera categoría que coincida con el nombre.
-                                     // Esto es útil si el frontend solo envía el ID y el backend necesita el objeto Area completo.
-                                     // O si el frontend envía nombre y categoría.
-                                     return $q->where('categoria', $inscripcionData['area1_categoria']);
-                                 })
-                                 ->first(); // Podría necesitar ajustarse si un nombre de área tiene múltiples categorías y no se especifica una.
+                    $query = Area::where('nombre', $inscripcionData['area1_nombre']);
+                    if (isset($inscripcionData['area1_categoria']) && !empty($inscripcionData['area1_categoria'])) {
+                        $query->where('categoria', $inscripcionData['area1_categoria']);
+                    }
+                    $area1 = $query->first();
                     if ($area1) $area1_id = $area1->id;
+                }
+
+                // Asegurarse de que el área 1 exista si se proporcionó algún dato para ella
+                if ((isset($inscripcionData['area1_id']) || isset($inscripcionData['area1_nombre'])) && !$area1) {
+                    throw ValidationException::withMessages([
+                        "inscripciones.{$index}.area1" => 'El Área 1 especificada es inválida o no existe.',
+                    ]);
+                }
+                // Si no se proporcionó area1_id ni area1_nombre, es un error ya que al menos un área es requerida.
+                if (!$area1) {
+                     throw ValidationException::withMessages([
+                        "inscripciones.{$index}.area1" => 'Se requiere al menos un área de inscripción (Área 1).',
+                    ]);
                 }
 
 
@@ -412,21 +422,38 @@ class InscripcionController extends Controller
                 if ($area2_id) {
                     $area2 = Area::find($area2_id);
                 } elseif (isset($inscripcionData['area2_nombre']) && !empty($inscripcionData['area2_nombre'])) {
-                    $area2 = Area::where('nombre', $inscripcionData['area2_nombre'])
-                                ->when(isset($inscripcionData['area2_categoria']), function ($q) use ($inscripcionData) {
-                                    return $q->where('categoria', $inscripcionData['area2_categoria']);
-                                })
-                                ->first();
+                    $query = Area::where('nombre', $inscripcionData['area2_nombre']);
+                     if (isset($inscripcionData['area2_categoria']) && !empty($inscripcionData['area2_categoria'])) {
+                        $query->where('categoria', $inscripcionData['area2_categoria']);
+                    }
+                    $area2 = $query->first();
                     if ($area2) $area2_id = $area2->id;
                 }
+                
+                // Si se intentó especificar area2 (por ID o nombre) pero no se encontró, es un error de validación.
+                if ((isset($inscripcionData['area2_id']) || (isset($inscripcionData['area2_nombre']) && !empty($inscripcionData['area2_nombre']))) && !$area2) {
+                    throw ValidationException::withMessages([
+                        "inscripciones.{$index}.area2" => 'El Área 2 especificada es inválida o no existe.',
+                    ]);
+                }
+
+                // Lógica de modo 'unico'
+                if ($area1 && $area1->modo === 'unico' && $area2) {
+                    throw ValidationException::withMessages([
+                        "inscripciones.{$index}.areas" => "Si el Área 1 ({$area1->nombre}) es de inscripción única, no se permite un Área 2.",
+                    ]);
+                }
+                
+                // Si area1 es 'unico', area2_id debe ser null
+                $final_area2_id = ($area1 && $area1->modo === 'unico') ? null : ($area2 ? $area2->id : null);
 
 
                 $inscripcion = Inscripcion::create([
                     'estudiante_id' => $estudiante->ci,
                     'contacto_id' => $contactoPrincipal->id,
                     'colegio_id' => $colegio->id,
-                    'area1_id' => $area1_id,
-                    'area2_id' => $area2_id,
+                    'area1_id' => $area1_id, // $area1_id ya está definido y validado
+                    'area2_id' => $final_area2_id, // Usar el $final_area2_id ajustado
                     'olimpiada_version' => $olimpiadaVersion,
                     'estado' => 'pendiente',
                     'fecha' => $fechaHoy,
@@ -436,7 +463,7 @@ class InscripcionController extends Controller
                 $inscripcionesCreadas[] = $inscripcion->id;
                 
                 // Calcular costo de inscripción
-                $costoPorDefecto = 15;
+                $costoPorDefecto = 15; // Costo por defecto si un área no tiene costo definido o es 0
                 $costoInscripcion = 0;
                 
                 if ($area1) {
@@ -444,13 +471,15 @@ class InscripcionController extends Controller
                     $costoInscripcion += $costoArea1;
                 }
                 
-                if ($area2 && (!$area1 || $area1->id != $area2->id)) {
+                // Sumar costo de area2 solo si area1 no es 'unico' y area2 existe y es diferente de area1
+                if ($area1 && $area1->modo !== 'unico' && $area2 && $area1->id != $area2->id) {
                     $costoArea2 = (is_numeric($area2->costo) && $area2->costo > 0) ? $area2->costo : $costoPorDefecto;
                     $costoInscripcion += $costoArea2;
                 }
                 
-                // Si no hay áreas válidas pero se seleccionaron IDs, aplicar costo por defecto
-                if ($costoInscripcion == 0 && ($area1_id || $area2_id)) {
+                // Si no hay áreas válidas pero se seleccionaron IDs (este caso debería ser cubierto por validaciones anteriores)
+                // No obstante, si por alguna razón costoInscripcion es 0 y se intentó inscribir, aplicar costo por defecto.
+                if ($costoInscripcion == 0 && $area1_id) { // Solo necesitamos area1_id para esta comprobación
                     $costoInscripcion = $costoPorDefecto;
                 }
                 
