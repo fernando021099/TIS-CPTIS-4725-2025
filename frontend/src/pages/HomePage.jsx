@@ -137,7 +137,7 @@ export default function HomePage() {
 
   <h3 className="text-lg font-semibold mt-4 mb-2">Presentación</h3>
   <p className="mb-4">
-    El Comité de la Olimpiadas Científica Nacional San Simón O! SANSI, a través de la Facultad de Ciencias y Tecnología de la Universidad Mayor de San Simón, convoca a los estudiantes del Sistema de Educación Regular a participar en las Olimpiadas O! SANSI 2025.
+    El Comité de la Olimpiadas Científica Nacional San Simón Oh! SANSI, a través de la Facultad de Ciencias y Tecnología de la Universidad Mayor de San Simón, convoca a los estudiantes del Sistema de Educación Regular a participar en las Olimpiadas O! SANSI 2025.
   </p>
 
   <h3 className="text-lg font-semibold mb-2">Participantes</h3>
@@ -166,7 +166,7 @@ export default function HomePage() {
     Las pre-inscripciones se realizarán del <strong>15 de abril al 4 de mayo</strong>.
   </p>
   <p className="mb-2">
-    El costo de la inscripción por estudiante es de <strong>16 bolivianos (bs)</strong> por área y curso/categoría.
+    El costo de la inscripción por estudiante es de <strong>15 Bs</strong> por área y nivel/categoría.
   </p>
   <p className="mb-4">
     El <strong>5 de mayo hasta el 12 de mayo</strong> se abrirá el proceso de pago en línea para finalizar la inscripción.
@@ -180,7 +180,7 @@ export default function HomePage() {
 
   <h3 className="text-lg font-semibold mb-2">Premios</h3>
   <p className="mb-2">
-    Los resultados se publicarán el <strong>11 de Julio</strong> en <a href="http://ohsansi.umss.edu.bo/" className="text-blue-600 underline" target="_blank">la página web de O!SanSi</a>.
+    Los resultados se publicarán el <strong>11 de Julio</strong> en <a href="http://ohsansi.umss.edu.bo/" className="text-blue-600 underline" target="_blank">la página web de Oh!SanSi</a>.
   </p>
   <p className="mb-2">
     La premiación se realizará el mismo día a horas 15:00.

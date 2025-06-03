@@ -215,14 +215,54 @@ const AreaRegistration = () => {
         navigate('/areas'); // Redirigir a la lista de áreas
       }, 2000)
     } catch (error) {
-      console.error("Error al registrar área vía API:", error)
-      const errorMsg = error.response?.data?.errors 
-        ? Object.values(error.response.data.errors).flat().join(' ') 
-        : (error.response?.data?.message || error.message);
+      console.error("Error al registrar área vía API:", error);
+      
+      let finalUserMessage;
+
+      if (error.response?.status === 422) {
+        const errorsFromBackend = error.response.data?.errors;
+        let isDuplicateError = false;
+
+        if (errorsFromBackend) {
+          // Comprobar mensajes de error de backend para palabras clave que indiquen duplicado
+          for (const field in errorsFromBackend) {
+            if (Array.isArray(errorsFromBackend[field])) {
+              if (errorsFromBackend[field].some(msg => 
+                  msg.toLowerCase().includes("ya ha sido tomado") || // Ej: "El campo nombre ya ha sido tomado"
+                  msg.toLowerCase().includes("already been taken") || // Ej: "The name field has already been taken"
+                  msg.toLowerCase().includes("ya existe") // Para mensajes personalizados como "El área ya existe"
+              )) {
+                isDuplicateError = true;
+                break;
+              }
+            }
+          }
+        }
+        
+        // Comprobar también el mensaje principal si está disponible y no se detectó en errorsFromBackend
+        if (!isDuplicateError && error.response.data?.message?.toLowerCase().includes("ya existe")) {
+            isDuplicateError = true;
+        }
+
+        if (isDuplicateError) {
+          finalUserMessage = "Error: el área ya existe en la base de datos.";
+        } else {
+          // Mensaje genérico para error 422, intentando ser más informativo
+          const specificErrorMessages = errorsFromBackend 
+            ? Object.values(errorsFromBackend).flat().join(' ') 
+            : error.response.data?.message;
+          finalUserMessage = `Error de validación (422): ${specificErrorMessages || "El área ya existe en la base de datos."}`;
+        }
+      } else {
+        // Para errores que no son 422, o si error.response no está disponible
+        const genericErrorMsg = error.response?.data?.message || error.message || "Ocurrió un error desconocido.";
+        finalUserMessage = `Error al registrar área: ${genericErrorMsg}`;
+      }
+      
       setConnectionStatus({ 
-        message: `Error al registrar área: ${errorMsg}`, 
+        message: finalUserMessage, 
         type: "error" 
-      })
+      });
       setUiState(prev => ({ ...prev, isSubmitting: false }))
     }
   }
