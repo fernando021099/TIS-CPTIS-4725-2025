@@ -51,6 +51,15 @@ class InscripcionController extends Controller
         DB::beginTransaction();
         Log::info('Inicio del método store en InscripcionController.'); // Log de prueba adicional
         try {
+            // Obtener la olimpiada activa
+            $olimpiadaActiva = Olimpiada::where('estado', 'habilitado')->first(); // CAMBIO: 'habilitada' a 'habilitado'
+            if (!$olimpiadaActiva) {
+                Log::error('No se encontró una olimpiada activa (estado="habilitado").');
+                return response()->json(['message' => 'No hay una olimpiada activa configurada en el sistema.'], 400);
+            }
+            $olimpiadaVersionActiva = $olimpiadaActiva->version;
+            Log::info('Olimpiada activa encontrada:', ['version' => $olimpiadaVersionActiva]);
+
             // 1. Validar datos principales de inscripción y datos anidados
             
             // Verificar primero si es ROBÓTICA para ajustar las reglas de validación
@@ -82,7 +91,7 @@ class InscripcionController extends Controller
                 'area1_nombre' => 'required_without:area1_id|nullable|string|max:100',
                 'area1_categoria' => 'required_with:area1_nombre|nullable|string|max:50',
                 
-                'olimpiada_version' => 'required|integer|exists:olimpiada,version', // 'olimpiada' es correcto si esa tabla se llama así
+                // 'olimpiada_version' => 'required|integer|exists:olimpiada,version', // Eliminado de la validación
                 'estado' => 'required|string|in:pendiente,aprobado,rechazado',
                 // 'codigo_comprobante' => 'nullable|string|max:20', // Se generará internamente
                 'fecha' => 'required|date_format:Y-m-d',
@@ -163,7 +172,7 @@ class InscripcionController extends Controller
                 'colegio_id' => $colegio->id,
                 'area1_id' => $area1_id,
                 'area2_id' => $area2_id,
-                'olimpiada_version' => $validatedData['olimpiada_version'],
+                'olimpiada_version' => $olimpiadaVersionActiva, // Usar la versión activa obtenida
                 'estado' => $validatedData['estado'],
                 'codigo_comprobante' => $idUnicoIndividual, // Usar el ID único individual
                 'fecha' => $validatedData['fecha'],
@@ -321,6 +330,15 @@ class InscripcionController extends Controller
         // Iniciar transacción
         DB::beginTransaction();
         try {
+            // Obtener la olimpiada activa
+            $olimpiadaActiva = Olimpiada::where('estado', 'habilitado')->first(); // CAMBIO: 'habilitada' a 'habilitado'
+            if (!$olimpiadaActiva) {
+                Log::error('No se encontró una olimpiada activa (estado="habilitado") para inscripción grupal.');
+                return response()->json(['message' => 'No hay una olimpiada activa configurada en el sistema para inscripción grupal.'], 400);
+            }
+            $olimpiadaVersionActiva = $olimpiadaActiva->version;
+            Log::info('Olimpiada activa encontrada para inscripción grupal:', ['version' => $olimpiadaVersionActiva]);
+
             // 1. Validar datos de tutores (ahora plural) y array de inscripciones
             $validatedData = $request->validate([
                 'contactos_tutores' => 'required|array|min:1',
@@ -351,7 +369,7 @@ class InscripcionController extends Controller
                 'inscripciones.*.area2_nombre' => 'nullable|string|max:100', // No 'required_without' area2_id, puede ser opcional
                 'inscripciones.*.area2_categoria' => 'nullable|string|max:50',
 
-                'olimpiada_version' => 'required|integer|exists:olimpiada,version',
+                // 'olimpiada_version' => 'required|integer|exists:olimpiada,version', // Eliminado de la validación
             ]);
 
             // 2. Crear o buscar todos los contactos de tutores
@@ -370,7 +388,7 @@ class InscripcionController extends Controller
             $inscripcionesCreadas = [];
             $montoTotal = 0;
             $fechaHoy = now()->toDateString();
-            $olimpiadaVersion = $validatedData['olimpiada_version'];
+            // $olimpiadaVersion = $validatedData['olimpiada_version']; // Se usa $olimpiadaVersionActiva
 
             // Generar un único ID para el grupo
             $idUnicoGrupo = 'GRP-' . $contactoPrincipal->id . '-' . time();
@@ -454,7 +472,7 @@ class InscripcionController extends Controller
                     'colegio_id' => $colegio->id,
                     'area1_id' => $area1_id, // $area1_id ya está definido y validado
                     'area2_id' => $final_area2_id, // Usar el $final_area2_id ajustado
-                    'olimpiada_version' => $olimpiadaVersion,
+                    'olimpiada_version' => $olimpiadaVersionActiva, // Usar la versión activa obtenida
                     'estado' => 'pendiente',
                     'fecha' => $fechaHoy,
                     'codigo_comprobante' => $idUnicoGrupo,

@@ -436,7 +436,7 @@ const StudentRegistration = () => {
         area1_categoria: area1Selection ? area1Selection.category : null,
         area2_id: area2Selection ? area2Selection.id : null,
         area2_categoria: area2Selection ? area2Selection.category : null,
-        olimpiada_version: 2024, 
+        // olimpiada_version: 2024, // Eliminado: El backend determinará la versión activa
         fecha: new Date().toISOString().split('T')[0], 
         estado: 'pendiente', 
       };

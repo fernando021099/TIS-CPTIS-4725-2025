@@ -782,7 +782,7 @@ const StudentGroupRegistration = () => {
           celular: tutor.phone
         })),
         inscripciones: studentsDataForApi,
-        olimpiada_version: 2024
+        // olimpiada_version: 2024 // Eliminado: El backend determinará la versión activa
       };
 
       const responseData = await api.post('/inscripción/grupo', payload);
