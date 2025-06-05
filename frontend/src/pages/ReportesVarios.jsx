@@ -13,12 +13,16 @@ const ReportesVarios = () => {
     status: 'all',
     area: 'all',
     categoria: 'all',
+    tutor: 'all',
+    colegio: 'all',
     sortBy: 'fecha',
     sortOrder: 'desc'
   });
   const [showFilters, setShowFilters] = useState(false);
   const [availableAreas, setAvailableAreas] = useState([]);
   const [availableCategorias, setAvailableCategorias] = useState([]);
+  const [availableTutores, setAvailableTutores] = useState([]);
+  const [availableColegios, setAvailableColegios] = useState([]);
 
   useEffect(() => {
     fetchInscriptions();
@@ -33,19 +37,25 @@ const ReportesVarios = () => {
       
       setInscriptions(response || []);
       
-      // Extraer áreas y categorías únicas para filtros
+      // Extraer áreas, categorías, tutores y colegios únicos para filtros
       const areas = new Set();
       const categorias = new Set();
+      const tutores = new Set();
+      const colegios = new Set();
       
       response.forEach(inscription => {
         if (inscription.area1?.nombre) areas.add(inscription.area1.nombre);
         if (inscription.area2?.nombre) areas.add(inscription.area2.nombre);
         if (inscription.area1?.categoria) categorias.add(inscription.area1.categoria);
         if (inscription.area2?.categoria) categorias.add(inscription.area2.categoria);
+        if (inscription.contacto?.nombres) tutores.add(`${inscription.contacto.nombres} ${inscription.contacto.apellidos}`);
+        if (inscription.colegio?.nombre) colegios.add(inscription.colegio.nombre);
       });
       
       setAvailableAreas([...areas]);
       setAvailableCategorias([...categorias]);
+      setAvailableTutores([...tutores]);
+      setAvailableColegios([...colegios]);
       
     } catch (error) {
       console.error('Error al cargar inscripciones:', error);
@@ -67,6 +77,8 @@ const ReportesVarios = () => {
     const studentName = inscription.estudiante ? 
       `${inscription.estudiante.nombres} ${inscription.estudiante.apellidos}`.toLowerCase() : '';
     const studentCI = inscription.estudiante?.ci || '';
+    const tutorName = inscription.contacto ?
+      `${inscription.contacto.nombres} ${inscription.contacto.apellidos}`.toLowerCase() : '';
     
     return (
       (filters.searchTerm === '' || 
@@ -78,7 +90,11 @@ const ReportesVarios = () => {
        inscription.area2?.nombre === filters.area) &&
       (filters.categoria === 'all' || 
        inscription.area1?.categoria === filters.categoria || 
-       inscription.area2?.categoria === filters.categoria)
+       inscription.area2?.categoria === filters.categoria) &&
+      (filters.tutor === 'all' || 
+       tutorName.includes(filters.tutor.toLowerCase())) &&
+      (filters.colegio === 'all' || 
+       (inscription.colegio?.nombre && inscription.colegio.nombre === filters.colegio))
     );
   }).sort((a, b) => {
     const order = filters.sortOrder === 'asc' ? 1 : -1;
@@ -115,7 +131,6 @@ const ReportesVarios = () => {
   };
 
   const handlePrintStudent = (inscription) => {
-    // Crear una nueva ventana para imprimir
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     
     const studentData = `
@@ -219,7 +234,23 @@ const ReportesVarios = () => {
           </div>
 
           <div class="section">
-            <h3>📚 Áreas de Competencia y Docentes</h3>
+            <h3>👨‍🏫 Información del Tutor</h3>
+            <div class="field">
+              <span class="field-label">Nombre del Tutor:</span>
+              <span class="field-value">${inscription.contacto?.nombres || 'N/A'} ${inscription.contacto?.apellidos || ''}</span>
+            </div>
+            <div class="field">
+              <span class="field-label">Teléfono del Tutor:</span>
+              <span class="field-value">${inscription.contacto?.telefono || 'No disponible'}</span>
+            </div>
+            <div class="field">
+              <span class="field-label">Correo del Tutor:</span>
+              <span class="field-value">${inscription.contacto?.correo || 'No disponible'}</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>📚 Áreas de Competencia</h3>
             <div class="areas-container">
               ${inscription.area1 ? `
                 <div class="area-card">
@@ -231,10 +262,6 @@ const ReportesVarios = () => {
                   <div class="field">
                     <span class="field-label">Categoría:</span>
                     <span class="field-value">${inscription.area1.categoria || 'No especificada'}</span>
-                  </div>
-                  <div class="field">
-                    <span class="field-label">Docente:</span>
-                    <span class="field-value">${inscription.area1.docente_responsable || 'Sin asignar'}</span>
                   </div>
                 </div>
               ` : ''}
@@ -249,10 +276,6 @@ const ReportesVarios = () => {
                   <div class="field">
                     <span class="field-label">Categoría:</span>
                     <span class="field-value">${inscription.area2.categoria || 'No especificada'}</span>
-                  </div>
-                  <div class="field">
-                    <span class="field-label">Docente:</span>
-                    <span class="field-value">${inscription.area2.docente_responsable || 'Sin asignar'}</span>
                   </div>
                 </div>
               ` : ''}
@@ -341,7 +364,7 @@ const ReportesVarios = () => {
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Reportes Varios</h1>
-        <p className="text-gray-600">Reporte detallado de estudiantes con áreas, categorías y docentes</p>
+        <p className="text-gray-600">Reporte detallado de estudiantes con áreas, categorías y tutores</p>
       </div>
       
       {/* Filtros y búsqueda */}
@@ -428,6 +451,36 @@ const ReportesVarios = () => {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tutor</label>
+              <select
+                name="tutor"
+                value={filters.tutor}
+                onChange={handleFilterChange}
+                className="w-full border rounded-md px-3 py-2"
+              >
+                <option value="all">Todos los tutores</option>
+                {availableTutores.map(tutor => (
+                  <option key={tutor} value={tutor}>{tutor}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Colegio</label>
+              <select
+                name="colegio"
+                value={filters.colegio}
+                onChange={handleFilterChange}
+                className="w-full border rounded-md px-3 py-2"
+              >
+                <option value="all">Todos los colegios</option>
+                {availableColegios.map(colegio => (
+                  <option key={colegio} value={colegio}>{colegio}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ordenar por</label>
               <select
                 name="sortBy"
@@ -508,13 +561,15 @@ const ReportesVarios = () => {
         <p className="text-sm text-gray-600">
           Mostrando {filteredInscriptions.length} de {inscriptions.length} registros
         </p>
-        {(filters.status !== 'all' || filters.area !== 'all' || filters.categoria !== 'all' || filters.searchTerm !== '') && (
+        {(filters.status !== 'all' || filters.area !== 'all' || filters.categoria !== 'all' || filters.searchTerm !== '' || filters.tutor !== 'all' || filters.colegio !== 'all') && (
           <button
             onClick={() => setFilters({
               searchTerm: '',
               status: 'all',
               area: 'all',
               categoria: 'all',
+              tutor: 'all',
+              colegio: 'all',
               sortBy: 'fecha',
               sortOrder: 'desc'
             })}
@@ -540,7 +595,8 @@ const ReportesVarios = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Áreas</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Docente</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tutor</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Colegio</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
@@ -602,21 +658,22 @@ const ReportesVarios = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="space-y-1">
-                        {inscription.area1?.docente_responsable && (
-                          <div className="text-xs text-blue-700 font-medium">
-                            {inscription.area1.docente_responsable}
+                      {inscription.contacto ? 
+                        <div>
+                          <div className="text-sm font-medium">
+                            {inscription.contacto.nombres} {inscription.contacto.apellidos}
                           </div>
-                        )}
-                        {inscription.area2?.docente_responsable && (
-                          <div className="text-xs text-green-700 font-medium">
-                            {inscription.area2.docente_responsable}
+                          <div className="text-xs text-gray-500">
+                            {inscription.contacto.telefono || 'Sin teléfono'}
                           </div>
-                        )}
-                        {(!inscription.area1?.docente_responsable && !inscription.area2?.docente_responsable) && (
-                          <span className="text-gray-400 italic">Sin docente asignado</span>
-                        )}
-                      </div>
+                        </div> :
+                        <span className="text-gray-400 italic">Sin tutor</span>
+                      }
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {inscription.colegio?.nombre || 
+                        <span className="text-gray-400 italic">Sin colegio</span>
+                      }
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(inscription.estado)}
