@@ -46,15 +46,9 @@ export default function Navbar({ onOpenComprobantePago }) {
       footerElement.scrollIntoView({ behavior: 'smooth' });
     } else {
       console.warn('Elemento del footer con id "footer-contact-section" no encontrado.');
-      // Opcionalmente, si el footer solo está en la página de inicio y se quiere asegurar la navegación:
-      // navigate('/');
-      // setTimeout(() => {
-      //   const el = document.getElementById('footer-contact-section');
-      //   if (el) el.scrollIntoView({ behavior: 'smooth' });
-      // }, 100); // Dar tiempo para la navegación
     }
-    setActiveDropdown(null); // Cierra cualquier dropdown abierto
-    setIsMobileMenuOpen(false); // Cierra el menú móvil si está abierto
+    setActiveDropdown(null);
+    setIsMobileMenuOpen(false);
   };
 
   const menuItems = [
@@ -64,8 +58,7 @@ export default function Navbar({ onOpenComprobantePago }) {
       hasDropdown: true,
       dropdownItems: [
         { name: "Individual", link: "/student-registration" },
-        { name: "Grupal", link: "/group-registration" },
-        { name: "Institucional", link: "#" },
+        { name: "Grupal", link: "/group-registration" }
       ],
     },
     {
@@ -81,10 +74,8 @@ export default function Navbar({ onOpenComprobantePago }) {
       name: "Pagos",
       hasDropdown: true,
       dropdownItems: [
-        { name: "Verificar Pago", link: "#" },
-        { name: "Historial", link: "#" },
-        { 
-          name: "Subir comprobante", 
+        {
+          name: "Subir comprobante",
           action: () => {
             console.log("Botón 'Subir comprobante' clickeado en Navbar");
             if (onOpenComprobantePago) {
@@ -102,20 +93,16 @@ export default function Navbar({ onOpenComprobantePago }) {
       hasDropdown: true,
       dropdownItems: [
         { name: "Postulaciones", link: "/student-applications" },
-        { name: "Resultados", link: "#" },
-        { name: "Estadísticas", link: "#" },
-        { name: "Certificados", link: "#" },
-        { 
-          name: "Reportes Varios", 
-          action: () => handleNavigation("/reportes") 
+        {
+          name: "Reportes Varios",
+          action: () => handleNavigation("/reportes")
         },
       ],
     },
-    { 
-      name: "Contacto", 
-      hasDropdown: false, 
-      // link: "#", // Se reemplaza link por action
-      action: scrollToFooterContact 
+    {
+      name: "Contacto",
+      hasDropdown: false,
+      action: scrollToFooterContact
     },
   ];
 
@@ -123,9 +110,7 @@ export default function Navbar({ onOpenComprobantePago }) {
     <div ref={navRef}>
       {/* Navbar Desktop */}
       <nav
-        className={`hidden md:block bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-40 transition-all ${
-          isScrolled ? "shadow-sm dark:shadow-gray-900" : ""
-        }`}
+        className={`hidden md:block bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-40 transition-all ${isScrolled ? "shadow-sm dark:shadow-gray-900" : ""}`}
       >
         <div className="container mx-auto px-4">
           <div className="flex justify-center">
@@ -135,20 +120,11 @@ export default function Navbar({ onOpenComprobantePago }) {
                   <div className="relative">
                     <button
                       onClick={() => toggleDropdown(index)}
-                      className={`px-5 py-4 flex items-center font-medium hover:text-red-600 dark:hover:text-red-500 transition-colors ${
-                        activeDropdown === index
-                          ? "text-red-600 dark:text-red-500"
-                          : "text-gray-800 dark:text-gray-200"
-                      }`}
+                      className={`px-5 py-4 flex items-center font-medium hover:text-red-600 dark:hover:text-red-500 transition-colors ${activeDropdown === index ? "text-red-600 dark:text-red-500" : "text-gray-800 dark:text-gray-200"}`}
                     >
                       {item.name}
-                      <ChevronDown
-                        className={`ml-1 h-4 w-4 transition-transform ${
-                          activeDropdown === index ? "rotate-180" : ""
-                        }`}
-                      />
+                      <ChevronDown className={`ml-1 h-4 w-4 transition-transform ${activeDropdown === index ? "rotate-180" : ""}`} />
                     </button>
-
                     {activeDropdown === index && (
                       <div className="absolute left-1/2 transform -translate-x-1/2 mt-0 w-56 bg-white dark:bg-gray-700 shadow-lg rounded-b-md z-50 border border-gray-100 dark:border-gray-600">
                         {item.dropdownItems.map((dropdownItem, dropIndex) => (
@@ -219,20 +195,11 @@ export default function Navbar({ onOpenComprobantePago }) {
                   <>
                     <button
                       onClick={() => toggleDropdown(index)}
-                      className={`w-full px-4 py-3 flex justify-between items-center ${
-                        activeDropdown === index
-                          ? "text-red-600 dark:text-red-500"
-                          : "text-gray-800 dark:text-gray-200"
-                      }`}
+                      className={`w-full px-4 py-3 flex justify-between items-center ${activeDropdown === index ? "text-red-600 dark:text-red-500" : "text-gray-800 dark:text-gray-200"}`}
                     >
                       <span>{item.name}</span>
-                      <ChevronDown
-                        className={`h-4 w-4 transition-transform ${
-                          activeDropdown === index ? "rotate-180" : ""
-                        }`}
-                      />
+                      <ChevronDown className={`h-4 w-4 transition-transform ${activeDropdown === index ? "rotate-180" : ""}`} />
                     </button>
-
                     {activeDropdown === index && (
                       <div className="pl-6 pb-2">
                         {item.dropdownItems.map((dropdownItem, dropIndex) => (
@@ -276,8 +243,8 @@ export default function Navbar({ onOpenComprobantePago }) {
                   ) : (
                     <button
                       onClick={() => {
-                        if (item.action) item.action(); // Ejecutar la acción si existe
-                        setIsMobileMenuOpen(false); // Siempre cerrar el menú móvil
+                        if (item.action) item.action();
+                        setIsMobileMenuOpen(false);
                       }}
                       className="block w-full text-left px-4 py-3 text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-500"
                     >
