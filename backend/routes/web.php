@@ -16,3 +16,7 @@ Route::get('/', function () {
         return 'Database connection failed: ' . $e->getMessage();
     }
 });
+
+Route::get('/{any}', function(){
+    return view('index');
+})->where('any','.*');

@@ -13,7 +13,7 @@ import EditArea from "./pages/EditArea";
 import ComprobantePago from "./pages/ComprobantePago";
 import AdminLogin from "./pages/AdminLogin";
 import StudentDetail from "./pages/StudentDetail";
-import ReportesVarios from "./pages/ReportesVarios"; // <-- Importamos el nuevo componente
+import ReportesVarios from "./pages/ReportesVarios";
 
 import "./index.css";
 
@@ -57,10 +57,18 @@ const router = createBrowserRouter([
       { path: "student-registration", element: <StudentRegistration /> },
       { path: "group-registration", element: <StudentGroupRegistration /> },
       { path: "student-applications", element: <StudentsApprovedList /> },
+<<<<<<< HEAD
       { path: "student-detail/:ci", element: <StudentDetail /> },
+=======
+>>>>>>> a80222317b452c46e28d56dc15af9b03e802ab70
       { path: "editar-area/:id", element: <EditArea /> },
+      { path: "student-detail/:id", element: <StudentDetail /> },
       { path: "admin", element: <AdminLogin /> },
       { path: "reportes", element: <ReportesVarios /> },
+<<<<<<< HEAD
+=======
+      { path: "comprobante-pago", element: <ComprobantePago /> }, // Ruta directa añadida del main anterior
+>>>>>>> a80222317b452c46e28d56dc15af9b03e802ab70
       { path: "*", element: <Navigate to="/" replace /> },
     ],
   },
