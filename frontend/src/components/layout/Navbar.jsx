@@ -6,10 +6,17 @@ export default function Navbar({ onOpenComprobantePago }) {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const navRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Verificar si hay un usuario logueado al cargar
+    checkAuthStatus();
+    
+    // Escuchar cambios en el estado de autenticación
+    window.addEventListener('user-change', checkAuthStatus);
+
     const handleClickOutside = (event) => {
       if (navRef.current && !navRef.current.contains(event.target)) {
         setActiveDropdown(null);
@@ -27,8 +34,14 @@ export default function Navbar({ onOpenComprobantePago }) {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener('user-change', checkAuthStatus);
     };
   }, []);
+
+  const checkAuthStatus = () => {
+    const user = localStorage.getItem("user");
+    setIsAdmin(!!user); // Convierte a booleano
+  };
 
   const toggleDropdown = (menu) => {
     setActiveDropdown(activeDropdown === menu ? null : menu);
@@ -44,14 +57,13 @@ export default function Navbar({ onOpenComprobantePago }) {
     const footerElement = document.getElementById('footer-contact-section');
     if (footerElement) {
       footerElement.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      console.warn('Elemento del footer con id "footer-contact-section" no encontrado.');
     }
     setActiveDropdown(null);
     setIsMobileMenuOpen(false);
   };
 
-  const menuItems = [
+  // Menú base para todos los usuarios
+  const baseMenuItems = [
     { name: "Inicio", hasDropdown: false, link: "/" },
     {
       name: "Inscripción",
@@ -61,6 +73,15 @@ export default function Navbar({ onOpenComprobantePago }) {
         { name: "Grupal", link: "/group-registration" }
       ],
     },
+    {
+      name: "Contacto",
+      hasDropdown: false,
+      action: scrollToFooterContact
+    },
+  ];
+
+  // Menú solo para administradores
+  const adminMenuItems = [
     {
       name: "Gestión de Áreas",
       hasDropdown: true,
@@ -77,11 +98,8 @@ export default function Navbar({ onOpenComprobantePago }) {
         {
           name: "Subir comprobante",
           action: () => {
-            console.log("Botón 'Subir comprobante' clickeado en Navbar");
             if (onOpenComprobantePago) {
               onOpenComprobantePago();
-            } else {
-              console.error("onOpenComprobantePago no está definido");
             }
             setActiveDropdown(null);
           }
@@ -99,12 +117,10 @@ export default function Navbar({ onOpenComprobantePago }) {
         },
       ],
     },
-    {
-      name: "Contacto",
-      hasDropdown: false,
-      action: scrollToFooterContact
-    },
   ];
+
+  // Combinar menús según el estado de autenticación
+  const menuItems = isAdmin ? [...baseMenuItems, ...adminMenuItems] : baseMenuItems;
 
   return (
     <div ref={navRef}>
