@@ -499,7 +499,16 @@ const StudentRegistration = () => {
       // Asumiendo que apiClient adjunta el cuerpo del error en error.data o similar
       // Nota: La implementación actual de apiClient no parece adjuntar el cuerpo del error explícitamente.
       // Vamos a confiar en el mensaje por ahora, pero podríamos mejorar apiClient si es necesario.
-      
+      if (error.status === 409 ||
+        (typeof error.message === "string" && error.message.toLowerCase().includes("ci ya registrado"))
+      ) {
+        setErrors(prev => ({
+          ...prev,
+          ci: "Ya existe un estudiante registrado con este CI."
+        }));
+        setUiState(prev => ({ ...prev, isSubmitting: false }));
+        return;
+      }
       // Simplificación: Si el mensaje contiene "Error 422", asumimos validación.
       if (error.status === 422 || (typeof error.message === 'string' && error.message.includes('422'))) {
           userErrorMessage = `Error de validación (422). Por favor revise los campos marcados.`;

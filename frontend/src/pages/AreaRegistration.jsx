@@ -216,6 +216,11 @@ const AreaRegistration = () => {
     }))
   }
 
+    const getLevelOptions = () => {
+  if (!formData.name || !areaToLevels[formData.name]) return [];
+  return areaToLevels[formData.name];
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 dark:bg-gray-900 min-h-screen">
       {/* Header */}
