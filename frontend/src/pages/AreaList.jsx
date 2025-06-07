@@ -212,17 +212,23 @@ const AreaList = () => {
           
           {/* Filters toggle */}
           <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md transition-colors"
-          >
-            <Filter className="h-5 w-5 mr-2" />
-            Filtros
-            {showFilters ? (
-              <ChevronUp className="h-5 w-5 ml-1" />
-            ) : (
-              <ChevronDown className="h-5 w-5 ml-1" />
-            )}
-          </button>
+  onClick={() => setShowFilters(!showFilters)}
+  className="flex items-center px-4 py-2 
+             bg-gray-200 text-gray-800 
+             hover:bg-gray-300 
+             dark:bg-gray-800 dark:text-gray-200 
+             dark:hover:bg-gray-700 
+             rounded-md transition-colors duration-300"
+>
+  <Filter className="h-5 w-5 mr-2" />
+  Filtros
+  {showFilters ? (
+    <ChevronUp className="h-5 w-5 ml-1" />
+  ) : (
+    <ChevronDown className="h-5 w-5 ml-1" />
+  )}
+</button>
+
         </div>
         
         {/* Filters panel */}

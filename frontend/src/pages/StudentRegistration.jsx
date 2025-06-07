@@ -60,6 +60,22 @@ const StudentRegistration = () => {
   const [uniqueAreaNamesForDisplay, setUniqueAreaNamesForDisplay] = useState([]);
   const [categoriesForAreaNameMap, setCategoriesForAreaNameMap] = useState({});
 
+  // Estado para dark mode
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Detectar modo oscuro por preferencia del sistema
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setDarkMode(prefersDark);
+
+    // Opcional: escuchar cambios en la preferencia y actualizar el estado
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e) => setDarkMode(e.matches);
+    mediaQuery.addEventListener('change', handler);
+
+    // Limpieza al desmontar componente
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
 
   useEffect(() => {
     const fetchAndProcessAreas = async () => {
@@ -123,10 +139,6 @@ const StudentRegistration = () => {
 
     fetchAndProcessAreas();
   }, [location.state]);
-
-
-  // Ya no se usa directamente areaToCategories, se usa categoriesForAreaNameMap
-  // const areaToCategories = { ... };
 
   const validateSection = (section) => {
     const newErrors = {};
@@ -677,14 +689,14 @@ const StudentRegistration = () => {
 
   // Sección 1: Datos personales del estudiante
   const renderStudentDataSection = () => (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">
-        1. Datos personales del estudiante
-      </h3>
+  <div className="space-y-4">
+    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+      1. Datos personales del estudiante
+    </h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Correo electrónico <span className="text-red-500">*</span>
           </label>
           <input
@@ -706,7 +718,7 @@ const StudentRegistration = () => {
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Apellidos <span className="text-red-500">*</span>
           </label>
           <input
@@ -728,7 +740,7 @@ const StudentRegistration = () => {
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Nombres <span className="text-red-500">*</span>
           </label>
           <input
@@ -750,7 +762,7 @@ const StudentRegistration = () => {
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Carnet de Identidad <span className="text-red-500">*</span>
           </label>
           <input
@@ -772,7 +784,7 @@ const StudentRegistration = () => {
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Fecha de Nacimiento <span className="text-red-500">*</span>
           </label>
           <input
@@ -814,7 +826,7 @@ const StudentRegistration = () => {
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Relación con el estudiante <span className="text-red-500">*</span>
           </label>
           <select
@@ -829,7 +841,7 @@ const StudentRegistration = () => {
         </div>
         
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Nombre completo del tutor <span className="text-red-500">*</span>
           </label>
           <input
@@ -851,7 +863,7 @@ const StudentRegistration = () => {
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Correo electrónico del tutor <span className="text-red-500">*</span>
           </label>
           <input
@@ -859,9 +871,13 @@ const StudentRegistration = () => {
             name="tutorEmail"
             value={formData.tutorEmail}
             onChange={handleChange}
-            className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.tutorEmail ? "border-red-500" : "border-gray-300"
-            }`}
+            className={`w-full px-3 py-2 border rounded-md text-sm 
+  focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
+  ${errors.email ? "border-red-500" : "border-gray-300"} 
+  dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 
+  dark:focus:ring-blue-400 dark:focus:border-blue-400
+`}
+
             placeholder="correo@tutor.com"
           />
           {errors.tutorEmail && (
@@ -873,7 +889,7 @@ const StudentRegistration = () => {
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Teléfono del tutor <span className="text-red-500">*</span>
           </label>
           <input
@@ -923,7 +939,7 @@ const StudentRegistration = () => {
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Colegio <span className="text-red-500">*</span>
           </label>
           <input
@@ -945,7 +961,7 @@ const StudentRegistration = () => {
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Curso <span className="text-red-500">*</span>
           </label>
           <input
@@ -967,7 +983,7 @@ const StudentRegistration = () => {
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Departamento <span className="text-red-500">*</span>
           </label>
           <select
@@ -992,7 +1008,7 @@ const StudentRegistration = () => {
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Provincia <span className="text-red-500">*</span>
           </label>
           <select
@@ -1022,7 +1038,7 @@ const StudentRegistration = () => {
       
       {/* Selección de áreas */}
       <div className="mt-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Áreas de competencia (Máximo 2) <span className="text-red-500">*</span>
         </label>
         
@@ -1063,7 +1079,7 @@ const StudentRegistration = () => {
         {/* Mostrar selectores de categoría para cada área seleccionada */}
         {formData.selections.map(selectedArea => (
           <div key={selectedArea.name} className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Categoría/Nivel para {selectedArea.name} <span className="text-red-500">*</span>
             </label>
             <select
@@ -1116,7 +1132,7 @@ const StudentRegistration = () => {
   // Modal de orden de pago
   const renderPaymentModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in">
+<div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in">
         <div className="text-center">
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
             <Check className="h-6 w-6 text-blue-600" />
@@ -1155,7 +1171,7 @@ const StudentRegistration = () => {
   // Modal de éxito final
   const renderSuccessModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl animate-fade-in">
+<div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-sm w-full shadow-xl animate-fade-in">
         <div className="flex items-center justify-center">
           <div className="flex-shrink-0 h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
             <Check className="h-6 w-6 text-green-600" />
@@ -1194,18 +1210,19 @@ const StudentRegistration = () => {
   return (
 <div className="max-w-4xl mx-auto px-4 py-6 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       <div className="flex items-center justify-between mb-6">
-        <button 
-          onClick={() => navigate(-1)}
-          className="flex items-center text-gray-600 hover:text-gray-900"
-        >
-          <ArrowLeft className="h-5 w-5 mr-1" />
-          Volver
-        </button>
-        <h1 className="text-xl font-bold text-gray-900">
-          Formulario de Postulación
-        </h1>
-        <div className="w-24"></div>
-      </div>
+  <button
+    onClick={() => navigate(-1)}
+    className="flex items-center text-gray-600 hover:text-gray-900 dark:text-white dark:hover:text-gray-300"
+  >
+    <ArrowLeft className="h-5 w-5 mr-1 dark:text-white" />
+    Volver
+  </button>
+  <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+    Formulario de Postulación
+  </h1>
+  <div className="w-24"></div>
+</div>
+
 
       {/* Indicador de pasos */}
       <div className="mb-6">
@@ -1247,7 +1264,7 @@ const StudentRegistration = () => {
         </nav>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+<div className="bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
         <form onSubmit={handleSubmit} className="p-6">
           {currentSection === 1 && renderStudentDataSection()}
           {currentSection === 2 && renderTutorDataSection()}
