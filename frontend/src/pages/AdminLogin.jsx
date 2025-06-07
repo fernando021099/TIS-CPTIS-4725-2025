@@ -8,6 +8,130 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
 
+  // Función para contacto administrativo por Gmail
+  const handleAdminContact = async () => {
+  const email = "wildwirewf@gmail.com";
+  const subject = "Solicitud de acceso al panel administrativo";
+  const body = `Estimado Administrador,
+
+Me dirijo a usted para solicitar acceso al panel administrativo del sistema. A continuación le proporciono los detalles requeridos:
+
+● Nombre completo: [Por favor complete su nombre]
+● Cargo/Rol: [Indique su posición o función]
+● Departamento/Área: [Especifique]
+● Razón de la solicitud: [Describa brevemente por qué necesita acceso]
+
+Información adicional:
+[Agregue cualquier otro detalle relevante que considere necesario]
+
+[Adjunte cualquier documentación requerida si fuera necesario]
+
+Quedo atento(a) a su respuesta y agradezco de antemano su atención.
+
+Atentamente,
+[Su nombre completo]
+[Su información de contacto]
+Fecha: ${new Date().toLocaleDateString('es-ES')}`;
+
+
+  try {
+    const userConfirmed = window.confirm(
+      "¿Deseas abrir Gmail para enviar tu solicitud?\n\n" +
+      "Aceptar: Se abrirá Gmail en tu navegador\n" +
+      "Cancelar: Se usará tu cliente de correo predeterminado"
+    );
+
+    if (userConfirmed) {
+      const gmailWindow = window.open(
+        `https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+        '_blank'
+      );
+      
+      // Esperar un momento y verificar
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      if (!gmailWindow || gmailWindow.closed) {
+        throw new Error('Popup blocked');
+      }
+    } else {
+      window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    }
+  } catch (error) {
+    // Manejo de errores similar al anterior
+  }
+};
+
+// // Función para Recuperar contraseña:
+const handlePasswordRecovery = async () => {
+  const adminEmail = "wildwirewf@gmail.com"; // Mismo email del administrador
+  const subject = "Solicitud de restablecimiento de contraseña";
+  const body = `Estimado Administrador,
+
+Le escribo para solicitar el restablecimiento de mi contraseña en el panel administrativo. A continuación le proporciono los detalles necesarios:
+
+● Nombre de usuario: [Por favor indique su nombre de usuario]
+● Email registrado: [Indique el email asociado a la cuenta]
+● Último acceso aproximado: [Fecha aproximada de su último acceso exitoso]
+
+Información adicional:
+[Describa cualquier circunstancia relevante o información que pueda ayudar a verificar su identidad]
+
+Por favor, notifíqueme cuando haya procesado mi solicitud. Agradezco su asistencia.
+
+Atentamente,
+[Su nombre completo]
+Fecha: ${new Date().toLocaleDateString('es-ES')}`;
+
+  try {
+    const userConfirmed = window.confirm(
+      "¿Deseas abrir tu cliente de correo para solicitar el restablecimiento de contraseña?\n\n" +
+      "Aceptar: Se abrirá tu cliente de correo\n" +
+      "Cancelar: Verás las instrucciones para contactar al administrador"
+    );
+
+    if (userConfirmed) {
+      const mailWindow = window.open(
+        `https://mail.google.com/mail/?view=cm&fs=1&to=${adminEmail}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+        '_blank'
+      );
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      if (!mailWindow || mailWindow.closed) {
+        throw new Error('No se pudo abrir el cliente de correo');
+      }
+    } else {
+      window.location.href = `mailto:${adminEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    }
+  } catch (error) {
+    const manualInstructions = `Para restablecer tu contraseña, envía un correo a:
+${adminEmail}
+
+Asunto:
+"${subject}"
+
+Cuerpo del mensaje:
+${body}
+
+O contacta directamente al administrador del sistema.`;
+    
+    if (window.confirm(
+      "¿Deseas copiar estas instrucciones al portapapeles?\n\n" +
+      "Aceptar: Copiarás los datos para enviar manualmente\n" +
+      "Cancelar: Solo verás las instrucciones"
+    )) {
+      try {
+        await navigator.clipboard.writeText(manualInstructions);
+        alert("Las instrucciones se han copiado al portapapeles");
+      } catch (copyError) {
+        alert(manualInstructions);
+      }
+    } else {
+      alert(manualInstructions);
+    }
+  }
+};
+
   const handleLogin = (e) => {
     e.preventDefault()
     setIsLoading(true)
@@ -105,8 +229,8 @@ export default function AdminLogin() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
+            {/* <div className="flex items-center justify-between"> */}
+              {/* <div className="flex items-center">
                 <input
                   id="remember-me"
                   name="remember-me"
@@ -116,18 +240,25 @@ export default function AdminLogin() {
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
                   Recordar sesión
                 </label>
-              </div>
+              </div> */}
 
-              <div className="text-sm">
-                <button 
+              {/* <div className="text-sm text-center"> */}
+                {/* <button 
                   type="button"
                   className="font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
                   onClick={() => alert("Contacta al administrador para restablecer tu contraseña")}
                 >
                   ¿Olvidaste tu contraseña?
-                </button>
-              </div>
-            </div>
+                </button> */}
+                {/* <a 
+                  href="#" // O usa "mailto:..." como fallback
+                  className="font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 cursor-pointer"
+                  onClick={handlePasswordRecovery}
+                >
+                  ¿Olvidaste tu contraseña?
+                </a> */}
+              {/* </div> */}
+            {/* </div> */}
 
             <div>
               <button
@@ -146,6 +277,17 @@ export default function AdminLogin() {
                 ) : 'Iniciar sesión'}
               </button>
             </div>
+            
+            <div className="text-sm text-center">
+                <a 
+                  href="#" // O usa "mailto:..." como fallback
+                  className="font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 cursor-pointer"
+                  onClick={handlePasswordRecovery}
+                >
+                  ¿Olvidaste tu contraseña?
+                </a>
+            </div>
+            
           </form>
         </div>
         
@@ -154,7 +296,7 @@ export default function AdminLogin() {
             <button 
               type="button"
               className="font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
-              onClick={() => alert("Contacta al administrador para solicitar acceso")}
+              onClick={handleAdminContact}
             >
               Contacta al administrador
             </button>
