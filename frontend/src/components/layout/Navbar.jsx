@@ -51,19 +51,15 @@ export default function Navbar({ onOpenComprobantePago }) {
   };
 
   const scrollToFooterContact = () => {
-    // Cerrar menús primero
     setActiveDropdown(null);
     setIsMobileMenuOpen(false);
     
-    // Pequeño delay para que se complete la animación del menú móvil
     setTimeout(() => {
-      // Si no estamos en la página principal, navegar primero
       if (window.location.pathname !== "/") {
         navigate("/", {
           state: { scrollToFooter: true }
         });
       } else {
-        // Buscar el footer
         const footerElement = document.getElementById("footer-contact-section");
         if (footerElement) {
           footerElement.scrollIntoView({ 
@@ -71,7 +67,6 @@ export default function Navbar({ onOpenComprobantePago }) {
             block: "start"
           });
         } else {
-          // Fallback: scroll al final de la página
           window.scrollTo({
             top: document.body.scrollHeight,
             behavior: "smooth"
@@ -107,6 +102,13 @@ export default function Navbar({ onOpenComprobantePago }) {
       dropdownItems: [
         { name: "Registrar nueva área", link: "/register" },
         { name: "Ver listado de áreas", link: "/areas" },
+      ],
+    },
+    {
+      name: "Gestión de Olimpiadas",
+      hasDropdown: true,
+      dropdownItems: [
+{ name: "Registrar nueva versión", link: "/olympiad-version" },
       ],
     },
     {

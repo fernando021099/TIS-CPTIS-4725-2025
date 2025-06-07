@@ -13,7 +13,8 @@ import EditArea from "./pages/EditArea";
 import ComprobantePago from "./pages/ComprobantePago";
 import AdminLogin from "./pages/AdminLogin";
 import StudentDetail from "./pages/StudentDetail";
-import ReportesVarios from "./pages/ReportesVarios"; // <-- Importamos el nuevo componente
+import ReportesVarios from "./pages/ReportesVarios";
+import OlympiadVersionRegistration from "./pages/OlympiadVersionRegistration";
 
 import "./index.css";
 
@@ -61,6 +62,7 @@ const router = createBrowserRouter([
       { path: "editar-area/:id", element: <EditArea /> },
       { path: "admin", element: <AdminLogin /> },
       { path: "reportes", element: <ReportesVarios /> },
+      { path: "olympiad-version", element: <OlympiadVersionRegistration /> },
       { path: "*", element: <Navigate to="/" replace /> },
     ],
   },

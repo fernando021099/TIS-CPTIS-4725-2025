@@ -353,49 +353,36 @@ const StudentGroupRegistration = () => {
   };
 
   const validateExcelData = (data) => {
-    const errorsList = [];
-    
-    data.forEach((row, index) => {
-      const rowErrors = {};
-      
-      if (!row.Correo) rowErrors.email = "Correo requerido";
-      if (!row.Apellidos) rowErrors.lastName = "Apellidos requeridos";
-      if (!row.Nombres) rowErrors.firstName = "Nombres requeridos";
-      if (!row.Ci_Competidor) rowErrors.ciCompetitor = "CI/Competidor requerido";
-      if (!row['Fecha de Nacimiento']) rowErrors.birthDate = "Fecha de nacimiento requerida";
-      if (!row.Colegio) rowErrors.school = "Colegio requerido";
-      if (!row.Curso) rowErrors.grade = "Curso requerido";
-      if (!row.Departamento) rowErrors.department = "Departamento requerido";
-      if (!row.Provincia) rowErrors.province = "Provincia requerida";
-      if (!row['Area 1']) rowErrors.area1 = "Área 1 requerida";
-      if (row['Area 1'] && !row['Nivel 1']) rowErrors.level1 = "Nivel 1 requerido para Área 1";
+  const errors = [];
+  const validGrades = ['1', '2', '3', '4', '5', '6']; // Ejemplo
 
-      if (row.Correo && !/^\S+@\S+\.\S+$/.test(row.Correo)) {
-        rowErrors.email = "Correo electrónico inválido";
-      }
-      
-      if (row.Ci_Competidor && !/^[0-9]+$/.test(row.Ci_Competidor)) {
-        rowErrors.ciCompetitor = "El CI debe contener solo números";
-      }
-      
-      if (row.Nombres && !/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(row.Nombres)) {
-        rowErrors.firstName = "Nombres solo debe contener letras y espacios";
-      }
-      
-      if (row.Apellidos && !/^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(row.Apellidos)) {
-        rowErrors.lastName = "Apellidos solo debe contener letras y espacios";
-      }
-      
-      if (Object.keys(rowErrors).length > 0) {
-        errorsList.push({
-          rowNumber: index + 2,
-          errors: rowErrors
-        });
-      }
-    });
+  data.forEach((row, index) => {
+    const rowErrors = {};
+
+    // Validación básica
+    if (!row.Nombres?.trim()) rowErrors.Nombres = 'Nombre requerido';
+    if (!row.Ci_Competidor?.toString().trim()) rowErrors.Ci_Competidor = 'CI requerido';
     
-    return errorsList;
-  };
+    // Validación de curso
+    if (!validGrades.includes(row.Curso?.toString().trim())) {
+      rowErrors.Curso = 'Curso no válido';
+    }
+
+    // Validación de áreas
+    if (!row['Area 1']) {
+      rowErrors['Area 1'] = 'Área 1 es obligatoria';
+    }
+
+    if (Object.keys(rowErrors).length > 0) {
+      errors.push({
+        rowNumber: index + 2,
+        errors: rowErrors
+      });
+    }
+  });
+
+  return errors;
+};
   
   const goToNextSection = () => {
     if (validateSection(currentSection)) {
