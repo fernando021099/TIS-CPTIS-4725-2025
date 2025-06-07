@@ -1,20 +1,19 @@
 import { useState, useEffect } from "react"
 import { X, Check, ArrowLeft, List } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-// import { supabase } from '../supabaseClient' // Comentado: No se usa Supabase
-import { api } from '../api/apiClient'; // Importar apiClient
+import { api } from '../api/apiClient'
 
 const AreaRegistration = () => {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
   const [formData, setFormData] = useState({
-    name: "", // Corresponde a 'nombre' en el backend si no es "Otro"
-    customName: "", // Usado si name es "Otro"
-    categoryLevel: "", // Corresponde a 'categoria' en el backend si no es "Otro"
-    customCategory: "", // Usado si categoryLevel es "Otro"
-    cost: "", // Corresponde a 'costo'
-    description: "", // Corresponde a 'descripcion'
-    estado: "activo", // Por defecto 'activo' para nuevas áreas
-    modo: "normal", // Por defecto 'normal', se añadirá como select
+    name: "",
+    customName: "",
+    categoryLevel: "",
+    customCategory: "",
+    cost: "",
+    description: "",
+    estado: "activo",
+    modo: "normal",
   })
 
   const [uiState, setUiState] = useState({
@@ -25,43 +24,36 @@ const AreaRegistration = () => {
   })
 
   const [errors, setErrors] = useState({})
-  const [connectionStatus, setConnectionStatus] = useState({ message: "", type: "" }) // Para mostrar estado de conexión
-  
-  // Datos de opciones para áreas y niveles
+  const [connectionStatus, setConnectionStatus] = useState({ message: "", type: "" })
   const [areaOptions, setAreaOptions] = useState([])
   const [areaToLevels, setAreaToLevels] = useState({})
 
-  // Integración API: Obtener opciones
+  // ============== API: Fetch Options ==============
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const allAreasData = await api.get('/areas'); // Obtener áreas existentes para prellenar opciones
+        const allAreasData = await api.get('/areas')
         
-        const uniqueAreaNamesApi = [...new Set(allAreasData.map(a => a.nombre))].sort();
-        const optionsApi = [...uniqueAreaNamesApi, "Otro (especificar)"];
-        setAreaOptions(optionsApi);
+        const uniqueAreaNamesApi = [...new Set(allAreasData.map(a => a.nombre))].sort()
+        const optionsApi = [...uniqueAreaNamesApi, "Otro (especificar)"]
+        setAreaOptions(optionsApi)
 
-        const levelsMapApi = {};
+        const levelsMapApi = {}
         uniqueAreaNamesApi.forEach(name => {
           levelsMapApi[name] = [...new Set(
             allAreasData
-              .filter(a => a.nombre === name && a.categoria) // Asegurar que categoria exista
+              .filter(a => a.nombre === name && a.categoria)
               .map(a => a.categoria)
-          )].sort();
-        });
-        setAreaToLevels(levelsMapApi);
-        
-        // setConnectionStatus({ 
-        //   message: "Opciones cargadas desde la API",
-        //   type: "success" 
-        // });
+          )].sort()
+        })
+        setAreaToLevels(levelsMapApi)
       } catch (error) {
-        console.error("Error cargando opciones desde API:", error);
+        console.error("Error loading options:", error)
         setConnectionStatus({ 
-          message: `Error al obtener datos de áreas existentes: ${error.response?.data?.message || error.message}`, 
+          message: `Error: ${error.response?.data?.message || error.message}`, 
           type: "error" 
-        });
-        // Mantener valores por defecto en caso de error
+        })
+        // Fallback options
         setAreaOptions([
           "ASTRONOMÍA - ASTROFÍSICA",
           "BIOLOGÍA",
@@ -73,16 +65,12 @@ const AreaRegistration = () => {
           "Otro (especificar)"
         ])
       }
-    };
+    }
     
-    fetchOptions();
+    fetchOptions()
   }, [])
 
-  const getLevelOptions = () => {
-    if (!formData.name || formData.name === "Otro (especificar)") return []
-    return areaToLevels[formData.name] || []
-  }
-
+  // ============== Form Handlers ==============
   const handleChange = (e) => {
     const { name, value } = e.target
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }))
@@ -124,103 +112,86 @@ const AreaRegistration = () => {
     }))
   }
 
+  // ============== Validation ==============
   useEffect(() => {
     const newErrors = {}
     const finalName = formData.name === "Otro (especificar)" ? formData.customName : formData.name
     const finalCategory = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory : formData.categoryLevel
     
-    // Validación del campo de área
     if (!finalName.trim()) newErrors.name = "Nombre de área requerido"
 
     if (formData.name === "Otro (especificar)"){
       const customName = formData.customName.trim()
-      const onlyUppercase = /^[A-ZÁÉÍÓÚÑ ]+$/ // mayúsculas + espacios
-  
-      if (!customName){
-        newErrors.name = "Debe ingresar un nombre"
-      } else if (!onlyUppercase.test(customName)){
-        newErrors.name = "Solo se permiten letras mayúsculas sin números ni caracteres especiales"
-      }
+      const onlyUppercase = /^[A-ZÁÉÍÓÚÑ ]+$/
+      if (!customName) newErrors.name = "Debe ingresar un nombre"
+      else if (!onlyUppercase.test(customName)) newErrors.name = "Solo mayúsculas sin números/caracteres especiales"
     }
     
-    // Validación del campo categoría/nivel
     if (!finalCategory) newErrors.categoryLevel = "Seleccione categoría/nivel"
     
     if (formData.categoryLevel === "Otro (especificar)") {
       const customCategory = formData.customCategory.trim()
-      const lettersAndNumbers = /^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 ]+$/ // Letras (cualquier caso), números, espacios
-  
-      if (!customCategory) {
-        newErrors.categoryLevel = "Debe ingresar una categoría/nivel"
-      } else if (!lettersAndNumbers.test(customCategory)) {
-        newErrors.categoryLevel = "Solo se permiten letras y números (sin caracteres especiales)"
-      }
+      const lettersAndNumbers = /^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 ]+$/
+      if (!customCategory) newErrors.categoryLevel = "Debe ingresar una categoría/nivel"
+      else if (!lettersAndNumbers.test(customCategory)) newErrors.categoryLevel = "Solo letras y números"
     }
     
-    // Validación del campo costo
-    if (!formData.cost || Number(formData.cost) <= 0) newErrors.cost = "Costo inválido (debe ser mayor a 0)"
+    if (!formData.cost || Number(formData.cost) <= 0) newErrors.cost = "Costo inválido (debe ser > 0)"
     if (Number(formData.cost) > 10000) newErrors.cost = "Costo demasiado alto"
 
-    // Validación del campo descripción
     if (formData.description && formData.description.length > 250){
-      newErrors.description = "La descripción no puede exceder los 250 caracteres";
+      newErrors.description = "Máximo 250 caracteres"
     }
 
-    // Validación del campo modo
-    if (!formData.modo) {
-      newErrors.modo = "Seleccione un modo";
-    } else if (!["normal", "especial"].includes(formData.modo)) {
-      newErrors.modo = "Modo inválido";
-    }
+    if (!formData.modo) newErrors.modo = "Seleccione un modo"
+    else if (!["normal", "especial"].includes(formData.modo)) newErrors.modo = "Modo inválido"
     
-    setErrors(newErrors);
-  }, [formData]);
+    setErrors(newErrors)
+  }, [formData])
 
+  // ============== Form Submission ==============
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
     if (Object.keys(errors).length > 0) {
-      setConnectionStatus({ message: "Por favor corrija los errores del formulario.", type: "error" });
-      return;
+      setConnectionStatus({ message: "Corrija los errores del formulario", type: "error" })
+      return
     }
     
     setUiState(prev => ({ ...prev, isSubmitting: true }))
-    setConnectionStatus({ message: "", type: "" }); // Limpiar mensajes previos
+    setConnectionStatus({ message: "", type: "" })
     
     try {
-      const finalName = formData.name === "Otro (especificar)" ? formData.customName.trim() : formData.name;
-      const finalCategory = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory.trim() : formData.categoryLevel;
+      const finalName = formData.name === "Otro (especificar)" ? formData.customName.trim() : formData.name
+      const finalCategory = formData.categoryLevel === "Otro (especificar)" ? formData.customCategory.trim() : formData.categoryLevel
 
       const areaData = {
         nombre: finalName,
         categoria: finalCategory,
         costo: Number(formData.cost),
-        descripcion: formData.description.trim() || null, // Enviar null si está vacío
-        estado: formData.estado, 
-        modo: formData.modo, // Se envía el valor seleccionado
-      };
+        descripcion: formData.description.trim() || null,
+        estado: formData.estado,
+        modo: formData.modo,
+      }
 
-      // console.log("Enviando datos a la API:", areaData);
-      await api.post('/areas', areaData);
+      await api.post('/areas', areaData)
       
       setConnectionStatus({ 
-        message: "Área registrada correctamente en la API.",
+        message: "Área registrada correctamente",
         type: "success" 
       })
       
       setUiState(prev => ({ ...prev, showSuccessModal: true, isSubmitting: false }))
-      // resetForm(); // Se resetea en el modal o al redirigir
 
       setTimeout(() => {
-        setUiState(prev => ({ ...prev, showSuccessModal: false }))
-        navigate('/areas'); // Redirigir a la lista de áreas
+        navigate('/areas')
       }, 2000)
     } catch (error) {
-      console.error("Error al registrar área vía API:", error)
+      console.error("Registration error:", error)
       const errorMsg = error.response?.data?.errors 
         ? Object.values(error.response.data.errors).flat().join(' ') 
-        : (error.response?.data?.message || error.message);
+        : (error.response?.data?.message || error.message)
       setConnectionStatus({ 
-        message: `Error al registrar área: ${errorMsg}`, 
+        message: `Error: ${errorMsg}`, 
         type: "error" 
       })
       setUiState(prev => ({ ...prev, isSubmitting: false }))
@@ -235,9 +206,9 @@ const AreaRegistration = () => {
       customCategory: "",
       cost: "",
       description: "",
-      estado: "activo", // Mantener valor por defecto
-      modo: "normal",   // Mantener valor por defecto
-    });
+      estado: "activo",
+      modo: "normal",
+    })
     setUiState(prev => ({
       ...prev,
       showCustomNameInput: false,
@@ -246,34 +217,34 @@ const AreaRegistration = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      {/* Encabezado */}
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-4xl mx-auto px-4 py-6 dark:bg-gray-900 min-h-screen">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <button 
           onClick={() => navigate(-1)}
-          className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+          className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
         >
           <ArrowLeft className="h-5 w-5 mr-1" />
           Volver
         </button>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white text-center sm:text-left">
           Registro de Áreas
         </h1>
         <button
-          onClick={() => navigate('/areas')} // Asegúrate de que esta ruta coincida con tu configuración de enrutamiento
-          className="flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+          onClick={() => navigate('/areas')}
+          className="flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
         >
           <List className="h-5 w-5 mr-1" />
           Ver listado
         </button>
       </div>
 
-      {/* Mostrar estado de conexión */}
+      {/* Connection Status */}
       {connectionStatus.message && (
         <div className={`mb-4 p-3 rounded-md text-sm ${
           connectionStatus.type === "success" 
-            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
-            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+            ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200" 
+            : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200"
         }`}>
           {connectionStatus.type === "success" ? (
             <Check className="h-4 w-4 inline mr-1" />
@@ -284,8 +255,8 @@ const AreaRegistration = () => {
         </div>
       )}
 
-      {/* Resto del código del formulario sigue igual... */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
+      {/* Form */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 transition-colors">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Complete los datos del área
@@ -294,7 +265,7 @@ const AreaRegistration = () => {
         
         <form onSubmit={handleSubmit} className="p-6">
           <div className="space-y-4">
-            {/* Campo Área */}
+            {/* Area Field */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Área <span className="text-red-500">*</span>
@@ -302,7 +273,7 @@ const AreaRegistration = () => {
               <select
                 value={formData.name}
                 onChange={handleNameChange}
-                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
                   errors.name ? "border-red-500" : "border-gray-300"
                 }`}
               >
@@ -320,7 +291,7 @@ const AreaRegistration = () => {
                     onChange={handleChange}
                     name="customName"
                     placeholder="Nombre personalizado del área"
-                    className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                    className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
                       errors.name ? "border-red-500" : "border-gray-300"
                     }`}
                   />
@@ -328,14 +299,14 @@ const AreaRegistration = () => {
               )}
               
               {errors.name && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
                   <X className="h-4 w-4 mr-1" />
                   {errors.name}
                 </p>
               )}
             </div>
 
-            {/* Campo Categoría/Nivel */}
+            {/* Category Field */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Categoría/Nivel <span className="text-red-500">*</span>
@@ -344,7 +315,7 @@ const AreaRegistration = () => {
                 value={formData.categoryLevel}
                 onChange={handleCategoryLevelChange}
                 disabled={!formData.name}
-                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
                   errors.categoryLevel ? "border-red-500" : "border-gray-300"
                 } ${
                   !formData.name ? "bg-gray-100 dark:bg-gray-600 cursor-not-allowed" : ""
@@ -371,7 +342,7 @@ const AreaRegistration = () => {
                     onChange={handleChange}
                     name="customCategory"
                     placeholder="Categoría/nivel personalizado"
-                    className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                    className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
                       errors.categoryLevel ? "border-red-500" : "border-gray-300"
                     }`}
                   />
@@ -379,15 +350,16 @@ const AreaRegistration = () => {
               )}
               
               {errors.categoryLevel && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
                   <X className="h-4 w-4 mr-1" />
                   {errors.categoryLevel}
                 </p>
               )}
             </div>
 
-            {/* Campo Costo y Modo en una fila */}
+            {/* Cost & Mode Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Cost Field */}
               <div>
                 <label htmlFor="cost" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Costo (Bs.) <span className="text-red-500">*</span>
@@ -402,23 +374,23 @@ const AreaRegistration = () => {
                     id="cost"
                     value={formData.cost}
                     onChange={handleChange}
-                    step="1" // Costo es INT en BD
+                    step="1"
                     min="0"
-                    className={`pl-10 w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                    className={`pl-10 w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
                       errors.cost ? "border-red-500" : "border-gray-300"
                     }`}
                     placeholder="0"
                   />
                 </div>
                 {errors.cost && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
                     <X className="h-4 w-4 mr-1" />
                     {errors.cost}
                   </p>
                 )}
               </div>
               
-              {/* Campo Modo */}
+              {/* Mode Field */}
               <div>
                 <label htmlFor="modo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Modo <span className="text-red-500">*</span>
@@ -428,7 +400,7 @@ const AreaRegistration = () => {
                   id="modo"
                   value={formData.modo}
                   onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                  className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
                     errors.modo ? "border-red-500" : "border-gray-300"
                   }`}
                 >
@@ -436,7 +408,7 @@ const AreaRegistration = () => {
                   <option value="especial">Especial</option>
                 </select>
                 {errors.modo && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
                     <X className="h-4 w-4 mr-1" />
                     {errors.modo}
                   </p>
@@ -444,7 +416,7 @@ const AreaRegistration = () => {
               </div>
             </div>
             
-            {/* Campo Descripción (movido fuera del grid para ocupar ancho completo si es necesario) */}
+            {/* Description Field */}
             <div>
               <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Descripción (opcional)
@@ -454,19 +426,22 @@ const AreaRegistration = () => {
                 id="description"
                 value={formData.description}
                 onChange={handleChange}
-                rows={3} // Aumentado a 3 filas para consistencia con EditArea
-                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                rows={3}
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors ${
                   errors.description ? "border-red-500" : "border-gray-300"
                 }`}
                 placeholder="Descripción breve del área"
               />
               {errors.description && (
-                <p className="text-red-500 text-sm mt-1">{errors.description}</p>
+                <p className="text-red-600 dark:text-red-400 text-sm mt-1 flex items-center">
+                  <X className="h-4 w-4 mr-1" />
+                  {errors.description}
+                </p>
               )}
             </div>
           </div>
 
-          {/* Botones de acción */}
+          {/* Action Buttons */}
           <div className="mt-6 flex justify-end space-x-3">
             <button
               type="button"
@@ -480,8 +455,8 @@ const AreaRegistration = () => {
               disabled={Object.keys(errors).length > 0 || uiState.isSubmitting}
               className={`px-4 py-2 text-sm font-medium text-white rounded-md transition-colors ${
                 Object.keys(errors).length > 0 || uiState.isSubmitting
-                  ? "bg-blue-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700"
+                  ? "bg-blue-400 dark:bg-blue-500 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
               }`}
             >
               {uiState.isSubmitting ? "Registrando..." : "Registrar Área"}
@@ -490,10 +465,10 @@ const AreaRegistration = () => {
         </form>
       </div>
 
-      {/* Modal de éxito */}
+      {/* Success Modal */}
       {uiState.showSuccessModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full shadow-xl animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full shadow-xl animate-fade-in transition-colors">
             <div className="flex items-center justify-center">
               <div className="flex-shrink-0 h-12 w-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
                 <Check className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -510,7 +485,7 @@ const AreaRegistration = () => {
             <div className="mt-4">
               <button
                 type="button"
-                className="w-full px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                className="w-full px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 transition-colors"
                 onClick={() => setUiState(prev => ({ ...prev, showSuccessModal: false }))}
               >
                 Cerrar

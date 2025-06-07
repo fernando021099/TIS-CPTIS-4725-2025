@@ -1192,7 +1192,7 @@ const StudentRegistration = () => {
   );
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
+<div className="max-w-4xl mx-auto px-4 py-6 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       <div className="flex items-center justify-between mb-6">
         <button 
           onClick={() => navigate(-1)}

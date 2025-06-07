@@ -17,8 +17,6 @@ const StudentsApprovedList = () => {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [availableAreas, setAvailableAreas] = useState([]);
-  
-  // Estados para edición
   const [editingInscription, setEditingInscription] = useState(null);
   const [editForm, setEditForm] = useState({
     estado: '',
@@ -33,13 +31,9 @@ const StudentsApprovedList = () => {
   const fetchInscriptions = async () => {
     try {
       setLoading(true);
-      // Cargar todas las inscripciones con sus relaciones
       const response = await api.get('/inscripción?_relations=estudiante,contacto,colegio,area1,area2,olimpiada');
-      console.log('Inscripciones cargadas:', response);
-      
       setInscriptions(response || []);
       
-      // Extraer áreas únicas para filtros
       const areas = new Set();
       response.forEach(inscription => {
         if (inscription.area1?.nombre) areas.add(inscription.area1.nombre);
@@ -92,14 +86,12 @@ const StudentsApprovedList = () => {
         estado: editForm.estado
       };
 
-      // Solo incluir motivo_rechazo si el estado es 'rechazado'
       if (editForm.estado === 'rechazado') {
         updateData.motivo_rechazo = editForm.motivo_rechazo;
       }
 
       await api.put(`/inscripción/${inscriptionId}`, updateData);
       
-      // Actualizar la lista local
       setInscriptions(prev => prev.map(inscription => 
         inscription.id === inscriptionId 
           ? { ...inscription, ...updateData }
@@ -147,9 +139,9 @@ const StudentsApprovedList = () => {
 
   const getStatusBadge = (status) => {
     const badges = {
-      'aprobado': 'bg-green-100 text-green-800',
-      'pendiente': 'bg-yellow-100 text-yellow-800',
-      'rechazado': 'bg-red-100 text-red-800'
+      'aprobado': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      'pendiente': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+      'rechazado': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
     };
     
     const texts = {
@@ -159,7 +151,7 @@ const StudentsApprovedList = () => {
     };
     
     return (
-      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${badges[status] || 'bg-gray-100 text-gray-800'}`}>
+      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${badges[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
         {texts[status] || status}
       </span>
     );
@@ -176,10 +168,10 @@ const StudentsApprovedList = () => {
   if (error) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-600">{error}</p>
+        <p className="text-red-600 dark:text-red-400">{error}</p>
         <button 
           onClick={fetchInscriptions}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
         >
           Reintentar
         </button>
@@ -190,12 +182,11 @@ const StudentsApprovedList = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Reporte de Postulaciones</h1>
-        <p className="text-gray-600">Todas las inscripciones registradas en el sistema</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Reporte de Postulaciones</h1>
+        <p className="text-gray-600 dark:text-gray-400">Todas las inscripciones registradas en el sistema</p>
       </div>
       
-      {/* Filtros y búsqueda */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="relative flex-grow">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -204,7 +195,7 @@ const StudentsApprovedList = () => {
             <input
               type="text"
               placeholder="Buscar por nombre o CI..."
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-md w-full focus:ring-blue-500 focus:border-blue-500"
+              className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md w-full focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
               value={filters.searchTerm}
               onChange={(e) => handleFilterChange({ target: { name: 'searchTerm', value: e.target.value } })}
             />
@@ -213,7 +204,7 @@ const StudentsApprovedList = () => {
           <div className="flex space-x-2">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md"
+              className="flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md dark:text-white"
             >
               <Filter className="h-5 w-5 mr-2" />
               Filtros
@@ -222,7 +213,7 @@ const StudentsApprovedList = () => {
 
             <button
               onClick={() => window.print()}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
             >
               <Download className="h-5 w-5 mr-2" />
               Imprimir
@@ -231,14 +222,14 @@ const StudentsApprovedList = () => {
         </div>
 
         {showFilters && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t">
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado</label>
               <select
                 name="status"
                 value={filters.status}
                 onChange={handleFilterChange}
-                className="w-full border rounded-md px-3 py-2"
+                className="w-full border rounded-md px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               >
                 <option value="all">Todos los estados</option>
                 <option value="aprobado">Aprobados</option>
@@ -248,12 +239,12 @@ const StudentsApprovedList = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Área</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Área</label>
               <select
                 name="area"
                 value={filters.area}
                 onChange={handleFilterChange}
-                className="w-full border rounded-md px-3 py-2"
+                className="w-full border rounded-md px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               >
                 <option value="all">Todas las áreas</option>
                 {availableAreas.map(area => (
@@ -263,12 +254,12 @@ const StudentsApprovedList = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ordenar por</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ordenar por</label>
               <select
                 name="sortBy"
                 value={filters.sortBy}
                 onChange={handleFilterChange}
-                className="w-full border rounded-md px-3 py-2"
+                className="w-full border rounded-md px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               >
                 <option value="fecha">Fecha de Inscripción</option>
                 <option value="estudiante">Nombre del Estudiante</option>
@@ -277,12 +268,12 @@ const StudentsApprovedList = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Orden</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Orden</label>
               <select
                 name="sortOrder"
                 value={filters.sortOrder}
                 onChange={handleFilterChange}
-                className="w-full border rounded-md px-3 py-2"
+                className="w-full border rounded-md px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               >
                 <option value="desc">Descendente</option>
                 <option value="asc">Ascendente</option>
@@ -292,35 +283,33 @@ const StudentsApprovedList = () => {
         )}
       </div>
 
-      {/* Estadísticas rápidas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900">Total</h3>
-          <p className="text-2xl font-bold text-blue-600">{inscriptions.length}</p>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Total</h3>
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{inscriptions.length}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900">Aprobados</h3>
-          <p className="text-2xl font-bold text-green-600">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Aprobados</h3>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
             {inscriptions.filter(i => i.estado === 'aprobado').length}
           </p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900">Pendientes</h3>
-          <p className="text-2xl font-bold text-yellow-600">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Pendientes</h3>
+          <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
             {inscriptions.filter(i => i.estado === 'pendiente').length}
           </p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900">Rechazados</h3>
-          <p className="text-2xl font-bold text-red-600">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Rechazados</h3>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
             {inscriptions.filter(i => i.estado === 'rechazado').length}
           </p>
         </div>
       </div>
 
-      {/* Contador de resultados */}
       <div className="mb-4 flex justify-between items-center">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           Mostrando {filteredInscriptions.length} de {inscriptions.length} inscripciones
         </p>
         {(filters.status !== 'all' || filters.area !== 'all' || filters.searchTerm !== '') && (
@@ -332,60 +321,59 @@ const StudentsApprovedList = () => {
               sortBy: 'fecha',
               sortOrder: 'desc'
             })}
-            className="text-sm text-blue-600 hover:text-blue-800"
+            className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
           >
             Limpiar filtros
           </button>
         )}
       </div>
 
-      {/* Tabla de inscripciones */}
       {filteredInscriptions.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <p className="text-gray-500">No se encontraron inscripciones con los filtros aplicados</p>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center">
+          <p className="text-gray-500 dark:text-gray-400">No se encontraron inscripciones con los filtros aplicados</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estudiante</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CI</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Áreas</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Colegio</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estudiante</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">CI</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Áreas</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Colegio</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Fecha</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Código</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredInscriptions.map((inscription) => (
-                  <tr key={inscription.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <tr key={inscription.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {inscription.id}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {inscription.estudiante ? 
                           `${inscription.estudiante.nombres} ${inscription.estudiante.apellidos}` : 
                           'N/A'
                         }
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
                         {inscription.estudiante?.correo || 'N/A'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {inscription.estudiante?.ci || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       <div>
                         {inscription.area1 && (
                           <div className="mb-1">
-                            <span className="font-medium">{inscription.area1.nombre}</span>
+                            <span className="font-medium dark:text-gray-300">{inscription.area1.nombre}</span>
                             {inscription.area1.categoria && (
                               <span className="text-xs text-gray-400 ml-1">({inscription.area1.categoria})</span>
                             )}
@@ -393,7 +381,7 @@ const StudentsApprovedList = () => {
                         )}
                         {inscription.area2 && (
                           <div>
-                            <span className="font-medium">{inscription.area2.nombre}</span>
+                            <span className="font-medium dark:text-gray-300">{inscription.area2.nombre}</span>
                             {inscription.area2.categoria && (
                               <span className="text-xs text-gray-400 ml-1">({inscription.area2.categoria})</span>
                             )}
@@ -402,9 +390,9 @@ const StudentsApprovedList = () => {
                         {!inscription.area1 && !inscription.area2 && 'Sin áreas'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       <div>
-                        <div className="font-medium">{inscription.colegio?.nombre || 'N/A'}</div>
+                        <div className="font-medium dark:text-gray-300">{inscription.colegio?.nombre || 'N/A'}</div>
                         <div className="text-xs text-gray-400">
                           {inscription.colegio?.departamento}, {inscription.colegio?.provincia}
                         </div>
@@ -417,7 +405,7 @@ const StudentsApprovedList = () => {
                             name="estado"
                             value={editForm.estado}
                             onChange={handleEditChange}
-                            className="text-xs border rounded px-2 py-1 w-full"
+                            className="text-xs border rounded px-2 py-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                           >
                             <option value="pendiente">Pendiente</option>
                             <option value="aprobado">Aprobado</option>
@@ -429,7 +417,7 @@ const StudentsApprovedList = () => {
                               value={editForm.motivo_rechazo}
                               onChange={handleEditChange}
                               placeholder="Motivo del rechazo..."
-                              className="text-xs border rounded px-2 py-1 w-full"
+                              className="text-xs border rounded px-2 py-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                               rows="2"
                             />
                           )}
@@ -438,18 +426,18 @@ const StudentsApprovedList = () => {
                         <div>
                           {getStatusBadge(inscription.estado)}
                           {inscription.motivo_rechazo && (
-                            <div className="text-xs text-red-600 mt-1">
+                            <div className="text-xs text-red-600 dark:text-red-400 mt-1">
                               {inscription.motivo_rechazo}
                             </div>
                           )}
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {inscription.fecha ? new Date(inscription.fecha).toLocaleDateString() : 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      <span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
                         {inscription.codigo_comprobante || 'N/A'}
                       </span>
                     </td>
@@ -460,7 +448,7 @@ const StudentsApprovedList = () => {
                             <button
                               onClick={() => saveChanges(inscription.id)}
                               disabled={isUpdating}
-                              className="text-green-600 hover:text-green-900 disabled:opacity-50 relative group"
+                              className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 disabled:opacity-50 relative group"
                               title="Guardar cambios"
                             >
                               <Save className="h-4 w-4" />
@@ -471,7 +459,7 @@ const StudentsApprovedList = () => {
                             <button
                               onClick={cancelEditing}
                               disabled={isUpdating}
-                              className="text-gray-600 hover:text-gray-900 disabled:opacity-50 relative group"
+                              className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300 disabled:opacity-50 relative group"
                               title="Cancelar edición"
                             >
                               <X className="h-4 w-4" />
@@ -484,7 +472,7 @@ const StudentsApprovedList = () => {
                           <>
                             <button
                               onClick={() => startEditing(inscription)}
-                              className="text-blue-600 hover:text-blue-900 relative group"
+                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 relative group"
                               title="Editar estado"
                             >
                               <Edit className="h-4 w-4" />
@@ -496,7 +484,7 @@ const StudentsApprovedList = () => {
                             {inscription.estudiante?.ci && (
                               <Link
                                 to={`/student-detail/${inscription.estudiante.ci}`}
-                                className="text-indigo-600 hover:text-indigo-900 relative group"
+                                className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 relative group"
                                 title="Ver detalles del estudiante"
                               >
                                 <Eye className="h-4 w-4" />

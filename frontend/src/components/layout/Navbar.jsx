@@ -11,10 +11,7 @@ export default function Navbar({ onOpenComprobantePago }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Verificar si hay un usuario logueado al cargar
     checkAuthStatus();
-    
-    // Escuchar cambios en el estado de autenticación
     window.addEventListener('user-change', checkAuthStatus);
 
     const handleClickOutside = (event) => {
@@ -40,7 +37,7 @@ export default function Navbar({ onOpenComprobantePago }) {
 
   const checkAuthStatus = () => {
     const user = localStorage.getItem("user");
-    setIsAdmin(!!user); // Convierte a booleano
+    setIsAdmin(!!user);
   };
 
   const toggleDropdown = (menu) => {
@@ -54,15 +51,37 @@ export default function Navbar({ onOpenComprobantePago }) {
   };
 
   const scrollToFooterContact = () => {
-    const footerElement = document.getElementById('footer-contact-section');
-    if (footerElement) {
-      footerElement.scrollIntoView({ behavior: 'smooth' });
-    }
+    // Cerrar menús primero
     setActiveDropdown(null);
     setIsMobileMenuOpen(false);
+    
+    // Pequeño delay para que se complete la animación del menú móvil
+    setTimeout(() => {
+      // Si no estamos en la página principal, navegar primero
+      if (window.location.pathname !== "/") {
+        navigate("/", {
+          state: { scrollToFooter: true }
+        });
+      } else {
+        // Buscar el footer
+        const footerElement = document.getElementById("footer-contact-section");
+        if (footerElement) {
+          footerElement.scrollIntoView({ 
+            behavior: "smooth",
+            block: "start"
+          });
+        } else {
+          // Fallback: scroll al final de la página
+          window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: "smooth"
+          });
+        }
+      }
+    }, 300);
   };
 
-  // Menú base para todos los usuarios
+  // Menú base
   const baseMenuItems = [
     { name: "Inicio", hasDropdown: false, link: "/" },
     {
@@ -80,7 +99,7 @@ export default function Navbar({ onOpenComprobantePago }) {
     },
   ];
 
-  // Menú solo para administradores
+  // Menú admin
   const adminMenuItems = [
     {
       name: "Gestión de Áreas",
@@ -88,7 +107,6 @@ export default function Navbar({ onOpenComprobantePago }) {
       dropdownItems: [
         { name: "Registrar nueva área", link: "/register" },
         { name: "Ver listado de áreas", link: "/areas" },
-        { name: "Editar área de prueba", link: "/editar-area/1" },
       ],
     },
     {
@@ -98,9 +116,7 @@ export default function Navbar({ onOpenComprobantePago }) {
         {
           name: "Subir comprobante",
           action: () => {
-            if (onOpenComprobantePago) {
-              onOpenComprobantePago();
-            }
+            onOpenComprobantePago?.();
             setActiveDropdown(null);
           }
         },
@@ -111,22 +127,20 @@ export default function Navbar({ onOpenComprobantePago }) {
       hasDropdown: true,
       dropdownItems: [
         { name: "Postulaciones", link: "/student-applications" },
-        {
-          name: "Reportes Varios",
-          action: () => handleNavigation("/reportes")
-        },
+        { name: "Reportes Varios", link: "/reportes" },
       ],
     },
   ];
 
-  // Combinar menús según el estado de autenticación
   const menuItems = isAdmin ? [...baseMenuItems, ...adminMenuItems] : baseMenuItems;
 
   return (
-    <div ref={navRef}>
+    <div ref={navRef} className="font-sans">
       {/* Navbar Desktop */}
       <nav
-        className={`hidden md:block bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-40 transition-all ${isScrolled ? "shadow-sm dark:shadow-gray-900" : ""}`}
+        className={`hidden md:block bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-40 transition-all ${
+          isScrolled ? "shadow-sm dark:shadow-gray-900/30" : ""
+        }`}
       >
         <div className="container mx-auto px-4">
           <div className="flex justify-center">
@@ -136,10 +150,16 @@ export default function Navbar({ onOpenComprobantePago }) {
                   <div className="relative">
                     <button
                       onClick={() => toggleDropdown(index)}
-                      className={`px-5 py-4 flex items-center font-medium hover:text-red-600 dark:hover:text-red-500 transition-colors ${activeDropdown === index ? "text-red-600 dark:text-red-500" : "text-gray-800 dark:text-gray-200"}`}
+                      className={`px-5 py-4 flex items-center font-medium hover:text-red-600 dark:hover:text-red-400 transition-colors ${
+                        activeDropdown === index ? "text-red-600 dark:text-red-400" : "text-gray-800 dark:text-gray-200"
+                      }`}
                     >
                       {item.name}
-                      <ChevronDown className={`ml-1 h-4 w-4 transition-transform ${activeDropdown === index ? "rotate-180" : ""}`} />
+                      <ChevronDown
+                        className={`ml-1 h-4 w-4 transition-transform ${
+                          activeDropdown === index ? "rotate-180" : ""
+                        }`}
+                      />
                     </button>
                     {activeDropdown === index && (
                       <div className="absolute left-1/2 transform -translate-x-1/2 mt-0 w-56 bg-white dark:bg-gray-700 shadow-lg rounded-b-md z-50 border border-gray-100 dark:border-gray-600">
@@ -170,14 +190,14 @@ export default function Navbar({ onOpenComprobantePago }) {
                   item.link ? (
                     <Link
                       to={item.link}
-                      className="px-5 py-4 flex items-center font-medium text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-500 transition-colors"
+                      className="px-5 py-4 flex items-center font-medium text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                     >
                       {item.name}
                     </Link>
                   ) : (
                     <button
                       onClick={item.action}
-                      className="px-5 py-4 flex items-center font-medium text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-500 transition-colors"
+                      className="px-5 py-4 flex items-center font-medium text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                     >
                       {item.name}
                     </button>
@@ -206,15 +226,21 @@ export default function Navbar({ onOpenComprobantePago }) {
         {isMobileMenuOpen && (
           <div className="container mx-auto px-4">
             {menuItems.map((item, index) => (
-              <div key={index} className="border-t border-gray-100 dark:border-gray-700">
+              <div key={index} className="border-t border-gray-100 dark:border-gray-600">
                 {item.hasDropdown ? (
                   <>
                     <button
                       onClick={() => toggleDropdown(index)}
-                      className={`w-full px-4 py-3 flex justify-between items-center ${activeDropdown === index ? "text-red-600 dark:text-red-500" : "text-gray-800 dark:text-gray-200"}`}
+                      className={`w-full px-4 py-3 flex justify-between items-center ${
+                        activeDropdown === index ? "text-red-600 dark:text-red-400" : "text-gray-800 dark:text-gray-200"
+                      }`}
                     >
                       <span>{item.name}</span>
-                      <ChevronDown className={`h-4 w-4 transition-transform ${activeDropdown === index ? "rotate-180" : ""}`} />
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform ${
+                          activeDropdown === index ? "rotate-180" : ""
+                        }`}
+                      />
                     </button>
                     {activeDropdown === index && (
                       <div className="pl-6 pb-2">
@@ -223,11 +249,8 @@ export default function Navbar({ onOpenComprobantePago }) {
                             <Link
                               key={dropIndex}
                               to={dropdownItem.link}
-                              className="block px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-red-600"
-                              onClick={() => {
-                                setActiveDropdown(null);
-                                setIsMobileMenuOpen(false);
-                              }}
+                              className="block px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400"
+                              onClick={() => setIsMobileMenuOpen(false)}
                             >
                               {dropdownItem.name}
                             </Link>
@@ -235,10 +258,10 @@ export default function Navbar({ onOpenComprobantePago }) {
                             <button
                               key={dropIndex}
                               onClick={() => {
-                                dropdownItem.action();
+                                dropdownItem.action?.();
                                 setIsMobileMenuOpen(false);
                               }}
-                              className="block w-full text-left px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-red-600"
+                              className="block w-full text-left px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400"
                             >
                               {dropdownItem.name}
                             </button>
@@ -251,7 +274,7 @@ export default function Navbar({ onOpenComprobantePago }) {
                   item.link ? (
                     <Link
                       to={item.link}
-                      className="block px-4 py-3 text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-500"
+                      className="block px-4 py-3 text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-400"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       {item.name}
@@ -259,10 +282,10 @@ export default function Navbar({ onOpenComprobantePago }) {
                   ) : (
                     <button
                       onClick={() => {
-                        if (item.action) item.action();
+                        item.action?.();
                         setIsMobileMenuOpen(false);
                       }}
-                      className="block w-full text-left px-4 py-3 text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-500"
+                      className="block w-full text-left px-4 py-3 text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-400"
                     >
                       {item.name}
                     </button>
