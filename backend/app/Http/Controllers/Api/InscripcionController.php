@@ -22,6 +22,25 @@ class InscripcionController extends Controller
     /**
      * Display a listing of the resource.
      */
+
+     public function verificarCIs(Request $request)
+    {
+        $cis = $request->input('cis', []);
+        $olimpiadaVersion = $request->input('olimpiada_version');
+
+        if (!is_array($cis) || !$olimpiadaVersion) {
+            return response()->json(['existentes' => []]);
+        }
+
+        // Busca los CIs que ya están inscritos en la olimpiada indicada
+        $existentes = \App\Models\Inscripcion::where('olimpiada_version', $olimpiadaVersion)
+            ->whereIn('estudiante_id', $cis)
+            ->pluck('estudiante_id')
+            ->toArray();
+
+        return response()->json(['existentes' => $existentes]);
+    }
+
     public function index(Request $request) // Añadir Request para query params
     {
         Log::info('Accediendo al método index de InscripcionController. Prueba de escritura en log.'); // LOG DE PRUEBA
@@ -385,11 +404,25 @@ class InscripcionController extends Controller
             $fechaHoy = now()->toDateString();
             $olimpiadaVersion = $validatedData['olimpiada_version'];
 
+            // Obtener todos los CIs del grupo
+            $cisGrupo = array_map(fn($insc) => $insc['estudiante']['ci'], $validatedData['inscripciones']);
+
+            // Buscar los que ya están inscritos en esta olimpiada
+            $cisYaInscritos = \App\Models\Inscripcion::where('olimpiada_version', $olimpiadaVersion)
+                ->whereIn('estudiante_id', $cisGrupo)
+                ->pluck('estudiante_id')
+                ->toArray();
+
+            // Filtrar inscripciones a solo los que NO están inscritos
+            $inscripcionesARegistrar = array_filter($validatedData['inscripciones'], function($insc) use ($cisYaInscritos) {
+                return !in_array($insc['estudiante']['ci'], $cisYaInscritos);
+            });
+
             // Generar un único ID para el grupo
             $idUnicoGrupo = 'GRP-' . $contactoPrincipal->id . '-' . time();
 
             // 3. Procesar cada inscripción de estudiante
-            foreach ($validatedData['inscripciones'] as $index => $inscripcionData) { // Añadir $index para mensajes de error
+            foreach ($inscripcionesARegistrar as $index => $inscripcionData) { // Añadir $index para mensajes de error
                 $estudiante = Estudiante::updateOrCreate(
                     ['ci' => $inscripcionData['estudiante']['ci']],
                     Arr::except($inscripcionData['estudiante'], ['ci'])
@@ -527,6 +560,7 @@ class InscripcionController extends Controller
                 'codigo_pago' => $idUnicoGrupo,
                 'fecha_limite_pago' => $fechaLimitePago,
                 'ids_inscripciones' => $inscripcionesCreadas,
+                'cis_ya_inscritos' => $cisYaInscritos,
             ], 201);
 
         } catch (ValidationException $e) {

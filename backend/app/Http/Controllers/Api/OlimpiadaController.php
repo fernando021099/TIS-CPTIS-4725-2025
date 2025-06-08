@@ -21,6 +21,11 @@ class OlimpiadaController extends Controller
         return response()->json($olimpiadas);
     }
 
+    public function ultimaVersion()
+    {
+        $ultima = \App\Models\Olimpiada::orderByDesc('version')->first();
+        return response()->json(['version' => $ultima ? $ultima->version : null]);
+    }
     /**
      * Store a newly created resource in storage.
      */

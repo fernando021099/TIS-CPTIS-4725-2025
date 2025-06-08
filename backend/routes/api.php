@@ -32,6 +32,8 @@ Route::apiResource('inscripción', InscripcionController::class);
 // Comenta o elimina esta línea si OCRController no existe aún
 Route::post('/ocr', [OCRController::class, 'procesarImagen']);
 
+Route::post('/inscripción/verificar-cis', [InscripcionController::class, 'verificarCIs']);
+Route::get('/olimpiada/ultima-version', [OlimpiadaController::class, 'ultimaVersion']);
 // Puedes añadir rutas personalizadas aquí si necesitas lógica más específica
 // Ejemplo: Obtener áreas activas
 // Route::get('/areas-activas', [AreaController::class, 'activas']);

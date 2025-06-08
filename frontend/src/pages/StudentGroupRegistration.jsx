@@ -64,6 +64,20 @@ const StudentGroupRegistration = () => {
   const [uniqueAreaNamesForDisplay, setUniqueAreaNamesForDisplay] = useState([]);
   const [categoriesForAreaNameMap, setCategoriesForAreaNameMap] = useState({});
 
+  const [olimpiadaVersion, setOlimpiadaVersion] = useState(null);
+  
+  useEffect(() => {
+  const fetchOlimpiadaVersion = async () => {
+    try {
+      const res = await api.get('/olimpiada/ultima-version');
+      setOlimpiadaVersion(res.version);
+    } catch (e) {
+      setOlimpiadaVersion(null);
+    }
+  };
+  fetchOlimpiadaVersion();
+  }, []);
+
   useEffect(() => {
     const fetchAndProcessAreas = async () => {
       try {
@@ -104,6 +118,19 @@ const StudentGroupRegistration = () => {
 
     fetchAndProcessAreas();
   }, []);
+
+  const checkCIsAlreadyRegistered = async (cis, olimpiadaVersion) => {
+  try {
+    const response = await api.post('/inscripción/verificar-cis', {
+      cis,
+      olimpiada_version: olimpiadaVersion
+    });
+    return response.data.existentes || [];
+  } catch (error) {
+    console.error("Error verificando CIs:", error);
+    return [];
+  }
+  };
 
   const handleTutorChange = (id, e) => {
     const { name, value } = e.target;
@@ -747,7 +774,25 @@ const StudentGroupRegistration = () => {
       if (registrationMethod === "form") {
         validationErrors = validateAllStudents();
         if (validationErrors.length === 0) {
-          studentsDataForApi = students.map(student => {
+
+          // Verificar CIs duplicados en la inscripción
+          const cis = students.map(s => s.ci);
+          const cisDuplicados = await checkCIsAlreadyRegistered(cis, olimpiadaVersion);
+
+          // Filtrar estudiantes no duplicados
+          const studentsNoDuplicados = students.filter(s => !cisDuplicados.includes(s.ci));
+
+          if (studentsNoDuplicados.length === 0) {
+            setExcelErrors([{ message: "Todos los CIs ya están inscritos en esta olimpiada." }]);
+            setUiState(prev => ({
+              ...prev,
+              isSubmitting: false,
+              showErrorsModal: true
+          }));
+          return;
+          }
+
+          studentsDataForApi = studentsNoDuplicados.map(student => {
             const area1Selection = student.areas[0];
             let area2Selection = student.areas[1];
 
@@ -781,7 +826,24 @@ const StudentGroupRegistration = () => {
         }
         validationErrors = validateExcelData(excelData); 
         if (validationErrors.length === 0) {
-          studentsDataForApi = excelData.map(row => {
+
+          const cis = excelData.map(row => row.Ci_Competidor);
+          const cisDuplicados = await checkCIsAlreadyRegistered(cis, olimpiadaVersion);
+
+          // Filtrar filas no duplicadas
+          const excelDataNoDuplicados = excelData.filter(row => !cisDuplicados.includes(row.Ci_Competidor));
+
+          if (excelDataNoDuplicados.length === 0) {
+            setExcelErrors([{ message: "Todos los CIs ya están inscritos en esta olimpiada." }]);
+            setUiState(prev => ({
+              ...prev,
+              isSubmitting: false,
+              showErrorsModal: true
+            }));
+          return;
+          }
+
+          studentsDataForApi = excelDataNoDuplicados.map(row => {
             // Buscar área 1
             let area1 = null;
             if (row['Area 1']) {
@@ -859,22 +921,23 @@ const StudentGroupRegistration = () => {
           celular: tutor.phone
         })),
         inscripciones: studentsDataForApi,
-        olimpiada_version: 2024
+        olimpiada_version: olimpiadaVersion
       };
 
       const responseData = await api.post('/inscripción/grupo', payload);
 
       const paymentInfo = {
         registrationId: responseData.registro_grupal_id || "GRP-" + Date.now(),
-        amount: responseData.monto_total || studentsDataForApi.length * 15,
+        amount: responseData.monto_total,// || studentsDataForApi.length * 15,
         tutorName: tutors[0].name,
-        studentCount: responseData.cantidad_estudiantes || studentsDataForApi.length,
+        studentCount: responseData.cantidad_estudiantes,// || studentsDataForApi.length,
         paymentDeadline: responseData.fecha_limite_pago ? new Date(responseData.fecha_limite_pago) : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-        paymentCode: responseData.codigo_pago || "PAGO-" + Math.random().toString(36).substr(2, 6).toUpperCase()
+        paymentCode: responseData.codigo_pago || "PAGO-" + Math.random().toString(36).substr(2, 6).toUpperCase(),
+        noinscritos: Array.from(new Set(responseData.cis_ya_inscritos || [])),
       };
-      
-      setUiState(prev => ({ 
-        ...prev, 
+
+      setUiState(prev => ({
+        ...prev,
         showPaymentModal: true,
         paymentData: paymentInfo,
         isSubmitting: false
@@ -1147,7 +1210,18 @@ const StudentGroupRegistration = () => {
               <span className="font-medium">Fecha límite:</span>
               <span>{uiState.paymentData.paymentDeadline.toLocaleDateString()}</span>
             </div>
-            
+            {uiState.paymentData.noinscritos && uiState.paymentData.noinscritos.length > 0 && (
+  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+    <p className="text-red-700 text-sm font-medium mb-1">
+      Los siguientes CIs ya estaban inscritos y no fueron registrados nuevamente:
+    </p>
+    <ul className="text-xs text-red-700 pl-4 list-disc">
+        {Array.from(new Set(uiState.paymentData.noinscritos)).map((ci, idx) => (
+        <li key={idx}>{ci}</li>
+      ))}
+    </ul>
+  </div>
+)}
             <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
               <p className="text-yellow-700 dark:text-yellow-400 text-sm">
                 <span className="font-medium">Importante:</span> Debe presentar esta orden de pago en las cajas de la FCyT para completar la inscripción grupal.
