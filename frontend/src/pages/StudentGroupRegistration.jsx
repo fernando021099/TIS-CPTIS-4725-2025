@@ -782,13 +782,45 @@ const StudentGroupRegistration = () => {
         validationErrors = validateExcelData(excelData); 
         if (validationErrors.length === 0) {
           studentsDataForApi = excelData.map(row => {
+            // Buscar área 1
+            let area1 = null;
+            if (row['Area 1']) {
+              area1 = allAreasFromApi.find(a =>
+                a.nombre.trim().toUpperCase() === row['Area 1'].trim().toUpperCase() &&
+                (!row['Nivel 1'] || (a.categoria && a.categoria.trim() === row['Nivel 1'].trim()))
+              );
+            }
+            // Buscar área 2
+            let area2 = null;
+            if (row['Area 2']) {
+              area2 = allAreasFromApi.find(a =>
+                a.nombre.trim().toUpperCase() === row['Area 2'].trim().toUpperCase() &&
+                (!row['Nivel 2'] || (a.categoria && a.categoria.trim() === row['Nivel 2'].trim()))
+              );
+            }
+            
+            // Normalizar fecha de nacimiento a YYYY-MM-DD
+            let birthDate = row['Fecha de Nacimiento'];
+            if (birthDate) {
+              // Si es un string tipo fecha JS, intentar parsear
+              const dateObj = new Date(birthDate);
+              if (!isNaN(dateObj.getTime())) {
+                // Formato YYYY-MM-DD
+                birthDate = dateObj.toISOString().slice(0, 10);
+              } else {
+                // Si ya está en formato correcto, dejarlo
+                birthDate = row['Fecha de Nacimiento'];
+              }
+            } else {
+              birthDate = '';
+            }
             return {
               estudiante: {
                 nombres: row.Nombres,
                 apellidos: row.Apellidos,
                 ci: row.Ci_Competidor,
                 correo: row.Correo,
-                fecha_nacimiento: row['Fecha de Nacimiento'],
+                fecha_nacimiento: birthDate,
                 curso: row.Curso
               },
               colegio: {
@@ -796,10 +828,13 @@ const StudentGroupRegistration = () => {
                 departamento: row.Departamento,
                 provincia: row.Provincia
               },
-              area1_nombre: row['Area 1'] ? row['Area 1'].toUpperCase() : null,
-              area1_categoria: row['Nivel 1'],
-              area2_nombre: row['Area 2'] ? row['Area 2'].toUpperCase() : null,
-              area2_categoria: row['Nivel 2'] || null
+              area1_id: area1 ? area1.id : null,
+              area2_id: area2 ? area2.id : null,
+              // Para compatibilidad, también se envían los nombres/categorías si no se encuentra el área
+              area1_nombre: !area1 && row['Area 1'] ? row['Area 1'].toUpperCase() : undefined,
+              area1_categoria: !area1 && row['Nivel 1'] ? row['Nivel 1'] : undefined,
+              area2_nombre: !area2 && row['Area 2'] ? row['Area 2'].toUpperCase() : undefined,
+              area2_categoria: !area2 && row['Nivel 2'] ? row['Nivel 2'] : undefined
             };
           });
         }
@@ -1032,7 +1067,7 @@ const StudentGroupRegistration = () => {
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full shadow-xl animate-fade-in max-h-[80vh] overflow-y-auto">
         <div className="text-center">
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-            Errores en los datos
+            Errores in los datos
           </h3>
           <div className="mt-4 text-sm text-gray-600 dark:text-gray-300 text-left">
             <p className="mb-4">Por favor corrija los siguientes errores antes de continuar:</p>
@@ -1637,7 +1672,7 @@ const StudentGroupRegistration = () => {
                   </div>
                 ))}
               </div>
-            </div>
+              </div>
           </div>
         ))}
       </div>
