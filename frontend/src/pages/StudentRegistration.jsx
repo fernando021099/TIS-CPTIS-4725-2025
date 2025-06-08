@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Check, ArrowLeft, Upload, Download } from "lucide-react";
+import { X, Check, ArrowLeft, Upload, Download, RefreshCw } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { api } from '../api/apiClient'; // Importar apiClient
 
@@ -418,153 +418,228 @@ const StudentRegistration = () => {
     setCurrentSection(prev => prev - 1);
   };
 
+  // NUEVA FUNCIONALIDAD: Validación de CI duplicado
+  const [isCheckingDuplicateCI, setIsCheckingDuplicateCI] = useState(false);
+  const [duplicateCIError, setDuplicateCIError] = useState("");
+
+  // NUEVA FUNCIONALIDAD: Verificar CI duplicado antes del envío
+  const checkDuplicateCI = async (ci, olimpiadaVersion) => {
+    if (!ci || !olimpiadaVersion) return false;
+    
+    setIsCheckingDuplicateCI(true);
+    try {
+      const response = await api.post('/inscripción/verificar-cis', {
+        cis: [ci],
+        olimpiada_version: olimpiadaVersion
+      });
+      
+      if (response.existentes && response.existentes.length > 0) {
+        return true; // CI ya existe
+      }
+      return false; // CI no existe
+    } catch (error) {
+      console.error('Error al verificar CI duplicado:', error);
+      return false; // En caso de error, permitir continuar
+    } finally {
+      setIsCheckingDuplicateCI(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateSection(3)) return; 
     
-    setUiState(prev => ({ ...prev, isSubmitting: true }));
-    setErrors({}); 
-
-    // Calcular monto total basado en las selecciones
-    const totalAmount = formData.selections.reduce((sum, sel) => sum + (sel.cost || 0), 0);
+    // NUEVA FUNCIONALIDAD: Verificar CI duplicado antes de enviar
+    setDuplicateCIError("");
     
     try {
-      const area1Selection = formData.selections[0];
-      let area2Selection = formData.selections[1];
-
-      // Si la primera área es Robótica, la segunda no debe existir
-      if (area1Selection?.name === "ROBÓTICA") {
-        area2Selection = undefined;
-      }
-
-      const payload = {
-        estudiante: {
-          nombres: formData.firstName,
-          apellidos: formData.lastName,
-          ci: formData.ci,
-          fecha_nacimiento: formData.birthDate,
-          correo: formData.email, 
-          curso: formData.grade, 
-        },
-        contacto: { 
-          nombre: formData.tutorName,
-          correo: formData.tutorEmail, 
-          celular: formData.tutorPhone,
-          relacion: formData.tutorRelation, 
-        },
-        colegio: {
-          nombre: formData.school,
-          departamento: formData.department,
-          provincia: formData.province,
-        },
-        // CAMBIO PRINCIPAL: Enviar IDs en lugar de nombres
-        area1_id: area1Selection ? area1Selection.id : null,
-        area1_categoria: area1Selection ? area1Selection.category : null,
-        area2_id: area2Selection ? area2Selection.id : null,
-        area2_categoria: area2Selection ? area2Selection.category : null,
-        olimpiada_version: olympiadVersion, 
-        fecha: new Date().toISOString().split('T')[0], 
-        estado: 'pendiente', 
-      };
+      // Obtener la olimpiada habilitada
+      const olimpiadaResponse = await api.get('/olimpiadas');
+      const olimpiadaHabilitada = olimpiadaResponse.find(o => o.estado === 'habilitado');
       
-      // Eliminar area2 si no existe o si area1 es Robótica
-      if (!area2Selection || area1Selection?.name === "ROBÓTICA") {
-        delete payload.area2_id;
-        delete payload.area2_categoria;
-      }
-
-
-      console.log("Enviando payload con IDs de áreas:", JSON.stringify(payload, null, 2));
-
-      // 2. Enviar a la API. apiClient devuelve datos JSON parseados o null (para 204), o lanza error.
-      const responseData = await api.post('/inscripción', payload); 
-
-      console.log("Datos recibidos de api.post:", responseData);
-
-      // 3. Procesar respuesta (responseData ya son los datos o null)
-      if (responseData === null) { 
-        // Caso 204 No Content (manejado por apiClient)
-        console.warn("Inscripción creada (204), pero sin datos devueltos.");
-        throw new Error("La inscripción fue creada (204), pero el servidor no devolvió detalles. No se puede generar la orden de pago.");
-
-      } else if (responseData && responseData.registro_id_display) { // Usar registro_id_display
-        // Caso 200/201 con datos JSON y ID de display
-        console.log("Inscripción creada con ID de Display:", responseData.registro_id_display);
-        
-        const paymentInfo = {
-          registrationId: responseData.registro_id_display, // Usar el ID de display para el PDF
-          amount: responseData.monto_total || totalAmount, // Usar monto del backend o el calculado
-          studentName: `${responseData.estudiante?.nombres || formData.firstName} ${responseData.estudiante?.apellidos || formData.lastName}`, 
-          tutorName: responseData.contacto?.nombre || formData.tutorName, 
-          areas: formData.selections.map(s => `${s.name} (${s.category || 'N/A'})`).join(", "),
-          paymentDeadline: responseData.fecha_limite_pago ? new Date(responseData.fecha_limite_pago + 'T00:00:00') : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-          paymentCode: responseData.codigo_pago
-        };
-        
-        setUiState(prev => ({ 
-          ...prev, 
-          showPaymentModal: true,
-          paymentData: paymentInfo, 
-          isSubmitting: false
-        }));
-
-      } else {
-        // Caso inesperado: respuesta exitosa pero sin ID de display o datos inválidos
-        console.error(`Respuesta exitosa pero sin datos válidos o ID de display:`, responseData);
-        throw new Error(`El servidor respondió con éxito, pero no devolvió la información necesaria (ID de display).`);
-      }
-      
-    } catch (error) {
-      // apiClient ya lanza un error formateado para respuestas !response.ok
-      console.error("Error durante el envío o procesamiento:", error);
-      
-      let userErrorMessage = error.message || "Ocurrió un error inesperado.";
-      let validationErrors = {};
-
-      // Intentar extraer errores de validación si el error los contiene (lanzado por apiClient para 422)
-      // Asumiendo que apiClient adjunta el cuerpo del error en error.data o similar
-      // Nota: La implementación actual de apiClient no parece adjuntar el cuerpo del error explícitamente.
-      // Vamos a confiar en el mensaje por ahora, pero podríamos mejorar apiClient si es necesario.
-      
-      // Manejo de CI duplicado
-      if (error.status === 409 ||
-        (typeof error.message === "string" && error.message.toLowerCase().includes("ci"))
-      ) {
-        alert("Ya existe un estudiante registrado con ese CI para esta olimpiada.");
-        setErrors(prev => ({
-          ...prev,
-          ci: "Ya existe un estudiante registrado con este CI para esta olimpiada."
-        }));
-        setUiState(prev => ({ ...prev, isSubmitting: false }));
+      if (!olimpiadaHabilitada) {
+        setErrors({ general: 'No hay olimpiadas habilitadas para inscripción.' });
         return;
       }
-
-      // Simplificación: Si el mensaje contiene "Error 422", asumimos validación.
-      if (error.status === 422 || (typeof error.message === 'string' && error.message.includes('422'))) {
-          userErrorMessage = `Error de validación (422). Por favor revise los campos marcados.`;
-          // Idealmente, apiClient debería parsear y adjuntar los errores de Laravel
-          // para poder mapearlos aquí como se hacía antes.
-          // Por ahora, mostramos un mensaje genérico 422 y no mapeamos campos.
-          // TODO: Mejorar apiClient para adjuntar error.data.errors si es 422.
-          
-          // Ejemplo de cómo sería si apiClient adjuntara los errores:
-          /* 
-          if (error.status === 422 && error.data?.errors) {
-              validationErrors = error.data.errors;
-              const mappedErrors = {};
-              // ... (lógica de mapeo como antes) ...
-              setErrors(mappedErrors);
-              userErrorMessage = `Error de validación (422). Por favor revise los campos marcados.`;
-          } 
-          */
-      } else if (error instanceof TypeError) { 
-          userErrorMessage = "Error de red o CORS. No se pudo conectar con el servidor.";
+      
+      // CORRECCIÓN: Buscar el CI en la estructura correcta de formData
+      // Necesito revisar cómo está estructurado formData en este componente
+      console.log('FormData structure:', formData); // Para debug
+      
+      let studentCI;
+      // Intentar diferentes estructuras posibles basándome en los archivos del backend
+      if (formData.estudiante?.ci) {
+        studentCI = formData.estudiante.ci;
+      } else if (formData.student?.ci) {
+        studentCI = formData.student.ci;
+      } else if (formData.ci) {
+        studentCI = formData.ci;
+      } else {
+        // Buscar en campos individuales si están en el root del formData
+        studentCI = formData.studentCI || formData.studentId;
       }
-      // Otros errores usarán error.message directamente.
       
-      alert(userErrorMessage); 
+      if (!studentCI) {
+        console.error('No se pudo encontrar el CI en formData:', formData);
+        setErrors({ general: 'El CI del estudiante es requerido para verificar duplicados.' });
+        return;
+      }
       
-      setUiState(prev => ({ ...prev, isSubmitting: false }));
+      // Verificar si el CI ya está inscrito
+      const isDuplicate = await checkDuplicateCI(studentCI, olimpiadaHabilitada.version);
+      
+      if (isDuplicate) {
+        setDuplicateCIError(`El estudiante con CI ${studentCI} ya está inscrito en la olimpiada ${olimpiadaHabilitada.nombre} (${olimpiadaHabilitada.version}). No se puede inscribir el mismo estudiante dos veces en la misma olimpiada.`);
+        return;
+      }
+      
+      // Si no hay duplicado, continuar con el envío normal
+      setUiState(prev => ({ ...prev, isSubmitting: true }));
+      setErrors({}); 
+
+      // Calcular monto total basado en las selecciones
+      const totalAmount = formData.selections.reduce((sum, sel) => sum + (sel.cost || 0), 0);
+      
+      try {
+        const area1Selection = formData.selections[0];
+        let area2Selection = formData.selections[1];
+
+        // Si la primera área es Robótica, la segunda no debe existir
+        if (area1Selection?.name === "ROBÓTICA") {
+          area2Selection = undefined;
+        }
+
+        const payload = {
+          estudiante: {
+            nombres: formData.firstName,
+            apellidos: formData.lastName,
+            ci: formData.ci,
+            fecha_nacimiento: formData.birthDate,
+            correo: formData.email, 
+            curso: formData.grade, 
+          },
+          contacto: { 
+            nombre: formData.tutorName,
+            correo: formData.tutorEmail, 
+            celular: formData.tutorPhone,
+            relacion: formData.tutorRelation, 
+          },
+          colegio: {
+            nombre: formData.school,
+            departamento: formData.department,
+            provincia: formData.province,
+          },
+          // CAMBIO PRINCIPAL: Enviar IDs en lugar de nombres
+          area1_id: area1Selection ? area1Selection.id : null,
+          area1_categoria: area1Selection ? area1Selection.category : null,
+          area2_id: area2Selection ? area2Selection.id : null,
+          area2_categoria: area2Selection ? area2Selection.category : null,
+          olimpiada_version: olympiadVersion, 
+          fecha: new Date().toISOString().split('T')[0], 
+          estado: 'pendiente', 
+        };
+        
+        // Eliminar area2 si no existe o si area1 es Robótica
+        if (!area2Selection || area1Selection?.name === "ROBÓTICA") {
+          delete payload.area2_id;
+          delete payload.area2_categoria;
+        }
+
+
+        console.log("Enviando payload con IDs de áreas:", JSON.stringify(payload, null, 2));
+
+        // 2. Enviar a la API. apiClient devuelve datos JSON parseados o null (para 204), o lanza error.
+        const responseData = await api.post('/inscripción', payload); 
+
+        console.log("Datos recibidos de api.post:", responseData);
+
+        // 3. Procesar respuesta (responseData ya son los datos o null)
+        if (responseData === null) { 
+          // Caso 204 No Content (manejado por apiClient)
+          console.warn("Inscripción creada (204), pero sin datos devueltos.");
+          throw new Error("La inscripción fue creada (204), pero el servidor no devolvió detalles. No se puede generar la orden de pago.");
+
+        } else if (responseData && responseData.registro_id_display) { // Usar registro_id_display
+          // Caso 200/201 con datos JSON y ID de display
+          console.log("Inscripción creada con ID de Display:", responseData.registro_id_display);
+          
+          const paymentInfo = {
+            registrationId: responseData.registro_id_display, // Usar el ID de display para el PDF
+            amount: responseData.monto_total || totalAmount, // Usar monto del backend o el calculado
+            studentName: `${responseData.estudiante?.nombres || formData.firstName} ${responseData.estudiante?.apellidos || formData.lastName}`, 
+            tutorName: responseData.contacto?.nombre || formData.tutorName, 
+            areas: formData.selections.map(s => `${s.name} (${s.category || 'N/A'})`).join(", "),
+            paymentDeadline: responseData.fecha_limite_pago ? new Date(responseData.fecha_limite_pago + 'T00:00:00') : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+            paymentCode: responseData.codigo_pago
+          };
+          
+          setUiState(prev => ({ 
+            ...prev, 
+            showPaymentModal: true,
+            paymentData: paymentInfo, 
+            isSubmitting: false
+          }));
+
+        } else {
+          // Caso inesperado: respuesta exitosa pero sin ID de display o datos inválidos
+          console.error(`Respuesta exitosa pero sin datos válidos o ID de display:`, responseData);
+          throw new Error(`El servidor respondió con éxito, pero no devolvió la información necesaria (ID de display).`);
+        }
+        
+      } catch (error) {
+        // apiClient ya lanza un error formateado para respuestas !response.ok
+        console.error("Error durante el envío o procesamiento:", error);
+        
+        let userErrorMessage = error.message || "Ocurrió un error inesperado.";
+        let validationErrors = {};
+
+        // Intentar extraer errores de validación si el error los contiene (lanzado por apiClient para 422)
+        // Asumiendo que apiClient adjunta el cuerpo del error en error.data o similar
+        // Nota: La implementación actual de apiClient no parece adjuntar el cuerpo del error explícitamente.
+        // Vamos a confiar en el mensaje por ahora, pero podríamos mejorar apiClient si es necesario.
+        
+        // Manejo de CI duplicado
+        if (error.status === 409 ||
+          (typeof error.message === "string" && error.message.toLowerCase().includes("ci"))
+        ) {
+          alert("Ya existe un estudiante registrado con ese CI para esta olimpiada.");
+          setErrors(prev => ({
+            ...prev,
+            ci: "Ya existe un estudiante registrado con este CI para esta olimpiada."
+          }));
+          setUiState(prev => ({ ...prev, isSubmitting: false }));
+          return;
+        }
+
+        // Simplificación: Si el mensaje contiene "Error 422", asumimos validación.
+        if (error.status === 422 || (typeof error.message === 'string' && error.message.includes('422'))) {
+            userErrorMessage = `Error de validación (422). Por favor revise los campos marcados.`;
+            // Idealmente, apiClient debería parsear y adjuntar los errores de Laravel
+            // para poder mapearlos aquí como se hacía antes.
+            // Por ahora, mostramos un mensaje genérico 422 y no mapeamos campos.
+            // TODO: Mejorar apiClient para adjuntar error.data.errors si es 422.
+            
+            // Ejemplo de cómo sería si apiClient adjuntara los errores:
+            /* 
+            if (error.status === 422 && error.data?.errors) {
+                validationErrors = error.data.errors;
+                const mappedErrors = {};
+                // ... (lógica de mapeo como antes) ...
+                setErrors(mappedErrors);
+                userErrorMessage = `Error de validación (422). Por favor revise los campos marcados.`;
+            } 
+            */
+        } else if (error instanceof TypeError) { 
+            userErrorMessage = "Error de red o CORS. No se pudo conectar con el servidor.";
+        }
+        // Otros errores usarán error.message directamente.
+        
+        alert(userErrorMessage); 
+        
+        setUiState(prev => ({ ...prev, isSubmitting: false }));
+      }
+    } catch (error) {
+      console.error('Error en verificación previa:', error);
+      setErrors({ general: 'Error al verificar los datos. Intente nuevamente.' });
     }
   };
 
@@ -1235,7 +1310,7 @@ const StudentRegistration = () => {
   );
 
   return (
-<div className="max-w-4xl mx-auto px-4 py-6 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="max-w-4xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
   <button
     onClick={() => navigate(-1)}
@@ -1298,6 +1373,25 @@ const StudentRegistration = () => {
           {currentSection === 3 && renderEducationDataSection()}
         </form>
       </div>
+
+      {/* NUEVA FUNCIONALIDAD: Mensaje de error por CI duplicado */}
+      {duplicateCIError && (
+        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <X className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                Estudiante ya inscrito
+              </h3>
+              <div className="mt-2 text-sm text-red-700 dark:text-red-300">
+                <p>{duplicateCIError}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modales */}
       {uiState.showPaymentModal && renderPaymentModal()}
