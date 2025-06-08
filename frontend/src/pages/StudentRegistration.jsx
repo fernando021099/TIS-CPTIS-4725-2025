@@ -10,7 +10,21 @@ const StudentRegistration = () => {
   // Estado para controlar las secciones activas
   const [currentSection, setCurrentSection] = useState(1);
   const [completedSections, setCompletedSections] = useState([]);
-  
+  const [olympiadVersion, setOlympiadVersion] = useState(null);
+  useEffect(() => {
+  const fetchOlympiadVersion = async () => {
+    try {
+      const data = await api.get('/olimpiada/ultima-version');
+      if (data && data.version) {
+        setOlympiadVersion(data.version);
+      }
+    } catch (error) {
+      console.error('Error al obtener la versión de olimpiada:', error);
+    }
+  };
+  fetchOlympiadVersion();
+}, []);
+
   const [formData, setFormData] = useState({
     // Datos del estudiante
     email: "",
@@ -448,7 +462,7 @@ const StudentRegistration = () => {
         area1_categoria: area1Selection ? area1Selection.category : null,
         area2_id: area2Selection ? area2Selection.id : null,
         area2_categoria: area2Selection ? area2Selection.category : null,
-        olimpiada_version: 2024, 
+        olimpiada_version: olympiadVersion, 
         fecha: new Date().toISOString().split('T')[0], 
         estado: 'pendiente', 
       };
