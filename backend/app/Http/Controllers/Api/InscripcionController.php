@@ -102,6 +102,19 @@ class InscripcionController extends Controller
             
             $validatedData = $request->validate($rules);
             
+            // --- VERIFICACIÓN DE INSCRIPCIÓN DUPLICADA POR CI ---
+            $ci = $validatedData['estudiante']['ci'];
+            $olimpiada_version = $validatedData['olimpiada_version'];
+            $yaInscrito = \App\Models\Inscripcion::where('estudiante_id', $ci)
+                ->where('olimpiada_version', $olimpiada_version)
+                ->exists();
+            if ($yaInscrito) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'Ya existe una inscripción para este CI en esta olimpiada.'
+                ], 409);
+            }
+            // --- FIN VERIFICACIÓN ---
 
             // 2. Buscar o crear Estudiante (usando CI como clave única)
             $estudiante = Estudiante::updateOrCreate(
