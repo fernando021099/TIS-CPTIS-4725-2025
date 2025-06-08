@@ -87,11 +87,6 @@ export default function Navbar({ onOpenComprobantePago }) {
         { name: "Grupal", link: "/group-registration" }
       ],
     },
-    {
-      name: "Contacto",
-      hasDropdown: false,
-      action: scrollToFooterContact
-    },
   ];
 
   // Menú admin
@@ -108,7 +103,7 @@ export default function Navbar({ onOpenComprobantePago }) {
       name: "Gestión de Olimpiadas",
       hasDropdown: true,
       dropdownItems: [
-{ name: "Registrar nueva versión", link: "/olympiad-version" },
+        { name: "Registrar nueva versión", link: "/olympiad-version" },
       ],
     },
     {
@@ -117,10 +112,12 @@ export default function Navbar({ onOpenComprobantePago }) {
       dropdownItems: [
         {
           name: "Subir comprobante",
-          action: () => {
-            onOpenComprobantePago?.();
-            setActiveDropdown(null);
-          }
+          link: "/comprobante-pago" // Cambiado de action a link
+          // Código anterior comentado:
+          // action: () => {
+          //   onOpenComprobantePago?.();
+          //   setActiveDropdown(null);
+          // }
         },
       ],
     },
@@ -134,7 +131,16 @@ export default function Navbar({ onOpenComprobantePago }) {
     },
   ];
 
-  const menuItems = isAdmin ? [...baseMenuItems, ...adminMenuItems] : baseMenuItems;
+  // Contacto siempre va al final
+  const contactMenuItem = {
+    name: "Contacto",
+    hasDropdown: false,
+    action: scrollToFooterContact
+  };
+
+  const menuItems = isAdmin 
+    ? [...baseMenuItems, ...adminMenuItems, contactMenuItem] 
+    : [...baseMenuItems, contactMenuItem];
 
   return (
     <div ref={navRef} className="font-sans">

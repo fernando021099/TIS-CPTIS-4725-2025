@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log; // Para logs si es necesario
 use Illuminate\Validation\Rule; // Para reglas de validación
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\DB; // Importar DB para transacciones
 
 class OlimpiadaController extends Controller
 {
@@ -38,12 +39,40 @@ class OlimpiadaController extends Controller
             'estado' => ['required', 'string', 'max:50', Rule::in(['habilitado', 'cerrado', 'proximamente'])], // Sugerencia: Usar Rule::in para estados definidos
         ]);
 
+        DB::beginTransaction();
         try {
-            // Como la PK no es autoincremental, la pasamos directamente
+            // Si la nueva olimpiada se va a establecer como 'habilitado',
+            // cambiar todas las demás que actualmente estén 'habilitado' a 'cerrado'.
+            if ($validatedData['estado'] === 'habilitado') {
+                Olimpiada::where('estado', 'habilitado')
+                           // Opcional: excluir la versión actual si ya existiera y se estuviera actualizando (no aplica en store con unique:version)
+                           // ->where('version', '!=', $validatedData['version']) 
+                           ->update(['estado' => 'cerrado']);
+            }
+            
             $olimpiada = Olimpiada::create($validatedData);
+            
+            DB::commit();
             return response()->json($olimpiada, 201); // 201 Created
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            Log::warning('Error de validación al crear olimpiada: ', $e->errors());
+            // Relanzar para que Laravel maneje la respuesta de error de validación (422)
+            throw $e;
+        } catch (\Illuminate\Database\QueryException $e) { // Captura errores de base de datos más específicos
+            DB::rollBack();
+            Log::error('Error de base de datos al crear olimpiada: '.$e->getMessage());
+            // Verificar si es un error de clave duplicada (código 1062 para MySQL)
+            if ($e->errorInfo[1] == 1062) {
+                 return response()->json([
+                    'message' => 'Error al crear la olimpiada: La versión ya existe.',
+                    'errors' => ['version' => ['La versión especificada ya existe.']]
+                ], 422); // 422 Unprocessable Entity es apropiado para errores de validación semántica
+            }
+            return response()->json(['message' => 'Error de base de datos al crear la olimpiada.'], 500);
         } catch (\Exception $e) {
-            Log::error('Error creating olimpiada: '.$e->getMessage());
+            DB::rollBack();
+            Log::error('Error general al crear olimpiada: '.$e->getMessage());
             return response()->json(['message' => 'Error al crear la olimpiada'], 500);
         }
     }
