@@ -31,6 +31,7 @@ const ReportesVarios = () => {
   const fetchInscriptions = async () => {
     try {
       setLoading(true);
+      // MODIFICADO: Agregado contacto a las relaciones para obtener datos del tutor
       const response = await api.get('/inscripción?_relations=estudiante,contacto,colegio,area1,area2,olimpiada');
       
       setInscriptions(response || []);
@@ -46,7 +47,8 @@ const ReportesVarios = () => {
         if (inscription.area2?.nombre) areas.add(inscription.area2.nombre);
         if (inscription.area1?.categoria) categorias.add(inscription.area1.categoria);
         if (inscription.area2?.categoria) categorias.add(inscription.area2.categoria);
-        if (inscription.contacto?.nombres) tutores.add(`${inscription.contacto.nombres} ${inscription.contacto.apellidos}`);
+        // MODIFICADO: Usar datos del contacto en lugar de contacto_tutor
+        if (inscription.contacto?.nombre) tutores.add(`${inscription.contacto.nombre}`);
         if (inscription.colegio?.nombre) colegios.add(inscription.colegio.nombre);
       });
       
@@ -72,8 +74,9 @@ const ReportesVarios = () => {
     const studentName = inscription.estudiante ? 
       `${inscription.estudiante.nombres} ${inscription.estudiante.apellidos}`.toLowerCase() : '';
     const studentCI = inscription.estudiante?.ci || '';
+    // MODIFICADO: Usar datos del contacto en lugar de contacto_tutor
     const tutorName = inscription.contacto ?
-      `${inscription.contacto.nombres} ${inscription.contacto.apellidos}`.toLowerCase() : '';
+      `${inscription.contacto.nombre}`.toLowerCase() : '';
     
     return (
       (filters.searchTerm === '' || 
@@ -232,11 +235,11 @@ const ReportesVarios = () => {
             <h3>👨‍🏫 Información del Tutor</h3>
             <div class="field">
               <span class="field-label">Nombre del Tutor:</span>
-              <span class="field-value">${inscription.contacto?.nombres || 'N/A'} ${inscription.contacto?.apellidos || ''}</span>
+              <span class="field-value">${inscription.contacto?.nombre || 'N/A'}</span>
             </div>
             <div class="field">
               <span class="field-label">Teléfono del Tutor:</span>
-              <span class="field-value">${inscription.contacto?.telefono || 'No disponible'}</span>
+              <span class="field-value">${inscription.contacto?.celular || 'No disponible'}</span>
             </div>
             <div class="field">
               <span class="field-label">Correo del Tutor:</span>
@@ -656,10 +659,10 @@ const ReportesVarios = () => {
                       {inscription.contacto ? 
                         <div>
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {inscription.contacto.nombres} {inscription.contacto.apellidos}
+                            {inscription.contacto.nombre}
                           </div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {inscription.contacto.telefono || 'Sin teléfono'}
+                            {inscription.contacto.celular || 'Sin teléfono'}
                           </div>
                         </div> :
                         <span className="text-gray-400 italic">Sin tutor</span>
