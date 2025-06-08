@@ -37,6 +37,8 @@ class OlimpiadaController extends Controller
             'nombre' => 'required|string|max:50',
             'fecha' => 'required|date_format:Y-m-d', // Validar formato fecha AAAA-MM-DD
             'estado' => ['required', 'string', 'max:50', Rule::in(['habilitado', 'cerrado', 'proximamente'])], // Sugerencia: Usar Rule::in para estados definidos
+        ], [
+            'version.unique' => 'Esta versión ya se ha registrado antes.',
         ]);
 
         DB::beginTransaction();
@@ -106,8 +108,30 @@ class OlimpiadaController extends Controller
                 'estado' => ['sometimes', 'required', 'string', 'max:50', Rule::in(['habilitado', 'cerrado', 'proximamente'])], // Sugerencia: Usar Rule::in
             ]);
 
-            $olimpiada->update($validatedData);
-            return response()->json($olimpiada);
+            // NUEVA FUNCIONALIDAD: Manejar lógica de olimpiada única habilitada
+            DB::beginTransaction();
+            try {
+                // Si se va a cambiar el estado a 'habilitado', cerrar todas las demás olimpiadas que estén habilitadas
+                // Esto asegura que solo haya una olimpiada habilitada a la vez
+                if (isset($validatedData['estado']) && $validatedData['estado'] === 'habilitado') {
+                    Olimpiada::where('estado', 'habilitado')
+                             ->where('version', '!=', $version) // Excluir la olimpiada actual
+                             ->update(['estado' => 'cerrado']);
+                }
+
+                $olimpiada->update($validatedData);
+                
+                DB::commit();
+                return response()->json($olimpiada);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+            // FIN NUEVA FUNCIONALIDAD
+
+            // CÓDIGO ANTERIOR - Sin control de olimpiada única:
+            // $olimpiada->update($validatedData);
+            // return response()->json($olimpiada);
 
         } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Olimpiada no encontrada'], 404);
