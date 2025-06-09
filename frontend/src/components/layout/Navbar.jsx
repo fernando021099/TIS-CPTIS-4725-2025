@@ -87,6 +87,21 @@ export default function Navbar({ onOpenComprobantePago }) {
         { name: "Grupal", link: "/group-registration" }
       ],
     },
+    {
+      name: "Pagos",
+      hasDropdown: true,
+      dropdownItems: [
+        {
+          name: "Subir comprobante",
+          link: "/comprobante-pago" // Cambiado de action a link
+          // Código anterior comentado:
+          // action: () => {
+          //   onOpenComprobantePago?.();
+          //   setActiveDropdown(null);
+          // }
+        },
+      ],
+    },
   ];
 
   // Menú admin
@@ -104,21 +119,6 @@ export default function Navbar({ onOpenComprobantePago }) {
       hasDropdown: true,
       dropdownItems: [
         { name: "Registrar nueva versión", link: "/olympiad-version" },
-      ],
-    },
-    {
-      name: "Pagos",
-      hasDropdown: true,
-      dropdownItems: [
-        {
-          name: "Subir comprobante",
-          link: "/comprobante-pago" // Cambiado de action a link
-          // Código anterior comentado:
-          // action: () => {
-          //   onOpenComprobantePago?.();
-          //   setActiveDropdown(null);
-          // }
-        },
       ],
     },
     {
