@@ -69,7 +69,7 @@ const StudentGroupRegistration = () => {
   const [allAreasFromApi, setAllAreasFromApi] = useState([]);
   const [uniqueAreaNamesForDisplay, setUniqueAreaNamesForDisplay] = useState([]);
   const [categoriesForAreaNameMap, setCategoriesForAreaNameMap] = useState({});
-
+  
   const [olimpiadaVersion, setOlimpiadaVersion] = useState(null);
   
   useEffect(() => {

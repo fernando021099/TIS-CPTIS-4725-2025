@@ -24,7 +24,7 @@ const StudentRegistration = () => {
   };
   fetchOlympiadVersion();
 }, []);
-
+  const [generalError, setGeneralError] = useState("");
   const [formData, setFormData] = useState({
     // Datos del estudiante
     email: "",
@@ -526,6 +526,15 @@ const StudentRegistration = () => {
       // Nota: La implementación actual de apiClient no parece adjuntar el cuerpo del error explícitamente.
       // Vamos a confiar en el mensaje por ahora, pero podríamos mejorar apiClient si es necesario.
       
+      // Manejo de fecha de inscripción vencida
+      if (
+        (error.status === 422 && error.data?.message && error.data.message.includes("Ya pasó la fecha de inscripción")) ||
+        (typeof error.message === "string" && error.message.includes("Ya pasó la fecha de inscripción"))
+      ) {
+        setGeneralError("Ya pasó la fecha de inscripción para esta olimpiada.");
+        setUiState(prev => ({ ...prev, isSubmitting: false }));
+        return;
+      }
       // Manejo de CI duplicado
       if (error.status === 409 ||
         (typeof error.message === "string" && error.message.toLowerCase().includes("ci"))
@@ -536,6 +545,7 @@ const StudentRegistration = () => {
           ci: "Ya existe un estudiante registrado con este CI para esta olimpiada."
         }));
         setUiState(prev => ({ ...prev, isSubmitting: false }));
+        setGeneralError("");
         return;
       }
 
@@ -563,7 +573,7 @@ const StudentRegistration = () => {
       // Otros errores usarán error.message directamente.
       
       alert(userErrorMessage); 
-      
+      setGeneralError(userErrorMessage); // Muestra otros errores generales
       setUiState(prev => ({ ...prev, isSubmitting: false }));
     }
   };
@@ -1292,6 +1302,11 @@ const StudentRegistration = () => {
       </div>
 
 <div className="bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
+      {generalError && (
+        <div className="p-4 bg-red-100 border border-red-300 text-red-700 rounded mb-4 text-center">
+          {generalError}
+        </div>
+      )}
         <form onSubmit={handleSubmit} className="p-6">
           {currentSection === 1 && renderStudentDataSection()}
           {currentSection === 2 && renderTutorDataSection()}

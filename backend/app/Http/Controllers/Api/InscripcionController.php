@@ -120,6 +120,21 @@ class InscripcionController extends Controller
             }
             
             $validatedData = $request->validate($rules);
+            //Verificar que la fecha de inscripción no sea posterior a la fecha de la olimpiada
+            $fechaRegistro = $validatedData['fecha'];
+            $olimpiada = \App\Models\Olimpiada::find($validatedData['olimpiada_version']);
+
+            if (!$olimpiada) {
+                DB::rollBack();
+                return response()->json(['message' => 'Olimpiada no encontrada.'], 404);
+            }
+
+            if ($fechaRegistro > $olimpiada->fecha) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'Ya pasó la fecha de inscripción para esta olimpiada.'
+                ], 422);
+            }
             
             // --- VERIFICACIÓN DE INSCRIPCIÓN DUPLICADA POR CI ---
             $ci = $validatedData['estudiante']['ci'];
@@ -127,6 +142,7 @@ class InscripcionController extends Controller
             $yaInscrito = \App\Models\Inscripcion::where('estudiante_id', $ci)
                 ->where('olimpiada_version', $olimpiada_version)
                 ->exists();
+                Log::info('¿Ya inscrito?', ['resultado' => $yaInscrito]);
             if ($yaInscrito) {
                 DB::rollBack();
                 return response()->json([
@@ -403,6 +419,22 @@ class InscripcionController extends Controller
             $montoTotal = 0;
             $fechaHoy = now()->toDateString();
             $olimpiadaVersion = $validatedData['olimpiada_version'];
+
+            // Obtener la olimpiada
+            $olimpiada = \App\Models\Olimpiada::find($olimpiadaVersion);
+
+            if (!$olimpiada) {
+                DB::rollBack();
+                return response()->json(['message' => 'Olimpiada no encontrada.'], 404);
+            }
+
+            // Validar que la fecha de inscripción (hoy) sea menor o igual a la fecha de la olimpiada
+            if ($fechaHoy > $olimpiada->fecha) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'Ya pasó la fecha de inscripción para esta olimpiada.'
+                ], 422);
+            }
 
             // Obtener todos los CIs del grupo
             $cisGrupo = array_map(fn($insc) => $insc['estudiante']['ci'], $validatedData['inscripciones']);
