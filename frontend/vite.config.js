@@ -9,7 +9,6 @@ export default defineConfig({
   plugins: [
     react(),
     nodePolyfills({
-      // Polyfills específicos
       globals: {
         Buffer: true,
         process: true,
@@ -24,12 +23,11 @@ export default defineConfig({
     'process.env.NODE_DEBUG': JSON.stringify(''),
   },
   optimizeDeps: {
-    include: ['exceljs'], // Actualizado para incluir solo exceljs o lo que realmente uses
+    include: ['exceljs'],
     esbuildOptions: {
       define: {
         global: 'globalThis'
       },
-      // Opcional: Si necesitas soporte para crypto
       plugins: [
         {
           name: 'fix-node-globals-polyfill',
@@ -38,23 +36,27 @@ export default defineConfig({
           }
         }
       ],
-      // Añadido para mejor soporte de Node
       target: 'es2020',
     }
   },
   build: {
     commonjsOptions: {
       transformMixedEsModules: true,
-      // Eliminada la exclusión de xlsx-style
     },
     rollupOptions: {
-      // Opcional: para manejar dependencias pesadas
-      external: ['fs'], 
+      external: ['fs'],
     }
   },
   resolve: {
     alias: {
-      // Eliminado el alias para './cptable'
+      // aquí tus alias si necesitas
     }
+  },
+  // Agrega esta sección para definir el servidor de desarrollo
+  server: {
+    host: 'localhost',
+    port: 3000,
+    strictPort: true, // falla si el puerto está ocupado
+    open: true, // abre el navegador automáticamente
   }
 })
